@@ -82,6 +82,18 @@ const crearTablas = () => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );`);
     
+    // Tabla de conexiones activas para control de múltiples pestañas
+    db.run(`CREATE TABLE IF NOT EXISTS conexiones_activas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre_jugador TEXT NOT NULL,
+        auth_jugador TEXT,
+        ip_simulada TEXT NOT NULL,
+        identificador_conexion TEXT UNIQUE NOT NULL,
+        fecha_conexion DATETIME DEFAULT CURRENT_TIMESTAMP,
+        ultima_actividad DATETIME DEFAULT CURRENT_TIMESTAMP,
+        activa INTEGER DEFAULT 1
+    );`);
+    
     console.log('✅ Tablas de base de datos creadas/verificadas');
 };
 
@@ -476,6 +488,195 @@ const dbFunctions = {
         });
     },
     
+    // ====================== FUNCIONES PARA CONTROL DE CONEXIONES MÚLTIPLES ======================
+    
+    // Registrar nueva conexión
+    registrarConexion: (nombreJugador, authJugador, ipSimulada, identificadorConexion) => {
+        return new Promise((resolve, reject) => {
+            const query = `INSERT INTO conexiones_activas 
+                          (nombre_jugador, auth_jugador, ip_simulada, identificador_conexion)
+                          VALUES (?, ?, ?, ?)`;
+            
+            db.run(query, [nombreJugador, authJugador, ipSimulada, identificadorConexion], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    console.log(`🔗 Nueva conexión registrada: ${nombreJugador} (${ipSimulada})`);
+                    resolve(this.lastID);
+                }
+            });
+        });
+    },
+    
+    // Verificar si un jugador ya tiene conexiones activas
+    verificarConexionesExistentes: (nombreJugador, authJugador = null) => {
+        return new Promise((resolve, reject) => {
+            let query = `SELECT * FROM conexiones_activas 
+                        WHERE activa = 1 AND (nombre_jugador = ?`;
+            let params = [nombreJugador];
+            
+            // Si tenemos auth, también verificar por auth
+            if (authJugador) {
+                query += ` OR auth_jugador = ?`;
+                params.push(authJugador);
+            }
+            
+            query += `)`;
+            
+            db.all(query, params, (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const conexionesActivas = rows.length;
+                    const tieneConexionesMultiples = conexionesActivas > 0;
+                    
+                    console.log(`🔍 Verificación de conexiones para ${nombreJugador}: ${conexionesActivas} activas`);
+                    
+                    resolve({
+                        tieneConexionesMultiples,
+                        conexionesActivas,
+                        detalles: rows
+                    });
+                }
+            });
+        });
+    },
+    
+    // Desactivar conexión específica
+    desactivarConexion: (identificadorConexion) => {
+        return new Promise((resolve, reject) => {
+            const query = `UPDATE conexiones_activas 
+                          SET activa = 0, ultima_actividad = CURRENT_TIMESTAMP 
+                          WHERE identificador_conexion = ?`;
+            
+            db.run(query, [identificadorConexion], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    console.log(`❌ Conexión desactivada: ${identificadorConexion}`);
+                    resolve(this.changes);
+                }
+            });
+        });
+    },
+    
+    // Desactivar todas las conexiones de un jugador
+    desactivarConexionesJugador: (nombreJugador, authJugador = null) => {
+        return new Promise((resolve, reject) => {
+            let query = `UPDATE conexiones_activas 
+                        SET activa = 0, ultima_actividad = CURRENT_TIMESTAMP 
+                        WHERE activa = 1 AND (nombre_jugador = ?`;
+            let params = [nombreJugador];
+            
+            if (authJugador) {
+                query += ` OR auth_jugador = ?`;
+                params.push(authJugador);
+            }
+            
+            query += `)`;
+            
+            db.run(query, params, function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    console.log(`🚫 ${this.changes} conexiones desactivadas para ${nombreJugador}`);
+                    resolve(this.changes);
+                }
+            });
+        });
+    },
+    
+    // Actualizar última actividad de una conexión
+    actualizarActividadConexion: (identificadorConexion) => {
+        return new Promise((resolve, reject) => {
+            const query = `UPDATE conexiones_activas 
+                          SET ultima_actividad = CURRENT_TIMESTAMP 
+                          WHERE identificador_conexion = ? AND activa = 1`;
+            
+            db.run(query, [identificadorConexion], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes);
+                }
+            });
+        });
+    },
+    
+    // Limpiar conexiones inactivas (más de 10 minutos sin actividad)
+    limpiarConexionesInactivas: () => {
+        return new Promise((resolve, reject) => {
+            const query = `UPDATE conexiones_activas 
+                          SET activa = 0 
+                          WHERE activa = 1 
+                          AND datetime('now') > datetime(ultima_actividad, '+10 minutes')`;
+            
+            db.run(query, [], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    if (this.changes > 0) {
+                        console.log(`🧹 ${this.changes} conexiones inactivas limpiadas`);
+                    }
+                    resolve(this.changes);
+                }
+            });
+        });
+    },
+    
+    // Obtener estadísticas de conexiones
+    obtenerEstadisticasConexiones: () => {
+        return new Promise((resolve, reject) => {
+            const queries = {
+                totalActivas: 'SELECT COUNT(*) as count FROM conexiones_activas WHERE activa = 1',
+                totalHistoricas: 'SELECT COUNT(*) as count FROM conexiones_activas',
+                jugadoresConMultiples: `SELECT nombre_jugador, COUNT(*) as conexiones 
+                                       FROM conexiones_activas 
+                                       WHERE activa = 1 
+                                       GROUP BY nombre_jugador 
+                                       HAVING COUNT(*) > 1`,
+                topIPs: `SELECT ip_simulada, COUNT(*) as conexiones 
+                        FROM conexiones_activas 
+                        WHERE activa = 1 
+                        GROUP BY ip_simulada 
+                        ORDER BY COUNT(*) DESC 
+                        LIMIT 10`
+            };
+            
+            const resultados = {};
+            let completadas = 0;
+            const totalQueries = Object.keys(queries).length;
+            
+            Object.entries(queries).forEach(([key, query]) => {
+                if (key === 'jugadoresConMultiples' || key === 'topIPs') {
+                    db.all(query, [], (err, rows) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        resultados[key] = rows;
+                        completadas++;
+                        if (completadas === totalQueries) {
+                            resolve(resultados);
+                        }
+                    });
+                } else {
+                    db.get(query, [], (err, row) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        resultados[key] = row.count;
+                        completadas++;
+                        if (completadas === totalQueries) {
+                            resolve(resultados);
+                        }
+                    });
+                }
+            });
+        });
+    },
+    
     // Obtener estadísticas de cuentas inactivas (para monitoreo)
     obtenerEstadisticasInactividad: () => {
         return new Promise((resolve, reject) => {
@@ -531,8 +732,8 @@ const roomConfig = {
     playerName: "",
     password: null,
     maxPlayers: 23,
-    public: false,
-    token: "thr1.AAAAAGiOOrtbj7MxJvOEXg.53_iq1_ZWJk",
+    public: true,  // Cambiar a true para que la sala sea pública
+    token: "thr1.AAAAAGiOc74dyGgONYNKRg.jpkAUqRrfFw",
     geo: { code: 'AR', lat: -34.6118, lon: -58.3960 },
     noPlayer: true
 };
@@ -589,6 +790,15 @@ const webhooks = {
         await page.exposeFunction('nodeEsJugadorVIP', dbFunctions.esJugadorVIP);
         await page.exposeFunction('nodeObtenerJugadoresVIP', dbFunctions.obtenerJugadoresVIP);
         await page.exposeFunction('nodeLimpiarVIPsExpirados', dbFunctions.limpiarVIPsExpirados);
+        
+        // Exponer funciones de control de conexiones múltiples
+        await page.exposeFunction('nodeRegistrarConexion', dbFunctions.registrarConexion);
+        await page.exposeFunction('nodeVerificarConexionesExistentes', dbFunctions.verificarConexionesExistentes);
+        await page.exposeFunction('nodeDesactivarConexion', dbFunctions.desactivarConexion);
+        await page.exposeFunction('nodeDesactivarConexionesJugador', dbFunctions.desactivarConexionesJugador);
+        await page.exposeFunction('nodeActualizarActividadConexion', dbFunctions.actualizarActividadConexion);
+        await page.exposeFunction('nodeLimpiarConexionesInactivas', dbFunctions.limpiarConexionesInactivas);
+        await page.exposeFunction('nodeObtenerEstadisticasConexiones', dbFunctions.obtenerEstadisticasConexiones);
 
         // Integrar sistemas compartidos
         await page.exposeFunction('cargarEstadisticasGlobales', dbFunctions.cargarEstadisticasGlobales);
@@ -955,9 +1165,30 @@ const webhooks = {
         // Exponer función de limpieza manual al contexto del navegador
         await page.exposeFunction('nodeLimpiezaManual', ejecutarLimpiezaAutomatica);
         
+        // ====================== SISTEMA DE LIMPIEZA DE CONEXIONES ======================
+        // Función para ejecutar la limpieza de conexiones inactivas
+        const ejecutarLimpiezaConexiones = async () => {
+            try {
+                // Limpiar conexiones inactivas (más de 10 minutos sin actividad)
+                const conexionesLimpiadas = await dbFunctions.limpiarConexionesInactivas();
+                
+                if (conexionesLimpiadas > 0) {
+                    console.log(`🧹 ${conexionesLimpiadas} conexiones inactivas limpiadas automáticamente`);
+                }
+            } catch (error) {
+                console.error('❌ Error en limpieza automática de conexiones:', error);
+            }
+        };
+        
+        // Programar limpieza de conexiones cada 5 minutos
+        setInterval(() => {
+            ejecutarLimpiezaConexiones();
+        }, 5 * 60 * 1000); // 5 minutos
+        
         console.log('✅ Sistema de limpieza automática configurado');
         console.log('   - Limpieza inicial: 5 minutos después del inicio');
         console.log('   - Limpieza automática: cada 24 horas');
+        console.log('   - Limpieza de conexiones: cada 5 minutos');
         console.log('   - Comando manual disponible en el bot');
         
         // Mantener el proceso vivo

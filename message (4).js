@@ -514,9 +514,9 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = false;
+const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGiOOrtbj7MxJvOEXg.53_iq1_ZWJk";
+const token = "thr1.AAAAAGiOc74dyGgONYNKRg.jpkAUqRrfFw";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -1509,6 +1509,274 @@ let advertenciasJugadores = new Map(); // {playerID: cantidad_de_advertencias}
 // SISTEMA DE UID PARA BANEOS
 let jugadoresBaneadosUID = new Map(); // {auth: {nombre: string, razon: string, fecha: string, admin: string, duracion?: number}}
 let jugadoresUID = new Map(); // {playerID: auth} - Mapeo temporal de IDs a UIDs
+
+// SISTEMA DE PROTECCIÓN CONTRA MÚLTIPLES IPs
+let conexionesPorIP = new Map(); // {ip: {jugadores: Set(playerIDs), timestamp: number}}
+let jugadoresPorIP = new Map(); // {playerID: ip} - Mapeo de jugador a IP
+const MAX_JUGADORES_POR_IP = 2; // Máximo 2 jugadores por IP
+const TIEMPO_LIMITE_IP = 30 * 60 * 1000; // 30 minutos de gracia para la misma IP
+let ipsBloqueadas = new Map(); // {ip: {razon: string, timestamp: number}} - IPs temporalmente bloqueadas
+
+// ==================== FUNCIONES AUXILIARES PARA PROTECCIÓN IP ====================
+
+/**
+ * Obtiene un identificador único de conexión para el jugador
+ * @param {Object} jugador - El objeto jugador
+ * @returns {string|null} - El identificador único de conexión
+ */
+function obtenerIdentificadorConexion(jugador) {
+    try {
+        // En HaxBall Headless, combinamos múltiples factores para detectar conexiones únicas
+        let identificadores = [];
+        
+        // 1. Auth del jugador (mismo para pestañas del mismo navegador)
+        if (jugador && jugador.auth) {
+            identificadores.push(`auth:${jugador.auth}`);
+        }
+        
+        // 2. ID único de la conexión (diferente para cada pestaña)
+        if (jugador && jugador.id !== undefined) {
+            identificadores.push(`id:${jugador.id}`);
+        }
+        
+        // 3. Timestamp de conexión para evitar colisiones
+        identificadores.push(`time:${Date.now()}`);
+        
+        // 4. Nombre del jugador
+        if (jugador && jugador.name) {
+            identificadores.push(`name:${jugador.name}`);
+        }
+        
+        // Crear identificador único combinando todos los factores
+        const identificadorCompleto = identificadores.join('|');
+        const hash = simpleHash(identificadorCompleto);
+        
+        // Generar "IP simulada" basada en el hash completo
+        return `192.168.${Math.floor(hash / 256) % 256}.${hash % 256}`;
+        
+    } catch (error) {
+        console.error(`❌ Error obteniendo identificador para jugador ${jugador?.name}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Detecta si un jugador está usando múltiples pestañas/conexiones
+ * @param {Object} jugador - El objeto jugador
+ * @returns {boolean} - True si se detectan múltiples conexiones
+ */
+function detectarMultiplesConexiones(jugador) {
+    try {
+        if (!jugador || !jugador.auth) {
+            return false;
+        }
+        
+        // Obtener todos los jugadores conectados
+        const jugadoresConectados = room.getPlayerList();
+        
+        // Buscar otros jugadores con el mismo auth pero diferente ID
+        const jugadoresConMismoAuth = jugadoresConectados.filter(j => 
+            j.auth === jugador.auth && j.id !== jugador.id
+        );
+        
+        // Si hay jugadores con el mismo auth pero diferente ID, son múltiples pestañas
+        return jugadoresConMismoAuth.length > 0;
+        
+    } catch (error) {
+        console.error(`❌ Error detectando múltiples conexiones:`, error);
+        return false;
+    }
+}
+
+/**
+ * Obtiene la IP de un jugador (mantenida para compatibilidad)
+ * @param {Object} jugador - El objeto jugador
+ * @returns {string|null} - La IP del jugador o null si no se puede obtener
+ */
+function obtenerIPJugador(jugador) {
+    // Redirigir a la nueva función
+    return obtenerIdentificadorConexion(jugador);
+}
+
+/**
+ * Función hash simple para generar IPs consistentes
+ * @param {string} str - String a hashear
+ * @returns {number} - Valor hash
+ */
+function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convertir a 32bit integer
+    }
+    return Math.abs(hash);
+}
+
+/**
+ * Limpia las conexiones IP de un jugador específico
+ * @param {Object} jugador - El jugador que se desconectó
+ */
+function limpiarConexionesIP(jugador) {
+    try {
+        const ipJugador = jugadoresPorIP.get(jugador.id);
+        
+        if (ipJugador) {
+            console.log(`🧹 DEBUG IP: Limpiando conexión de ${jugador.name} (IP: ${ipJugador})`);
+            
+            // Remover el jugador del mapeo
+            jugadoresPorIP.delete(jugador.id);
+            
+            // Actualizar la lista de conexiones de esta IP
+            const conexionIP = conexionesPorIP.get(ipJugador);
+            if (conexionIP) {
+                conexionIP.jugadores.delete(jugador.id);
+                
+                // Si no quedan más jugadores de esta IP, eliminar la entrada
+                if (conexionIP.jugadores.size === 0) {
+                    conexionesPorIP.delete(ipJugador);
+                    console.log(`🧹 DEBUG IP: IP ${ipJugador} completamente limpia`);
+                } else {
+                    console.log(`🧹 DEBUG IP: IP ${ipJugador} aún tiene ${conexionIP.jugadores.size} conexiones`);
+                }
+            }
+        } else {
+            console.log(`⚠️ DEBUG IP: No se encontró IP para jugador ${jugador.name} al limpiar`);
+        }
+    } catch (error) {
+        console.error(`❌ Error limpiando conexiones IP para ${jugador?.name}:`, error);
+    }
+}
+
+/**
+ * Envía notificación sobre IP bloqueada (Discord webhook si está disponible)
+ * @param {string} ip - La IP bloqueada
+ * @param {string} nombreJugador - Nombre del jugador que intentó conectarse
+ * @param {string} jugadoresConectados - Lista de jugadores ya conectados desde esa IP
+ */
+function enviarNotificacionIPBloqueada(ip, nombreJugador, jugadoresConectados) {
+    try {
+        console.log(`🚫 NOTIFICACIÓN IP BLOQUEADA:`);
+        console.log(`   IP: ${ip}`);
+        console.log(`   Jugador rechazado: ${nombreJugador}`);
+        console.log(`   Jugadores ya conectados: ${jugadoresConectados}`);
+        console.log(`   Tiempo: ${new Date().toISOString()}`);
+        
+        // Si tienes webhook de Discord configurado, enviar notificación
+        if (typeof enviarDiscordEmbed === 'function') {
+            const embed = {
+                title: "🚫 IP Bloqueada - Múltiples Conexiones",
+                description: `Se bloqueó temporalmente la IP **${ip}** por intentos de múltiples conexiones.`,
+                color: 0xFF0000, // Rojo
+                fields: [
+                    {
+                        name: "Jugador Rechazado",
+                        value: nombreJugador,
+                        inline: true
+                    },
+                    {
+                        name: "Ya Conectados",
+                        value: jugadoresConectados || "Ninguno",
+                        inline: true
+                    },
+                    {
+                        name: "Límite",
+                        value: `${MAX_JUGADORES_POR_IP} jugadores por red`,
+                        inline: true
+                    }
+                ],
+                timestamp: new Date().toISOString(),
+                footer: {
+                    text: "Sistema de Protección LNB"
+                }
+            };
+            
+            enviarDiscordEmbed(embed, "Protección IP activada");
+        }
+        
+        // Log adicional para estadísticas
+        console.log(`📊 ESTADÍSTICA IP: Bloqueo de IP registrado - Total IPs bloqueadas: ${ipsBloqueadas.size}`);
+        
+    } catch (error) {
+        console.error(`❌ Error enviando notificación de IP bloqueada:`, error);
+    }
+}
+
+/**
+ * Limpia IPs bloqueadas que han expirado
+ */
+function limpiarIPsBloqueadasExpiradas() {
+    try {
+        const ahora = Date.now();
+        let limpiezasRealizadas = 0;
+        
+        for (const [ip, bloqueo] of ipsBloqueadas.entries()) {
+            if (ahora - bloqueo.timestamp >= TIEMPO_LIMITE_IP) {
+                ipsBloqueadas.delete(ip);
+                limpiezasRealizadas++;
+                console.log(`🧹 DEBUG IP: Bloqueo expirado removido para IP ${ip}`);
+            }
+        }
+        
+        if (limpiezasRealizadas > 0) {
+            console.log(`🧹 DEBUG IP: Se limpiaron ${limpiezasRealizadas} bloqueos de IP expirados`);
+        }
+    } catch (error) {
+        console.error(`❌ Error limpiando IPs bloqueadas expiradas:`, error);
+    }
+}
+
+/**
+ * Obtiene estadísticas de conexiones IP
+ * @returns {Object} - Estadísticas de las conexiones IP
+ */
+function obtenerEstadisticasIP() {
+    try {
+        const stats = {
+            conexiones_activas: conexionesPorIP.size,
+            ips_bloqueadas: ipsBloqueadas.size,
+            total_jugadores_conectados: jugadoresPorIP.size,
+            conexiones_multiples: 0,
+            detalle_conexiones: []
+        };
+        
+        // Analizar conexiones múltiples
+        for (const [ip, conexion] of conexionesPorIP.entries()) {
+            if (conexion.jugadores.size > 1) {
+                stats.conexiones_multiples++;
+                
+                // Obtener nombres de jugadores
+                const nombres = Array.from(conexion.jugadores).map(playerId => {
+                    const jugador = room.getPlayerList().find(p => p.id === playerId);
+                    return jugador ? jugador.name : `ID:${playerId}`;
+                });
+                
+                stats.detalle_conexiones.push({
+                    ip: ip,
+                    cantidad: conexion.jugadores.size,
+                    jugadores: nombres
+                });
+            }
+        }
+        
+        return stats;
+    } catch (error) {
+        console.error(`❌ Error obteniendo estadísticas IP:`, error);
+        return {
+            conexiones_activas: 0,
+            ips_bloqueadas: 0,
+            total_jugadores_conectados: 0,
+            conexiones_multiples: 0,
+            detalle_conexiones: [],
+            error: error.message
+        };
+    }
+}
+
+// Limpieza automática de IPs bloqueadas cada 10 minutos
+setInterval(limpiarIPsBloqueadasExpiradas, 10 * 60 * 1000);
+
+// ==================== FIN FUNCIONES AUXILIARES PARA PROTECCIÓN IP ====================
 
 
 // FUNCIÓN AUXILIAR PARA OBTENER JUGADORES SIN HOST
@@ -4313,6 +4581,26 @@ function actualizarEstadisticasGlobales(datosPartido) {
         // Actualizar promedios
         statsGlobal.promedioGoles = (statsGlobal.goles / statsGlobal.partidos).toFixed(2);
         statsGlobal.promedioAsistencias = (statsGlobal.asistencias / statsGlobal.partidos).toFixed(2);
+        
+        // ====================== GENERACIÓN AUTOMÁTICA DE CÓDIGO DE RECUPERACIÓN ======================
+        // Generar código automáticamente cuando el jugador alcanza exactamente 10 partidos
+        if (statsGlobal.partidos === 10 && !statsGlobal.codigoRecuperacion) {
+            statsGlobal.codigoRecuperacion = generarCodigoRecuperacion(jugadorPartido.nombre);
+            statsGlobal.fechaCodigoCreado = new Date().toISOString();
+            
+            // Notificar al jugador si está en la sala
+            const jugadorEnSala = room.getPlayerList().find(j => j.name === jugadorPartido.nombre);
+            if (jugadorEnSala) {
+                setTimeout(() => {
+                    room.sendAnnouncement("🎉 ¡FELICITACIONES! Has alcanzado 10 partidos jugados", jugadorEnSala.id, parseInt("00FF00", 16), "bold", 0);
+                    room.sendAnnouncement(`🔐 Tu código de recuperación se ha generado automáticamente: ${statsGlobal.codigoRecuperacion}`, jugadorEnSala.id, parseInt(AZUL_LNB, 16), "bold", 0);
+                    room.sendAnnouncement("💡 Guarda este código en un lugar seguro. Úsalo con '!recuperar [código]' para recuperar tus estadísticas", jugadorEnSala.id, parseInt("87CEEB", 16), "normal", 0);
+                    room.sendAnnouncement("📋 Puedes ver tu código en cualquier momento con '!codigo' o '!cod'", jugadorEnSala.id, parseInt("87CEEB", 16), "normal", 0);
+                }, 3000); // Mostrar después de 3 segundos para no interferir con otros mensajes
+            }
+            
+            console.log(`🔐 Código de recuperación generado automáticamente para ${jugadorPartido.nombre}: ${statsGlobal.codigoRecuperacion}`);
+        }
     });
     
     // Récords del partido
@@ -6400,7 +6688,7 @@ function configurarEventos() {
     };
     
     // Jugador se une
-    room.onPlayerJoin = function(jugador) {
+    room.onPlayerJoin = async function(jugador) {
         console.log(`🎮 DEBUG: Jugador se unió: ${jugador.name} (ID: ${jugador.id})`);
         
         // Verificar que room esté disponible antes de proceder
@@ -6408,6 +6696,215 @@ function configurarEventos() {
             console.error('❌ Room no disponible en onPlayerJoin');
             return;
         }
+        
+        // ====================== PROTECCIÓN CONTRA MÚLTIPLES CONEXIONES ======================
+        // Detectar múltiples pestañas usando auth del jugador
+        if (detectarMultiplesConexiones(jugador)) {
+            console.log(`🚫 MÚLTIPLES PESTAÑAS: ${jugador.name} (${jugador.auth}) intentó conectarse con múltiples pestañas`);
+            
+            // Expulsar inmediatamente
+            room.kickPlayer(
+                jugador.id, 
+                `❌ Solo se permite una conexión por jugador. Cierra las otras pestañas/ventanas del juego.`, 
+                false
+            );
+            
+            // Registrar en la base de datos el intento de conexión múltiple
+            try {
+                if (typeof nodeRegistrarConexion === 'function') {
+                    nodeRegistrarConexion(jugador.name, jugador.auth, 'REJECTED_IP', 'MULTIPLE_TABS_REJECTED');
+                }
+            } catch (error) {
+                console.error('❌ Error registrando conexión múltiple:', error);
+            }
+            
+            return; // Impedir que continúe el proceso de unión
+        }
+        
+        // Obtener IP del jugador (simulada para HaxBall Headless)
+        const ipJugador = obtenerIPJugador(jugador);
+        
+        if (ipJugador) {
+            console.log(`🔍 DEBUG IP: Jugador ${jugador.name} conectado desde IP: ${ipJugador}`);
+            
+            // Limpiar conexiones expiradas usando la función de base de datos
+            try {
+                if (typeof nodeLimpiarConexionesInactivas === 'function') {
+                    nodeLimpiarConexionesInactivas();
+                }
+            } catch (error) {
+                console.error('❌ Error limpiando conexiones expiradas:', error);
+            }
+            
+            // Verificar conexiones múltiples usando la base de datos
+            let puedeConectarse = true;
+            try {
+                if (typeof nodeVerificarConexionesExistentes === 'function') {
+                    try {
+                        const verificacion = await nodeVerificarConexionesExistentes(jugador.name, jugador.auth);
+                        console.log(`🔍 DEBUG DB: Verificación recibida:`, verificacion);
+                        
+                        if (verificacion && verificacion.tieneConexionesMultiples && verificacion.conexionesActivas > 0) {
+                            console.log(`🚫 BASE DE DATOS: Conexión rechazada para ${jugador.name}: ${verificacion.conexionesActivas} conexiones detectadas.`);
+                            
+                            room.kickPlayer(
+                                jugador.id, 
+                                `❌ Ya tienes una conexión activa. Solo se permite una conexión por jugador.`, 
+                                false
+                            );
+                            
+                            // Registrar el rechazo en la base de datos
+                            if (typeof nodeRegistrarConexion === 'function') {
+                                try {
+                                    await nodeRegistrarConexion(jugador.name, jugador.auth, 'REJECTED_DB', 'MULTIPLE_CONNECTIONS_DB');
+                                } catch (regError) {
+                                    console.error('❌ Error registrando rechazo DB:', regError);
+                                }
+                            }
+                            
+                            puedeConectarse = false;
+                        } else {
+                            console.log(`✅ DEBUG DB: Jugador ${jugador.name} puede conectarse - no hay conexiones múltiples`);
+                        }
+                    } catch (dbError) {
+                        console.error('❌ Error específico en verificación DB:', dbError);
+                        throw dbError;
+                    }
+                } else {
+                    console.log('⚠️ DEBUG: nodeVerificarConexionesExistentes no está disponible');
+                }
+            } catch (error) {
+                console.error('❌ Error verificando conexiones múltiples:', error);
+                console.log('🔄 Continuando con sistema de memoria como respaldo');
+                // En caso de error, usar el sistema de memoria como respaldo
+            }
+            
+            if (!puedeConectarse) {
+                return; // Impedir que continúe el proceso de unión
+            }
+            
+            // Registrar la conexión en la base de datos
+            try {
+                if (typeof nodeRegistrarConexion === 'function') {
+                    nodeRegistrarConexion(jugador.name, jugador.auth, ipJugador, 'CONNECTED');
+                }
+            } catch (error) {
+                console.error('❌ Error registrando conexión:', error);
+            }
+            
+            // Sistema de memoria como respaldo (mantenido para compatibilidad)
+            // Verificar si la IP está bloqueada
+            const ipBloqueada = ipsBloqueadas.get(ipJugador);
+            if (ipBloqueada) {
+                const tiempoRestante = Math.ceil((ipBloqueada.timestamp + TIEMPO_LIMITE_IP - Date.now()) / (60 * 1000));
+                if (tiempoRestante > 0) {
+                    console.log(`🚫 DEBUG IP: IP ${ipJugador} está bloqueada por ${tiempoRestante} minutos`);
+                    room.kickPlayer(jugador.id, `Tu IP está temporalmente bloqueada por múltiples conexiones. Espera ${tiempoRestante} minutos.`, false);
+                    return;
+                } else {
+                    // El bloqueo ha expirado, removerlo
+                    ipsBloqueadas.delete(ipJugador);
+                    console.log(`🔓 DEBUG IP: Bloqueo expirado para IP ${ipJugador}`);
+                }
+            }
+            
+            // Verificar conexiones actuales de esta IP (sistema de memoria)
+            const conexionIP = conexionesPorIP.get(ipJugador);
+            if (conexionIP) {
+                const jugadoresActuales = Array.from(conexionIP.jugadores).filter(playerId => {
+                    const jugadorExistente = room.getPlayerList().find(p => p.id === playerId);
+                    return jugadorExistente !== undefined;
+                });
+                
+                // Limpiar jugadores desconectados
+                conexionIP.jugadores = new Set(jugadoresActuales);
+                
+                console.log(`🔍 DEBUG IP: IP ${ipJugador} tiene ${jugadoresActuales.length} conexiones activas`);
+                
+                if (jugadoresActuales.length >= MAX_JUGADORES_POR_IP) {
+                    console.log(`🚫 DEBUG IP: IP ${ipJugador} excede el límite de ${MAX_JUGADORES_POR_IP} conexiones`);
+                   
+                    // Obtener nombres de los jugadores ya conectados
+                    const nombresConectados = jugadoresActuales
+                        .map(playerId => {
+                            const p = room.getPlayerList().find(player => player.id === playerId);
+                            return p ? p.name : `ID:${playerId}`;
+                        })
+                        .join(', ');
+                    
+                    // Expulsar al nuevo jugador
+                    room.kickPlayer(
+                        jugador.id, 
+                        `Solo se permiten ${MAX_JUGADORES_POR_IP} jugadores por red. Ya conectados: ${nombresConectados}`, 
+                        false
+                    );
+                    
+                    // Bloquear temporalmente la IP si hay muchos intentos
+                    const ahora = Date.now();
+                    if (ahora - (conexionIP.timestamp || 0) < 60000) { // Si hay múltiples intentos en 1 minuto
+                        ipsBloqueadas.set(ipJugador, {
+                            razon: 'Múltiples intentos de conexión excesiva',
+                            timestamp: ahora
+                        });
+                        console.log(`🔒 DEBUG IP: IP ${ipJugador} bloqueada temporalmente por múltiples intentos`);
+                        
+                        // Enviar notificación a Discord si está configurado
+                        enviarNotificacionIPBloqueada(ipJugador, jugador.name, nombresConectados);
+                    }
+                    
+                    return; // Impedir que continúe el proceso de unión
+                }
+                
+                // Agregar el nuevo jugador a la conexión existente
+                conexionIP.jugadores.add(jugador.id);
+                conexionIP.timestamp = Date.now();
+            } else {
+                // Primera conexión de esta IP
+                conexionesPorIP.set(ipJugador, {
+                    jugadores: new Set([jugador.id]),
+                    timestamp: Date.now()
+                });
+                console.log(`✅ DEBUG IP: Primera conexión registrada para IP ${ipJugador}`);
+            }
+            
+            // Mapear jugador a su IP
+            jugadoresPorIP.set(jugador.id, ipJugador);
+            
+            // Mensaje informativo si hay múltiples conexiones de la misma IP
+            const conexionesIP = conexionesPorIP.get(ipJugador);
+            if (conexionesIP && conexionesIP.jugadores.size > 1) {
+                const otrosJugadores = Array.from(conexionesIP.jugadores)
+                    .filter(id => id !== jugador.id)
+                    .map(id => {
+                        const p = room.getPlayerList().find(player => player.id === id);
+                        return p ? p.name : `ID:${id}`;
+                    })
+                    .join(', ');
+                
+                console.log(`⚠️ DEBUG IP: Múltiples conexiones desde ${ipJugador}: ${jugador.name} + ${otrosJugadores}`);
+                
+                // Mensaje privado al jugador sobre conexiones de su red
+                setTimeout(() => {
+                    room.sendAnnouncement(
+                        `ℹ️ Detectamos ${conexionesIP.jugadores.size} conexiones desde tu red: ${otrosJugadores}`,
+                        jugador.id,
+                        parseInt(COLORES.INFO, 16),
+                        "normal",
+                        0
+                    );
+                    room.sendAnnouncement(
+                        `⚠️ Máximo ${MAX_JUGADORES_POR_IP} jugadores por red. Si alguien más se conecta, serás desconectado.`,
+                        jugador.id,
+                        parseInt(COLORES.ADVERTENCIA, 16),
+                        "normal",
+                        0
+                    );
+                }, 2000);
+            }
+        } else {
+            console.log(`⚠️ DEBUG IP: No se pudo obtener IP para jugador ${jugador.name}`);
+        }
+        // ====================== FIN PROTECCIÓN CONTRA MÚLTIPLES CONEXIONES ======================
         
         // Guardar nombre original antes de modificarlo
         nombresOriginales.set(jugador.id, jugador.name);

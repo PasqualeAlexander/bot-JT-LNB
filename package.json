@@ -1,0 +1,28 @@
+{
+  "name": "lnb-bot-puppeteer",
+  "version": "1.0.0",
+  "description": "Bot LNB con Puppeteer para usar Node.js + base de datos manteniendo funcionalidad completa",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "nodemon bot.js"
+  },
+  "dependencies": {
+    "form-data": "^4.0.0",
+    "node-fetch": "^2.6.7",
+    "puppeteer": "^22.8.2",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "haxball",
+    "bot",
+    "lnb",
+    "puppeteer",
+    "database"
+  ],
+  "author": "ИФT",
+  "license": "MIT"
+}

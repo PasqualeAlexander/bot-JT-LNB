@@ -514,9 +514,9 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = true;
+const roomPublic = false;
 const roomPassword = null;
-const token = "thr1.AAAAAGiOc74dyGgONYNKRg.jpkAUqRrfFw";
+const token = "thr1.AAAAAGiPqxhviyDfwN7cUw.oKqjZxo2b9A";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -1807,12 +1807,101 @@ function protegerBot(jugadorAMover, accion = "mover") {
 // FUNCIÓN AUXILIAR PARA BUSCAR JUGADORES
 function obtenerJugadorPorNombre(nombre) {
     const jugadores = obtenerJugadoresSinHost(); // Usar función sin Host
-    // Limpiar el nombre: remover @ y reemplazar _ con espacios
-    const nombreBusqueda = nombre.toLowerCase().replace(/^@/, '').replace(/_/g, ' ');
-    return jugadores.find(j => 
-        j.name.toLowerCase().includes(nombreBusqueda) ||
-        obtenerNombreOriginal(j).toLowerCase().includes(nombreBusqueda)
-    );
+    
+    // Limpiar el nombre de entrada
+    const nombreLimpio = nombre.trim().replace(/^@/, '');
+    const nombreBusqueda = nombreLimpio.toLowerCase();
+    
+    console.log(`🔍 DEBUG búsqueda: Buscando jugador "${nombreLimpio}" (original: "${nombre}")`);
+    
+    // 1. Buscar coincidencia exacta primero
+    let jugadorEncontrado = jugadores.find(j => {
+        const nombreJugador = j.name.toLowerCase();
+        const nombreOriginal = obtenerNombreOriginal(j).toLowerCase();
+        
+        return nombreJugador === nombreBusqueda || nombreOriginal === nombreBusqueda;
+    });
+    
+    if (jugadorEncontrado) {
+        console.log(`✅ DEBUG búsqueda: Coincidencia exacta encontrada: ${jugadorEncontrado.name}`);
+        return jugadorEncontrado;
+    }
+    
+    // 2. Buscar con includes (parcial)
+    jugadorEncontrado = jugadores.find(j => {
+        const nombreJugador = j.name.toLowerCase();
+        const nombreOriginal = obtenerNombreOriginal(j).toLowerCase();
+        
+        return nombreJugador.includes(nombreBusqueda) || nombreOriginal.includes(nombreBusqueda);
+    });
+    
+    if (jugadorEncontrado) {
+        console.log(`✅ DEBUG búsqueda: Coincidencia parcial encontrada: ${jugadorEncontrado.name}`);
+        return jugadorEncontrado;
+    }
+    
+    // 3. Buscar reemplazando guiones bajos con espacios (solo si no se encontró antes)
+    const nombreConEspacios = nombreBusqueda.replace(/_/g, ' ');
+    if (nombreConEspacios !== nombreBusqueda) {
+        console.log(`🔄 DEBUG búsqueda: Probando con espacios en lugar de guiones bajos: "${nombreConEspacios}"`);
+        
+        jugadorEncontrado = jugadores.find(j => {
+            const nombreJugador = j.name.toLowerCase();
+            const nombreOriginal = obtenerNombreOriginal(j).toLowerCase();
+            
+            return nombreJugador.includes(nombreConEspacios) || nombreOriginal.includes(nombreConEspacios);
+        });
+        
+        if (jugadorEncontrado) {
+            console.log(`✅ DEBUG búsqueda: Encontrado con espacios: ${jugadorEncontrado.name}`);
+            return jugadorEncontrado;
+        }
+    }
+    
+    // 4. Buscar reemplazando espacios con guiones bajos
+    const nombreConGuiones = nombreBusqueda.replace(/ /g, '_');
+    if (nombreConGuiones !== nombreBusqueda) {
+        console.log(`🔄 DEBUG búsqueda: Probando con guiones bajos en lugar de espacios: "${nombreConGuiones}"`);
+        
+        jugadorEncontrado = jugadores.find(j => {
+            const nombreJugador = j.name.toLowerCase();
+            const nombreOriginal = obtenerNombreOriginal(j).toLowerCase();
+            
+            return nombreJugador.includes(nombreConGuiones) || nombreOriginal.includes(nombreConGuiones);
+        });
+        
+        if (jugadorEncontrado) {
+            console.log(`✅ DEBUG búsqueda: Encontrado con guiones bajos: ${jugadorEncontrado.name}`);
+            return jugadorEncontrado;
+        }
+    }
+    
+    // 5. Buscar de forma más flexible (sin caracteres especiales)
+    const nombreSinEspeciales = nombreBusqueda.replace(/[^a-zA-Z0-9ΐ-ϿЀ-ӿ٠-ۿ]/g, '');
+    if (nombreSinEspeciales.length >= 3) {
+        console.log(`🔄 DEBUG búsqueda: Probando sin caracteres especiales: "${nombreSinEspeciales}"`);
+        
+        jugadorEncontrado = jugadores.find(j => {
+            const nombreJugadorSinEspeciales = j.name.toLowerCase().replace(/[^a-zA-Z0-9ΐ-ϿЀ-ӿ٠-ۿ]/g, '');
+            const nombreOriginalSinEspeciales = obtenerNombreOriginal(j).toLowerCase().replace(/[^a-zA-Z0-9ΐ-ϿЀ-ӿ٠-ۿ]/g, '');
+            
+            return nombreJugadorSinEspeciales.includes(nombreSinEspeciales) || nombreOriginalSinEspeciales.includes(nombreSinEspeciales);
+        });
+        
+        if (jugadorEncontrado) {
+            console.log(`✅ DEBUG búsqueda: Encontrado sin caracteres especiales: ${jugadorEncontrado.name}`);
+            return jugadorEncontrado;
+        }
+    }
+    
+    // 6. Mostrar jugadores disponibles para debug
+    console.log(`❌ DEBUG búsqueda: Jugador "${nombreLimpio}" no encontrado.`);
+    console.log(`📋 DEBUG jugadores disponibles:`);
+    jugadores.forEach(j => {
+        console.log(`  - "${j.name}" (original: "${obtenerNombreOriginal(j)}", ID: ${j.id})`);
+    });
+    
+    return null;
 }
 
 // FUNCIÓN AUXILIAR PARA BUSCAR JUGADORES POR NOMBRE O UID
@@ -1842,10 +1931,108 @@ function obtenerJugadorPorNombreOUID(identificador) {
 
 // FUNCIÓN PARA OBTENER UID DE UN JUGADOR
 function obtenerUID(jugador) {
-    if (jugador && jugador.auth) {
-        return jugador.auth;
+    try {
+        // Validación inicial más robusta
+        if (!jugador) {
+            console.error('❌ obtenerUID: jugador es null o undefined');
+            return null;
+        }
+        
+        if (!jugador.id) {
+            console.error('❌ obtenerUID: jugador.id es null o undefined para jugador:', jugador.name || 'sin nombre');
+            return null;
+        }
+        
+        // Verificar si ya tenemos un UID generado para este jugador
+        const uidExistente = jugadoresUID.get(jugador.id);
+        if (uidExistente && uidExistente.length > 0) {
+            console.log(`✅ UID existente encontrado para ${jugador.name}: ${uidExistente}`);
+            return uidExistente;
+        }
+        
+        // Verificar auth (propiedad principal de HaxBall para UID)
+        if (jugador.auth && typeof jugador.auth === 'string' && jugador.auth.length > 0) {
+            console.log(`✅ UID obtenido de jugador.auth: ${jugador.auth}`);
+            jugadoresUID.set(jugador.id, jugador.auth); // Guardar para uso futuro
+            return jugador.auth;
+        }
+        
+        // Verificar si el conn (connection ID) puede servir como UID temporal
+        if (jugador.conn && typeof jugador.conn === 'string' && jugador.conn.length > 8) {
+            console.log(`✅ UID temporal obtenido de jugador.conn: ${jugador.conn}`);
+            jugadoresUID.set(jugador.id, jugador.conn);
+            return jugador.conn;
+        }
+        
+        // Debug detallado: mostrar todas las propiedades del jugador
+        console.warn('⚠️ obtenerUID: No se encontró UID natural en el jugador');
+        console.log('🔍 DEBUG UID - Propiedades del jugador:', {
+            id: jugador.id,
+            name: jugador.name,
+            auth: jugador.auth ? `${jugador.auth} (${typeof jugador.auth}, length: ${jugador.auth.length})` : 'null/undefined',
+            conn: jugador.conn ? `${jugador.conn} (${typeof jugador.conn}, length: ${jugador.conn.length})` : 'null/undefined',
+            team: jugador.team,
+            admin: jugador.admin,
+            position: jugador.position ? 'tiene posición' : 'sin posición',
+            allProperties: Object.keys(jugador)
+        });
+        
+        // Generar UID único y consistente basado en información del jugador
+        const uidGenerado = generarUIDUnico(jugador);
+        console.warn(`⚠️ Generando UID único para ${jugador.name}: ${uidGenerado}`);
+        
+        // Validar que el UID generado no esté vacío
+        if (!uidGenerado || uidGenerado.length === 0) {
+            console.error(`❌ Error crítico: UID generado está vacío para ${jugador.name}`);
+            return null;
+        }
+        
+        // Guardar el UID generado para uso futuro
+        jugadoresUID.set(jugador.id, uidGenerado);
+        
+        return uidGenerado;
+        
+    } catch (error) {
+        console.error(`❌ Error crítico en obtenerUID para jugador ${jugador?.name || 'desconocido'}:`, error);
+        console.error(`📊 Stack trace:`, error.stack);
+        return null;
     }
-    return null;
+}
+
+// FUNCIÓN PARA GENERAR UID ÚNICO Y CONSISTENTE
+function generarUIDUnico(jugador) {
+    try {
+        // Usar crypto si está disponible (Node.js)
+        if (typeof require !== 'undefined') {
+            try {
+                const crypto = require('crypto');
+                // Generar hash basado en nombre + timestamp + datos únicos
+                const data = `${jugador.name}_${jugador.id}_${Date.now()}_${Math.random()}`;
+                return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
+            } catch (e) {
+                console.warn('❌ Crypto no disponible, usando generador alternativo');
+            }
+        }
+        
+        // Fallback: generador usando hash simple
+        const data = `${jugador.name}_${jugador.id}_${Date.now()}_${Math.random()}`;
+        let hash = 0;
+        for (let i = 0; i < data.length; i++) {
+            const char = data.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convertir a 32bit integer
+        }
+        
+        // Convertir a string hexadecimal y asegurar que tenga al menos 16 caracteres
+        const uidBase = Math.abs(hash).toString(16).padStart(8, '0');
+        const timestamp = Date.now().toString(16);
+        return `${uidBase}${timestamp}`.substring(0, 16);
+        
+    } catch (error) {
+        console.error('❌ Error generando UID único:', error);
+        // Fallback final
+        return `uid_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    }
 }
 
 // FUNCIONES DE ANUNCIO CON VERIFICACIÓN DE SEGURIDAD
@@ -2408,15 +2595,11 @@ function verificarInactividad() {
                     tiempoParaAccion = TIEMPO_AFK_KICK_SALA_LLENA;
                     accion = 'expulsar';
                     motivo = "Expulsado por inactividad (5 minutos en sala llena)";
-                } else if (numeroJugadores < 18) {
-                    tiempoParaAccion = TIEMPO_AFK_KICK_MENOS_18;
-                    accion = 'expulsar';
-                    motivo = "Expulsion por inactividad de 12 minutos";
                 } else {
-                    // Lógica original para mover a espectadores si no se cumplen las condiciones de expulsión
-                    // Asumo que TIEMPO_AFK es una constante definida en otra parte
+                    // Mover a espectadores por inactividad (tiempo más corto)
                     tiempoParaAccion = TIEMPO_AFK;
                     accion = 'mover';
+                    motivo = "Movido a espectadores por inactividad";
                 }
 
                 if (ahora - ultimaActividad > tiempoParaAccion) {
@@ -2491,6 +2674,8 @@ function verificarInactividad() {
 
 // Variable para controlar cambios de mapa múltiples
 let cambioMapaEnProceso = false;
+// Variable para detectar si el partido terminó por cambio de mapa
+let terminoPorCambioMapa = false;
 
 // FUNCIÓN PARA DETECTAR CAMBIO DE MAPA
 function detectarCambioMapa() {
@@ -2525,6 +2710,7 @@ function detectarCambioMapa() {
         // Cambiar de biggerx7 a biggerx5 si hay menos de 10 jugadores
         if (mapaActual === "biggerx7" && jugadoresActivos < 10) {
             cambioMapaEnProceso = true;
+            terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📉 DEBUG: Cambiando de x7 a x5 (${jugadoresActivos} < 10)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
@@ -2534,7 +2720,10 @@ function detectarCambioMapa() {
             setTimeout(() => {
                 autoBalanceEquipos();
                 verificarAutoStart();
-                setTimeout(() => { cambioMapaEnProceso = false; }, 5000);
+                setTimeout(() => { 
+                    cambioMapaEnProceso = false;
+                    terminoPorCambioMapa = false; // Resetear la bandera
+                }, 5000);
             }, 1000);
             return;
         }
@@ -2542,6 +2731,7 @@ function detectarCambioMapa() {
         // Cambiar de biggerx5 a biggerx3 si hay menos de 6 jugadores
         if (mapaActual === "biggerx5" && jugadoresActivos < 6) {
             cambioMapaEnProceso = true;
+            terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📉 DEBUG: Cambiando de x5 a x3 (${jugadoresActivos} < 6)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
@@ -2551,7 +2741,10 @@ function detectarCambioMapa() {
             setTimeout(() => {
                 autoBalanceEquipos();
                 verificarAutoStart();
-                setTimeout(() => { cambioMapaEnProceso = false; }, 5000);
+                setTimeout(() => { 
+                    cambioMapaEnProceso = false;
+                    terminoPorCambioMapa = false; // Resetear la bandera
+                }, 5000);
             }, 1000);
             return;
         }
@@ -2559,6 +2752,7 @@ function detectarCambioMapa() {
         // Cambiar de biggerx3 a biggerx1 si hay menos de 3 jugadores
         if (mapaActual === "biggerx3" && jugadoresActivos < 3) {
             cambioMapaEnProceso = true;
+            terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📉 DEBUG: Cambiando de x3 a x1 (${jugadoresActivos} < 3)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
@@ -2568,7 +2762,10 @@ function detectarCambioMapa() {
             setTimeout(() => {
                 autoBalanceEquipos();
                 verificarAutoStart();
-                setTimeout(() => { cambioMapaEnProceso = false; }, 5000);
+                setTimeout(() => { 
+                    cambioMapaEnProceso = false;
+                    terminoPorCambioMapa = false; // Resetear la bandera
+                }, 5000);
             }, 1000);
             return;
         }
@@ -2577,6 +2774,7 @@ function detectarCambioMapa() {
         // Cambiar de biggerx1 a biggerx3 si hay 5 o más jugadores
         if (mapaActual === "biggerx1" && jugadoresActivos >= 5) {
             cambioMapaEnProceso = true;
+            terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG: Cambiando de x1 a x3 durante partido (${jugadoresActivos} >= 5)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
@@ -2586,7 +2784,10 @@ function detectarCambioMapa() {
             setTimeout(() => {
                 autoBalanceEquipos();
                 verificarAutoStart();
-                setTimeout(() => { cambioMapaEnProceso = false; }, 5000);
+                setTimeout(() => { 
+                    cambioMapaEnProceso = false;
+                    terminoPorCambioMapa = false; // Resetear la bandera
+                }, 5000);
             }, 1000);
             return;
         }
@@ -2594,6 +2795,7 @@ function detectarCambioMapa() {
         // Cambiar de biggerx3 a biggerx5 si hay 9 o más jugadores
         if (mapaActual === "biggerx3" && jugadoresActivos >= 9) {
             cambioMapaEnProceso = true;
+            terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG: Cambiando de x3 a x5 durante partido (${jugadoresActivos} >= 9)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
@@ -2603,25 +2805,20 @@ function detectarCambioMapa() {
             setTimeout(() => {
                 autoBalanceEquipos();
                 verificarAutoStart();
-                setTimeout(() => { cambioMapaEnProceso = false; }, 5000);
+                setTimeout(() => { 
+                    cambioMapaEnProceso = false;
+                    terminoPorCambioMapa = false; // Resetear la bandera
+                }, 5000);
             }, 1000);
             return;
         }
         
         // Cambiar de biggerx5 a biggerx7 si hay 14 o más jugadores
+        // MODIFICADO: NO detener partido en x5, solo notificar que esperará al final
         if (mapaActual === "biggerx5" && jugadoresActivos >= 14) {
-            cambioMapaEnProceso = true;
-            console.log(`📈 DEBUG: Cambiando de x5 a x7 durante partido (${jugadoresActivos} >= 14)`);
-            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
-            room.stopGame();
-            cambiarMapa("biggerx7");
-            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x5 a x7...`);
-            
-            setTimeout(() => {
-                autoBalanceEquipos();
-                verificarAutoStart();
-                setTimeout(() => { cambioMapaEnProceso = false; }, 5000);
-            }, 1000);
+            console.log(`📈 DEBUG: Detectados ${jugadoresActivos} jugadores en x5, pero NO deteniendo partido`);
+            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados. El mapa cambiará a x7 al finalizar este partido.`);
+            // NO detenemos el partido, solo notificamos
             return;
         }
         
@@ -2635,18 +2832,18 @@ function detectarCambioMapa() {
     // LÓGICA ACTUALIZADA DE CAMBIO DE MAPA:
     // 0-4 jugadores: biggerx1
     // 5-9 jugadores: biggerx3  
-    // 10-14 jugadores: biggerx5
-    // 15+ jugadores: biggerx7
+    // 10-11 jugadores: biggerx5
+    // 12+ jugadores: biggerx7
     
     let mapaRequerido = null;
     
     if (jugadoresActivos <= 4) {
         mapaRequerido = "biggerx1";
-    } else if (jugadoresActivos >= 5 && jugadoresActivos <= 9) {
+    } else if (jugadoresActivos >= 5 && jugadoresActivos <= 7) {
         mapaRequerido = "biggerx3";
-    } else if (jugadoresActivos >= 10 && jugadoresActivos <= 14) {
+    } else if (jugadoresActivos >= 8 && jugadoresActivos <= 11) {
         mapaRequerido = "biggerx5";
-    } else if (jugadoresActivos >= 15) {
+    } else if (jugadoresActivos >= 12) {
         mapaRequerido = "biggerx7";
     }
     
@@ -3835,57 +4032,436 @@ case "kick":
                 }
             }
 
-            // 6. Ejecutar el baneo
+            // 6. Obtener UID del jugador con sistema de reintentos mejorado
+            const uid = obtenerUID(jugadorObjetivo);
+            if (!uid) {
+                console.warn(`⚠️ WARN BAN: UID no disponible inmediatamente para ${jugadorObjetivo.name}, iniciando sistema de reintentos...`);
+                
+                // Sistema de reintentos múltiples con tiempos incrementales
+                const intentarObtenerUID = (intento = 1, maxIntentos = 5) => {
+                    const tiempoEspera = intento * 500; // 500ms, 1s, 1.5s, 2s, 2.5s
+                    
+                    setTimeout(() => {
+                        const uidRetry = obtenerUID(jugadorObjetivo);
+                        
+                        if (uidRetry) {
+                            console.log(`✅ UID obtenido en intento ${intento}/${maxIntentos} para ${jugadorObjetivo.name}: ${uidRetry}`);
+                            anunciarInfo(`🔄 UID obtenido después de ${intento} intento(s), procediendo con el baneo...`, jugador);
+                            ejecutarBaneoMejorado(jugador, jugadorObjetivo, uidRetry, tiempo, razon);
+                        } else if (intento < maxIntentos) {
+                            console.warn(`⚠️ RETRY BAN: Intento ${intento}/${maxIntentos} fallido para ${jugadorObjetivo.name}, reintentando en ${tiempoEspera + 500}ms...`);
+                            intentarObtenerUID(intento + 1, maxIntentos);
+                        } else {
+                            console.error(`❌ ERROR BAN: Todos los intentos (${maxIntentos}) fallaron para obtener UID de ${jugadorObjetivo.name}`);
+                            console.error(`📊 INFO DEBUG: ID: ${jugadorObjetivo.id}, Auth: ${jugadorObjetivo.auth}, Team: ${jugadorObjetivo.team}`);
+                            
+                            anunciarError(`❌ No se pudo obtener el UID de ${jugadorObjetivo.name} después de ${maxIntentos} intentos.`, jugador);
+                            anunciarAdvertencia(`⚠️ Esto puede deberse a que el jugador no está autenticado o tiene problemas de conexión.`);
+                            anunciarAdvertencia(`💡 Alternativas: !kick ${jugadorObjetivo.name} (expulsar) o esperar a que se reconecte.`);
+                        }
+                    }, tiempoEspera);
+                };
+                
+                intentarObtenerUID();
+                return;
+            }
+
+            // 7. Ejecutar el baneo en HaxBall
             const tiempoTexto = tiempo ? `${tiempo} minutos` : "permanentemente";
-            room.kickPlayer(jugadorObjetivo.id, `${razon} (${tiempoTexto})`, true); // true para banear
-            anunciarAdvertencia(`🚫 ${jugadorObjetivo.name} ha sido baneado ${tiempoTexto}. Razón: ${razon}`);
-            
-            // Enviar notificación al webhook
-            enviarNotificacionBanKick("ban", jugador.name, jugadorObjetivo.name, jugadorObjetivo.id, tiempo, razon);
+            try {
+                room.kickPlayer(jugadorObjetivo.id, `${razon} (${tiempoTexto})`, true); // true para banear
+                anunciarAdvertencia(`🚫 ${jugadorObjetivo.name} ha sido baneado ${tiempoTexto}. Razón: ${razon}`);
+                
+                // 8. Registrar el baneo en la base de datos
+                if (typeof nodeBanearJugador === 'function') {
+                    nodeBanearJugador(jugadorObjetivo.name, uid, jugador.name, razon, tiempo)
+                        .then((resultado) => {
+                            console.log(`✅ Baneo registrado en DB:`, resultado);
+                            anunciarInfo(`📊 Baneo registrado en la base de datos con UID: ${uid}`);
+                        })
+                        .catch((error) => {
+                            console.error(`❌ Error registrando baneo en DB:`, error);
+                            anunciarAdvertencia(`⚠️ Jugador baneado pero no se pudo registrar en la base de datos`);
+                        });
+                } else {
+                    console.warn('⚠️ Función nodeBanearJugador no disponible');
+                }
+                
+                // 9. Enviar notificación al webhook
+                enviarNotificacionBanKick("ban", jugador.name, jugadorObjetivo.name, uid, tiempo, razon);
+                
+            } catch (error) {
+                anunciarError(`❌ Error al banear jugador: ${error.message}`, jugador);
+                console.error(`❌ Error en comando ban:`, error);
+            }
             break;
+
+// Función auxiliar mejorada para ejecutar el baneo con mejor manejo de errores
+function ejecutarBaneoMejorado(jugador, jugadorObjetivo, uid, tiempo, razon) {
+    const tiempoTexto = tiempo ? `${tiempo} minutos` : "permanentemente";
+    
+    try {
+        console.log(`🔨 EJECUTANDO BANEO: ${jugadorObjetivo.name} (UID: ${uid}) por ${tiempoTexto}`);
+        
+        // 1. Ejecutar el baneo en HaxBall
+        room.kickPlayer(jugadorObjetivo.id, `${razon} (${tiempoTexto})`, true);
+        anunciarAdvertencia(`🚫 ${jugadorObjetivo.name} ha sido baneado ${tiempoTexto}. Razón: ${razon}`);
+        
+        // 2. Registrar en base de datos con reintentos
+        if (typeof nodeBanearJugador === 'function') {
+            const intentarRegistroBD = async (intento = 1, maxIntentos = 3) => {
+                try {
+                    console.log(`📊 Intento ${intento}/${maxIntentos} - Registrando baneo en BD`);
+                    const resultado = await nodeBanearJugador(jugadorObjetivo.name, uid, jugador.name, razon, tiempo);
+                    console.log(`✅ Baneo registrado en DB exitosamente:`, resultado);
+                    anunciarInfo(`📊 Baneo registrado en la base de datos con UID: ${uid}`);
+                } catch (error) {
+                    console.error(`❌ Intento ${intento}/${maxIntentos} fallido - Error registrando baneo:`, error);
+                    
+                    if (intento < maxIntentos) {
+                        console.log(`🔄 Reintentando registro en BD en 2 segundos...`);
+                        setTimeout(() => {
+                            intentarRegistroBD(intento + 1, maxIntentos);
+                        }, 2000);
+                    } else {
+                        console.error(`❌ REGISTRO BD FALLIDO: Todos los intentos agotados para ${jugadorObjetivo.name}`);
+                        anunciarAdvertencia(`⚠️ Jugador baneado exitosamente, pero no se pudo registrar en la base de datos tras ${maxIntentos} intentos`);
+                    }
+                }
+            };
+            
+            intentarRegistroBD();
+        } else {
+            console.warn('⚠️ Función nodeBanearJugador no disponible - solo baneo en HaxBall');
+            anunciarAdvertencia(`⚠️ Jugador baneado, pero registro en BD no disponible`);
+        }
+        
+        // 3. Enviar notificación al webhook con reintentos
+        const intentarWebhook = (intento = 1, maxIntentos = 2) => {
+            try {
+                enviarNotificacionBanKick("ban", jugador.name, jugadorObjetivo.name, uid, tiempo, razon);
+                console.log(`📤 Webhook de baneo enviado - intento ${intento}`);
+            } catch (webhookError) {
+                console.error(`❌ Error en webhook intento ${intento}:`, webhookError);
+                if (intento < maxIntentos) {
+                    setTimeout(() => {
+                        intentarWebhook(intento + 1, maxIntentos);
+                    }, 1000);
+                }
+            }
+        };
+        
+        intentarWebhook();
+        
+    } catch (error) {
+        console.error(`❌ ERROR CRÍTICO en ejecutarBaneoMejorado:`, error);
+        anunciarError(`❌ Error crítico al banear jugador: ${error.message}`, jugador);
+        
+        // Intentar un baneo básico como último recurso
+        try {
+            room.kickPlayer(jugadorObjetivo.id, `BANEO DE EMERGENCIA: ${razon}`, true);
+            anunciarAdvertencia(`🚫 Baneo de emergencia aplicado a ${jugadorObjetivo.name}`);
+        } catch (emergencyError) {
+            console.error(`❌ FALLO TOTAL: No se pudo banear a ${jugadorObjetivo.name}:`, emergencyError);
+            anunciarError(`❌ FALLO CRÍTICO: No se pudo ejecutar el baneo`, jugador);
+        }
+    }
+}
             
         case "unban":
+        case "desban":
             if (!esAdminBasico(jugador)) return;
             if (args[1]) {
                 const uid = args[1];
-                try {
-                    // Intentar desbanear usando el UID
-                    room.clearBan(uid);
-                    anunciarExito(`✅ Jugador con UID ${uid} ha sido desbaneado`);
-                } catch (error) {
-                    anunciarError(`❌ Error al desbanear jugador con UID ${uid}: ${error.message}`, jugador);
-                }
-            } else {
-                anunciarError("📝 Uso: !unban <UID>", jugador);
+                
+                // Verificar en base de datos si el UID existe y está baneado
+nodeEstaBaneado(uid, (resultado) => {
+    if (!resultado) {
+        anunciarError(`❌ No se encontró ningún jugador con UID: ${uid}`, jugador);
+        return;
+    }
+    
+    console.log(`✅ Jugador encontrado en DB: ${resultado.nombre} - baneado: ${resultado.activo}`);
+    
+    // Ejecutar el desbaneo en HaxBall
+    try {
+        room.clearBan(uid);
+        console.log(`✅ room.clearBan(${uid}) ejecutado exitosamente`);
+        
+        // Actualizar estado en base de datos
+        if (resultado.activo) {
+            nodeDesactivarBaneo(resultado.id)
+                .then((resultadoDesban) => {
+                    console.log(`✅ Desbaneo registrado en DB:`, resultadoDesban);
+                    anunciarExito(`✅ ${resultado.nombre} (UID: ${uid}) ha sido desbaneado por ${jugador.name}`);
+                    anunciarInfo(`📊 Desbaneo registrado en la base de datos`);
+                })
+                .catch((error) => {
+                    console.error(`❌ Error actualizando estado en DB:`, error);
+                    anunciarAdvertencia(`⚠️ Jugador desbaneado pero no se pudo actualizar la base de datos`);
+                });
+        } else {
+            anunciarError(`❌ El jugador ${resultado.nombre} (UID: ${uid}) no está activo`);
+        }
+
+        // Limpiar bloqueos IP asociados
+        let ipLimpiadas = 0;
+        for (const [ip, bloqueo] of ipsBloqueadas.entries()) {
+            if (bloqueo.razon && (bloqueo.razon.includes('ban') || bloqueo.razon.includes('múltiples'))) {
+                ipsBloqueadas.delete(ip);
+                ipLimpiadas++;
+                console.log(`🧹 DEBUG UNBAN: IP ${ip} desbloqueada automáticamente`);
+            }
+        }
+        
+        // Limpiar conexiones por IP para permitir reconexión
+        conexionesPorIP.clear();
+        jugadoresPorIP.clear();
+        
+        if (ipLimpiadas > 0) {
+            anunciarInfo(`🧹 ${ipLimpiadas} IP(s) desbloqueada(s) y conexiones limpiadas`);
+        }
+        
+        console.log(`✅ DEBUG UNBAN: Proceso completo - UID ${uid} desbaneado + ${ipLimpiadas} IPs limpiadas`);
+        
+    } catch (error) {
+        anunciarError(`❌ Error al ejecutar desbaneo en HaxBall: ${error.message}`, jugador);
+        console.error(`❌ Error en room.clearBan para UID ${uid}:`, error);
+    }
+});
             }
             break;
+
+        case "banlist":
+            if (!esAdminBasico(jugador)) return;
             
+            if (typeof nodeObtenerJugadoresBaneados24h === 'function') {
+                nodeObtenerJugadoresBaneados24h()
+                    .then((jugadores) => {
+                        if (jugadores.length === 0) {
+                            anunciarInfo('📋 No hay jugadores baneados en las últimas 24 horas.', jugador);
+                        } else {
+                            room.sendAnnouncement('🚨 LISTA DE JUGADORES BANEADOS (ÚLTIMAS 24 HORAS)', jugador.id, parseInt(COLORES.ADVERTENCIA, 16), "bold", 0);
+                            room.sendAnnouncement('══════════════════════════════════════════════════════════', jugador.id, parseInt(COLORES.ADVERTENCIA, 16), "normal", 0);
+                            
+                            jugadores.forEach((jugadorBaneado, index) => {
+                                const fechaBan = new Date(jugadorBaneado.fechaBan);
+                                const tiempoTranscurrido = Math.floor((new Date() - fechaBan) / (1000 * 60 * 60)); // horas
+                                
+                                let tiempoTexto;
+                                if (tiempoTranscurrido < 1) {
+                                    const minutos = Math.floor((new Date() - fechaBan) / (1000 * 60));
+                                    tiempoTexto = `hace ${minutos} minuto${minutos !== 1 ? 's' : ''}`;
+                                } else if (tiempoTranscurrido < 24) {
+                                    tiempoTexto = `hace ${tiempoTranscurrido} hora${tiempoTranscurrido !== 1 ? 's' : ''}`;
+                                } else {
+                                    const dias = Math.floor(tiempoTranscurrido / 24);
+                                    tiempoTexto = `hace ${dias} día${dias !== 1 ? 's' : ''}`;
+                                }
+                                
+                                room.sendAnnouncement(`${index + 1}. 👤 ${jugadorBaneado.nombre}`, jugador.id, parseInt(COLORES.ERROR, 16), "bold", 0);
+                                room.sendAnnouncement(`   🆔 UID: ${jugadorBaneado.uid || 'N/A'}`, jugador.id, parseInt(COLORES.GRIS, 16), "normal", 0);
+                                room.sendAnnouncement(`   ⏰ Baneado: ${tiempoTexto}`, jugador.id, parseInt(COLORES.GRIS, 16), "normal", 0);
+                                room.sendAnnouncement(`   👮 Admin: ${jugadorBaneado.adminBan}`, jugador.id, parseInt(COLORES.GRIS, 16), "normal", 0);
+                                room.sendAnnouncement(`   📝 Razón: ${jugadorBaneado.razonBan}`, jugador.id, parseInt(COLORES.GRIS, 16), "normal", 0);
+                                
+                                if (index < jugadores.length - 1) {
+                                    room.sendAnnouncement('', jugador.id, parseInt(COLORES.GRIS, 16), "normal", 0);
+                                }
+                            });
+                            
+                            room.sendAnnouncement('══════════════════════════════════════════════════════════', jugador.id, parseInt(COLORES.ADVERTENCIA, 16), "normal", 0);
+                            room.sendAnnouncement(`📊 Total: ${jugadores.length} jugador${jugadores.length !== 1 ? 'es' : ''} baneado${jugadores.length !== 1 ? 's' : ''} en las últimas 24 horas`, jugador.id, parseInt(COLORES.ADVERTENCIA, 16), "bold", 0);
+                            room.sendAnnouncement('💡 Para desbanear: !unban <UID>', jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('❌ Error obteniendo jugadores baneados (24h):', error);
+                        anunciarError('❌ Error obteniendo jugadores baneados en las últimas 24 horas.', jugador);
+                    });
+            } else {
+                anunciarError('❌ Función de base de datos no disponible.', jugador);
+            }
+            break;
+
         case "clearbans":
             if (!esAdmin(jugador)) return; // Solo Admin Full o superior
-            try {
-                // Obtener la lista actual de bans
-                const banList = room.getBanList();
-                let bansLimpiados = 0;
+            
+            anunciarInfo("🔄 Iniciando limpieza masiva de baneos...", jugador);
+            
+            // Obtener todos los jugadores baneados activos de la nueva tabla baneos
+            if (typeof nodeObtenerBaneosActivos === 'function') {
+                nodeObtenerBaneosActivos()
+                    .then((jugadoresBaneados) => {
+                        if (jugadoresBaneados.length === 0) {
+                            // No hay baneos en BD, pero puede haber desincronización con HaxBall
+                            anunciarAdvertencia("📋 No hay baneos activos en la base de datos.", jugador);
+                            anunciarInfo("🧹 Ejecutando limpieza completa de HaxBall para resolver posibles desincronizaciones...", jugador);
+                            
+                            try {
+                                // Limpiar TODOS los baneos de HaxBall
+                                room.clearBans();
+                                console.log('✅ CLEARBANS: room.clearBans() ejecutado - Todos los baneos de HaxBall limpiados');
+                                
+                                // Limpiar también bloqueos IP relacionados con baneos
+                                let ipLimpiadas = 0;
+                                for (const [ip, bloqueo] of ipsBloqueadas.entries()) {
+                                    if (bloqueo.razon && (bloqueo.razon.includes('ban') || bloqueo.razon.includes('múltiples'))) {
+                                        ipsBloqueadas.delete(ip);
+                                        ipLimpiadas++;
+                                    }
+                                }
+                                
+                                // Limpiar conexiones para permitir reconexión
+                                conexionesPorIP.clear();
+                                jugadoresPorIP.clear();
+                                
+                                anunciarExito(`✅ Limpieza completa de HaxBall realizada por ${jugador.name}`);
+                                anunciarInfo(`🧹 Se limpiaron todos los baneos de HaxBall + ${ipLimpiadas} IP(s) bloqueadas`);
+                                anunciarInfo(`💡 Esta limpieza resuelve desincronizaciones entre BD y HaxBall`);
+                                
+                                // Enviar notificación a Discord sobre la limpieza completa
+                                enviarNotificacionClearBans(jugador.name, "completa", 0, ipLimpiadas);
+                                
+                            } catch (error) {
+                                console.error('❌ Error ejecutando room.clearBans():', error);
+                                anunciarError('❌ Error ejecutando limpieza completa de HaxBall', jugador);
+                            }
+                            return;
+                        }
+                        
+                        anunciarInfo(`📊 Encontrados ${jugadoresBaneados.length} jugadores baneados. Iniciando desbaneo masivo...`, jugador);
+                        
+                        let procesados = 0;
+                        let exitosos = 0;
+                        let errores = 0;
+                        
+                        // Procesar cada jugador baneado
+                        jugadoresBaneados.forEach((jugadorBaneado, index) => {
+                            const uid = jugadorBaneado.uid;
+                            
+                            if (!uid) {
+                                console.warn(`⚠️ CLEARBANS: Jugador ${jugadorBaneado.nombre} no tiene UID, saltando...`);
+                                procesados++;
+                                errores++;
+                                return;
+                            }
+                            
+                            // Desbanear en HaxBall
+                            try {
+                                room.clearBan(uid);
+                                console.log(`✅ CLEARBANS: room.clearBan(${uid}) ejecutado para ${jugadorBaneado.nombre}`);
+                                
+                                // Actualizar en base de datos
+                                if (typeof nodeDesbanearJugador === 'function') {
+                                    nodeDesbanearJugador(uid)
+                                        .then((resultado) => {
+                                            console.log(`✅ CLEARBANS: ${jugadorBaneado.nombre} desbaneado en BD exitosamente`);
+                                            exitosos++;
+                                        })
+                                        .catch((error) => {
+                                            console.error(`❌ CLEARBANS: Error actualizando BD para ${jugadorBaneado.nombre}:`, error);
+                                            errores++;
+                                        })
+                                        .finally(() => {
+                                            procesados++;
+                                            
+                                            // Cuando termine de procesar todos
+                                            if (procesados === jugadoresBaneados.length) {
+                                                anunciarExito(`✅ Limpieza masiva completada por ${jugador.name}`);
+                                                anunciarInfo(`📊 Resultados: ${exitosos} exitosos, ${errores} errores de ${jugadoresBaneados.length} total`);
+                                                
+                                                // Limpiar también bloqueos IP relacionados con baneos
+                                                let ipLimpiadas = 0;
+                                                for (const [ip, bloqueo] of ipsBloqueadas.entries()) {
+                                                    if (bloqueo.razon && (bloqueo.razon.includes('ban') || bloqueo.razon.includes('múltiples'))) {
+                                                        ipsBloqueadas.delete(ip);
+                                                        ipLimpiadas++;
+                                                    }
+                                                }
+                                                
+                                                // Limpiar conexiones para permitir reconexión
+                                                conexionesPorIP.clear();
+                                                jugadoresPorIP.clear();
+                                                
+                                                if (ipLimpiadas > 0) {
+                                                    anunciarInfo(`🧹 Limpiadas ${ipLimpiadas} IP(s) bloqueadas y conexiones reiniciadas`);
+                                                }
+                                                
+                                                console.log(`✅ CLEARBANS COMPLETO: ${exitosos}/${jugadoresBaneados.length} exitosos, ${ipLimpiadas} IPs limpiadas`);
+                                                
+                                                // Enviar notificación a Discord sobre la limpieza masiva
+                                                enviarNotificacionClearBans(jugador.name, "masiva", exitosos, ipLimpiadas);
+                                            }
+                                        });
+                                } else {
+                                    // Si no hay función de BD, al menos contar como procesado
+                                    exitosos++;
+                                    procesados++;
+                                    
+                                    if (procesados === jugadoresBaneados.length) {
+                                        anunciarExito(`✅ Limpieza masiva completada (solo HaxBall) por ${jugador.name}`);
+                                        anunciarAdvertencia(`⚠️ Los registros en BD no se pudieron actualizar`);
+                                        
+                                        // Enviar notificación a Discord sobre la limpieza masiva (solo HaxBall)
+                                        enviarNotificacionClearBans(jugador.name, "masiva_solo_haxball", exitosos, 0);
+                                    }
+                                }
+                                
+                            } catch (error) {
+                                console.error(`❌ CLEARBANS: Error en room.clearBan para ${jugadorBaneado.nombre} (${uid}):`, error);
+                                errores++;
+                                procesados++;
+                            }
+                        });
+                        
+                    })
+                    .catch((error) => {
+                        console.error('❌ Error obteniendo jugadores baneados para clearbans:', error);
+                        anunciarError('❌ Error obteniendo la lista de jugadores baneados.', jugador);
+                    });
+            } else {
+                // Método alternativo usando la función de 24h si no está disponible la principal
+                anunciarAdvertencia('⚠️ Función principal no disponible, usando método alternativo...', jugador);
                 
-                // Limpiar todos los bans uno por uno
-                banList.forEach(ban => {
-                    try {
-                        room.clearBan(ban.id);
-                        bansLimpiados++;
-                    } catch (error) {
-                        console.log(`Error al limpiar ban ${ban.id}: ${error.message}`);
-                    }
-                });
-                
-                if (bansLimpiados > 0) {
-                    anunciarExito(`🧹 Lista de baneos limpiada exitosamente. Se removieron ${bansLimpiados} ban(s)`);
-                    // Enviar notificación al webhook
-                    enviarNotificacionBanKick("clearbans", jugador.name, "TODOS", "N/A", null, `Limpieza masiva de ${bansLimpiados} ban(s)`);
+                if (typeof nodeObtenerJugadoresBaneados24h === 'function') {
+                    nodeObtenerJugadoresBaneados24h()
+                        .then((jugadores24h) => {
+                            if (jugadores24h.length === 0) {
+                                anunciarInfo('📋 No hay jugadores baneados en las últimas 24h para limpiar.', jugador);
+                                return;
+                            }
+                            
+                            anunciarInfo(`📊 Limpiando ${jugadores24h.length} jugadores baneados en las últimas 24h...`, jugador);
+                            
+                            let exitosos = 0;
+                            jugadores24h.forEach(j => {
+                                if (j.uid) {
+                                    try {
+                                        room.clearBan(j.uid);
+                                        exitosos++;
+                                        console.log(`✅ CLEARBANS ALT: Desbaneado ${j.nombre} (${j.uid})`);
+                                    } catch (error) {
+                                        console.error(`❌ CLEARBANS ALT: Error con ${j.nombre}:`, error);
+                                    }
+                                }
+                            });
+                            
+                            anunciarExito(`✅ Limpieza alternativa completada: ${exitosos}/${jugadores24h.length} procesados`);
+                            anunciarAdvertencia('⚠️ Solo se limpiaron baneos de las últimas 24h. Para limpieza completa, contactar desarrollador.');
+                            
+                            // Enviar notificación a Discord sobre la limpieza alternativa
+                            enviarNotificacionClearBans(jugador.name, "alternativa_24h", exitosos, 0);
+                        })
+                        .catch((error) => {
+                            console.error('❌ Error en clearbans alternativo:', error);
+                            anunciarError('❌ Error en método alternativo de limpieza.', jugador);
+                        });
                 } else {
-                    anunciarInfo("ℹ️ No había jugadores baneados para limpiar", jugador);
+                    anunciarError('❌ No hay funciones de base de datos disponibles para clearbans.', jugador);
+                    anunciarInfo('💡 Para desbanear jugadores específicos, usa: !unban <UID>', jugador);
+                    anunciarInfo('💡 Para obtener UIDs, usa: !banlist o !uid', jugador);
                 }
-            } catch (error) {
-                anunciarError(`❌ Error al limpiar la lista de baneos: ${error.message}`, jugador);
             }
             break;
             
@@ -5711,11 +6287,11 @@ function enviarReportePartidoDiscord() {
 🔴 :  ${listaRed}
 🔵 :  ${listaBlue}
 
-⚽🔴 : ${golesRed || "---"}
+⚽🔴 : ${golesRedTexto || "---"}
 👟🔴 : ${asistenciasRed || "---"}
 🥅🔴 : ${estadisticasPartido.arqueroRed || "---"} ${minVallaRed}:${segVallaRed.toString().padStart(2, "0")}
 
-⚽🔵 : ${golesBlue || "---"}
+⚽🔵 : ${golesBlueTexto || "---"}
 👟🔵 : ${asistenciasBlue || "---"}
 🥅🔵 : ${estadisticasPartido.arqueroBlue || "---"} ${minVallaBlue}:${segVallaBlue.toString().padStart(2, "0")}
 
@@ -6087,6 +6663,67 @@ function limpiarVotacion() {
         tiempoInicio: 0,
         timeout: null
     };
+}
+
+// FUNCIÓN PARA ENVIAR NOTIFICACIÓN DE CLEARBANS AL WEBHOOK
+function enviarNotificacionClearBans(adminNombre, tipoLimpieza, jugadoresLimpiados, ipsLimpiadas) {
+    if (!webhookBanKick || webhookBanKick.length === 0) {
+        return;
+    }
+    
+    const ahora = new Date();
+    const fecha = ahora.toLocaleDateString('es-AR');
+    const hora = ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    
+    let mensaje = "";
+    let accionTexto = "";
+    let detalles = "";
+    
+    switch (tipoLimpieza) {
+        case "completa":
+            accionTexto = "ejecutó limpieza COMPLETA de baneos";
+            detalles = `🧹 Todos los baneos de HaxBall limpiados + ${ipsLimpiadas} IP(s) desbloqueadas | 💡 Resuelve desincronizaciones BD/HaxBall`;
+            break;
+        case "masiva":
+            accionTexto = "ejecutó limpieza MASIVA de baneos";
+            detalles = `🔨 ${jugadoresLimpiados} jugadores desbaneados + ${ipsLimpiadas} IP(s) limpiadas`;
+            break;
+        case "masiva_solo_haxball":
+            accionTexto = "ejecutó limpieza MASIVA (solo HaxBall)";
+            detalles = `🔨 ${jugadoresLimpiados} jugadores procesados | ⚠️ BD no actualizada`;
+            break;
+        case "alternativa_24h":
+            accionTexto = "ejecutó limpieza de baneos (24h)";
+            detalles = `⏰ ${jugadoresLimpiados} jugadores de últimas 24h procesados`;
+            break;
+        default:
+            accionTexto = "ejecutó limpieza de baneos";
+            detalles = `${jugadoresLimpiados} jugadores procesados`;
+    }
+    
+    mensaje = `\`\`\`🧹 [${fecha}, ${hora}] 🛡️ ${adminNombre} ${accionTexto} | ${detalles}\`\`\``;
+    
+    const payload = {
+        content: mensaje
+    };
+    
+    fetch(webhookBanKick, {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log(`📤 Notificación de clearbans enviada a Discord: ${tipoLimpieza}`);
+        } else {
+            console.error(`❌ Error enviando notificación clearbans: ${response.status}`);
+        }
+    })
+    .catch(error => {
+        console.error(`❌ Error de conexión enviando notificación clearbans:`, error);
+    });
 }
 
 // FUNCIÓN PARA ENVIAR NOTIFICACIÓN DE BAN/KICK AL WEBHOOK
@@ -6753,7 +7390,7 @@ function configurarEventos() {
                         const verificacion = await nodeVerificarConexionesExistentes(jugador.name, jugador.auth);
                         console.log(`🔍 DEBUG DB: Verificación recibida:`, verificacion);
                         
-                        if (verificacion && verificacion.tieneConexionesMultiples && verificacion.conexionesActivas > 0) {
+                        if (verificacion && verificacion.tieneConexionesMultiples && verificacion.conexionesActivas >= 2) {
                             console.log(`🚫 BASE DE DATOS: Conexión rechazada para ${jugador.name}: ${verificacion.conexionesActivas} conexiones detectadas.`);
                             
                             room.kickPlayer(
@@ -6918,6 +7555,30 @@ function configurarEventos() {
         // Guardar nombre original antes de modificarlo
         nombresOriginales.set(jugador.id, jugador.name);
         
+        // ====================== GENERAR/VERIFICAR UID DEL JUGADOR ======================
+        try {
+            const uid = obtenerUID(jugador);
+            if (uid) {
+                console.log(`🆔 UID asignado para ${jugador.name}: ${uid}`);
+                
+                // Actualizar UID en la base de datos si es necesario
+                if (typeof dbFunctions !== 'undefined' && dbFunctions.actualizarUID) {
+                    dbFunctions.actualizarUID(jugador.name, uid)
+                        .then(resultado => {
+                            console.log(`📊 UID actualizado en DB para ${jugador.name}:`, resultado);
+                        })
+                        .catch(error => {
+                            console.error(`❌ Error actualizando UID en DB para ${jugador.name}:`, error);
+                        });
+                }
+            } else {
+                console.error(`❌ No se pudo generar UID para ${jugador.name}`);
+            }
+        } catch (error) {
+            console.error(`❌ Error generando UID para ${jugador.name}:`, error);
+        }
+        // ====================== FIN GENERACIÓN UID =======================
+        
         try {
             // Mensaje de bienvenida centrado y llamativo
             const mensajeBienvenida = `🔵⚡ ¡BIENVENIDO ${jugador.name.toUpperCase()} A LA LIGA NACIONAL DE BIGGER LNB! ⚡🔵`;
@@ -6994,7 +7655,7 @@ setTimeout(() => {
             // Mensaje removido para evitar spam
         }
         
-// Limpiar datos del jugador que se fue
+        // Limpiar datos del jugador que se fue
         jugadoresAFK.delete(jugador.id);
         advertenciasAFK.delete(jugador.id);
         nombresOriginales.delete(jugador.id);
@@ -7006,6 +7667,7 @@ setTimeout(() => {
         cooldownGlobal.delete(jugador.id);
         jugadoresSilenciadosPorSpam.delete(jugador.id);
         jugadoresMuteados.delete(jugador.id);
+        jugadoresUID.delete(jugador.id); // Limpiar UID generado
         
         // Limpiar mute temporal si existe
         const muteTemp = jugadoresMuteadosTemporales.get(jugador.id);
@@ -7013,6 +7675,30 @@ setTimeout(() => {
             clearTimeout(muteTemp.timeoutId);
             jugadoresMuteadosTemporales.delete(jugador.id);
         }
+        
+        // ====================== LIMPIAR CONEXIÓN DE BASE DE DATOS ======================
+        // Desactivar todas las conexiones del jugador en la base de datos
+        try {
+            if (typeof nodeDesactivarConexionesJugador === 'function') {
+                // Usar tanto nombre como auth (si está disponible) para limpiar conexiones
+                const authJugador = jugador.auth || null;
+                nodeDesactivarConexionesJugador(jugador.name, authJugador).then(() => {
+                    console.log(`🧹 Conexiones desactivadas para ${jugador.name} al salir`);
+                }).catch(error => {
+                    console.error(`❌ Error desactivando conexiones para ${jugador.name}:`, error);
+                });
+            }
+        } catch (error) {
+            console.error(`❌ Error al desactivar conexiones para ${jugador.name}:`, error);
+        }
+        
+        // Limpiar datos de IP (sistema de memoria)
+        try {
+            limpiarConexionesIP(jugador);
+        } catch (error) {
+            console.error(`❌ Error limpiando conexiones IP para ${jugador.name}:`, error);
+        }
+        // ====================== FIN LIMPIEZA DE CONEXIÓN ======================
 
         // Registrar puntuación del partido en estadísticas globales
         try {
@@ -7266,6 +7952,14 @@ room.onTeamGoal = function(equipo) {
         if (estadisticasPartido.iniciado) {
             estadisticasPartido.duracion = Math.floor((Date.now() - tiempoInicioPartido) / 1000) - estadisticasPartido.tiempoEsperaSaque; // Restar el tiempo de espera para saque
             
+            // Verificar si el partido terminó por cambio de mapa
+            if (terminoPorCambioMapa) {
+                console.log('🏁 DEBUG: Partido finalizado por cambio de mapa. Omitiendo envío de replay e informes.');
+                estadisticasPartido.iniciado = false;
+                liberarBloqueoReplay('Fin por cambio de mapa');
+                return;
+            }
+
             // ACTIVAR BLOQUEO DE AUTO-START HASTA COMPLETAR ENVÍO DE REPLAY
             bloqueadoPorReplay = true;
             intentosAutoStartBloqueados = 0; // Resetear contador
@@ -8312,16 +9006,57 @@ function inicializarBot() {
     }
 }
 
+// FUNCIÓN PARA LIMPIAR TODAS LAS CONEXIONES AL INICIALIZAR
+async function limpiarTodasLasConexionesAlInicializar() {
+    console.log('🧹 Limpiando todas las conexiones activas al inicializar el bot...');
+    
+    try {
+        // Usar la función de Node.js para limpiar todas las conexiones
+        if (typeof nodeLimpiarTodasLasConexiones === 'function') {
+            const resultado = await nodeLimpiarTodasLasConexiones();
+            if (resultado && resultado.success) {
+                console.log(`✅ ${resultado.conexionesDesactivadas || 0} conexiones desactivadas al inicializar`);
+            } else {
+                console.warn('⚠️ No se pudieron limpiar las conexiones o no había conexiones activas');
+            }
+        } else if (typeof nodeLimpiarConexionesInactivas === 'function') {
+            // Función alternativa si no existe la función específica
+            await nodeLimpiarConexionesInactivas();
+            console.log('✅ Limpieza de conexiones inactivas ejecutada al inicializar');
+        } else {
+            console.warn('⚠️ Funciones de limpieza de conexiones no disponibles');
+        }
+        
+        // También limpiar los mapas de memoria
+        conexionesPorIP.clear();
+        jugadoresPorIP.clear();
+        ipsBloqueadas.clear();
+        console.log('🧹 Mapas de memoria de conexiones IP limpiados');
+        
+    } catch (error) {
+        console.error('❌ Error limpiando conexiones al inicializar:', error);
+    }
+}
+
 // INICIALIZACIÓN AUTOMÁTICA
 // Solo ejecutar si estamos en el contexto correcto (navegador con HBInit disponible)
 if (typeof window !== 'undefined' && typeof HBInit !== 'undefined') {
     // Estamos en el navegador con HBInit disponible
     console.log('🌐 Detectado contexto de navegador con HBInit');
-    inicializarBot();
+    
+    // Limpiar conexiones antes de inicializar
+    limpiarTodasLasConexionesAlInicializar().then(() => {
+        console.log('✅ Limpieza inicial completada, iniciando bot...');
+        inicializarBot();
+    }).catch(error => {
+        console.error('❌ Error en limpieza inicial, pero continuando con inicialización:', error);
+        inicializarBot();
+    });
 } else {
     console.log('⚠️ Esperando contexto de HaxBall...');
     // Exportar la función para uso externo
     if (typeof window !== 'undefined') {
         window.inicializarBot = inicializarBot;
+        window.limpiarTodasLasConexionesAlInicializar = limpiarTodasLasConexionesAlInicializar;
     }
 }

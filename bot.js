@@ -60,6 +60,44 @@ const crearTablas = () => {
         // Error esperado si la columna ya existe - ignorar
     });
     
+    // Agregar columnas para sistema de baneos mejorado con manejo de errores mejorado
+    const columnasBaneo = [
+        { nombre: 'uid', definicion: 'TEXT UNIQUE' },
+        { nombre: 'baneado', definicion: 'INTEGER DEFAULT 0' },
+        { nombre: 'fecha_ban', definicion: 'TEXT' },
+        { nombre: 'razon_ban', definicion: 'TEXT' },
+        { nombre: 'admin_ban', definicion: 'TEXT' }
+    ];
+    
+    columnasBaneo.forEach(columna => {
+        db.run(`ALTER TABLE jugadores ADD COLUMN ${columna.nombre} ${columna.definicion}`, (err) => {
+            if (err) {
+                if (err.message.includes('duplicate column name')) {
+                    console.log(`✅ Columna ${columna.nombre} ya existe`);
+                } else {
+                    console.error(`❌ Error agregando columna ${columna.nombre}:`, err.message);
+                    
+                    // Intentar verificar si la columna existe
+                    db.get(`PRAGMA table_info(jugadores)`, [], (pragmaErr, info) => {
+                        if (!pragmaErr) {
+                            console.log(`📊 Información de tabla jugadores:`);
+                            db.all(`PRAGMA table_info(jugadores)`, [], (allErr, rows) => {
+                                if (!allErr && rows) {
+                                    console.log('📋 Columnas existentes:');
+                                    rows.forEach(row => {
+                                        console.log(`   - ${row.name}: ${row.type}`);
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            } else {
+                console.log(`✅ Columna ${columna.nombre} agregada exitosamente`);
+            }
+        });
+    });
+    
     // Tabla de records históricos
     db.run(`CREATE TABLE IF NOT EXISTS records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,6 +130,18 @@ const crearTablas = () => {
         fecha_conexion DATETIME DEFAULT CURRENT_TIMESTAMP,
         ultima_actividad DATETIME DEFAULT CURRENT_TIMESTAMP,
         activa INTEGER DEFAULT 1
+    );`);
+    
+    // Tabla para el nuevo sistema de baneos con tabla dedicada
+    db.run(`CREATE TABLE IF NOT EXISTS baneos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        auth_id TEXT NOT NULL,
+        nombre TEXT NOT NULL,
+        razon TEXT DEFAULT 'Baneado por admin',
+        admin TEXT NOT NULL,
+        fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+        duracion INTEGER DEFAULT 0, -- 0 = permanente, >0 = minutos
+        activo INTEGER DEFAULT 1
     );`);
     
     console.log('✅ Tablas de base de datos creadas/verificadas');
@@ -493,52 +543,108 @@ const dbFunctions = {
     // Registrar nueva conexión
     registrarConexion: (nombreJugador, authJugador, ipSimulada, identificadorConexion) => {
         return new Promise((resolve, reject) => {
-            const query = `INSERT INTO conexiones_activas 
-                          (nombre_jugador, auth_jugador, ip_simulada, identificador_conexion)
-                          VALUES (?, ?, ?, ?)`;
+            // Primero intentar eliminar cualquier conexión existente con el mismo identificador
+            const deleteQuery = `DELETE FROM conexiones_activas WHERE identificador_conexion = ?`;
             
-            db.run(query, [nombreJugador, authJugador, ipSimulada, identificadorConexion], function(err) {
-                if (err) {
-                    reject(err);
-                } else {
-                    console.log(`🔗 Nueva conexión registrada: ${nombreJugador} (${ipSimulada})`);
-                    resolve(this.lastID);
+            db.run(deleteQuery, [identificadorConexion], function(deleteErr) {
+                // Ignorar errores de delete (puede que no exista)
+                if (deleteErr) {
+                    console.log(`⚠️ Advertencia al limpiar conexión existente: ${deleteErr.message}`);
                 }
+                
+                // Ahora insertar la nueva conexión
+                const insertQuery = `INSERT INTO conexiones_activas 
+                              (nombre_jugador, auth_jugador, ip_simulada, identificador_conexion)
+                              VALUES (?, ?, ?, ?)`;
+                
+                db.run(insertQuery, [nombreJugador, authJugador, ipSimulada, identificadorConexion], function(insertErr) {
+                    if (insertErr) {
+                        // Si aún hay error UNIQUE constraint, intentar con INSERT OR REPLACE
+                        if (insertErr.message.includes('UNIQUE constraint failed')) {
+                            console.log(`🔄 Intentando INSERT OR REPLACE para resolver conflicto de conexión`);
+                            
+                            const replaceQuery = `INSERT OR REPLACE INTO conexiones_activas 
+                                              (nombre_jugador, auth_jugador, ip_simulada, identificador_conexion)
+                                              VALUES (?, ?, ?, ?)`;
+                            
+                            db.run(replaceQuery, [nombreJugador, authJugador, ipSimulada, identificadorConexion], function(replaceErr) {
+                                if (replaceErr) {
+                                    console.error(`❌ Error definitivo al registrar conexión:`, replaceErr);
+                                    reject(replaceErr);
+                                } else {
+                                    console.log(`🔗 Conexión registrada/reemplazada: ${nombreJugador} (${ipSimulada})`);
+                                    resolve(this.lastID);
+                                }
+                            });
+                        } else {
+                            console.error(`❌ Error al registrar conexión:`, insertErr);
+                            reject(insertErr);
+                        }
+                    } else {
+                        console.log(`🔗 Nueva conexión registrada: ${nombreJugador} (${ipSimulada})`);
+                        resolve(this.lastID);
+                    }
+                });
             });
         });
     },
     
     // Verificar si un jugador ya tiene conexiones activas
     verificarConexionesExistentes: (nombreJugador, authJugador = null) => {
-        return new Promise((resolve, reject) => {
-            let query = `SELECT * FROM conexiones_activas 
-                        WHERE activa = 1 AND (nombre_jugador = ?`;
-            let params = [nombreJugador];
-            
-            // Si tenemos auth, también verificar por auth
-            if (authJugador) {
-                query += ` OR auth_jugador = ?`;
-                params.push(authJugador);
-            }
-            
-            query += `)`;
-            
-            db.all(query, params, (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    const conexionesActivas = rows.length;
-                    const tieneConexionesMultiples = conexionesActivas > 0;
-                    
-                    console.log(`🔍 Verificación de conexiones para ${nombreJugador}: ${conexionesActivas} activas`);
-                    
-                    resolve({
-                        tieneConexionesMultiples,
-                        conexionesActivas,
-                        detalles: rows
-                    });
+        return new Promise(async (resolve, reject) => {
+            try {
+                // Primero limpiar conexiones inactivas automáticamente
+                await dbFunctions.limpiarConexionesInactivas();
+                
+                let query = `SELECT * FROM conexiones_activas 
+                            WHERE activa = 1 AND (nombre_jugador = ?`;
+                let params = [nombreJugador];
+                
+                // Si tenemos auth, también verificar por auth
+                if (authJugador) {
+                    query += ` OR auth_jugador = ?`;
+                    params.push(authJugador);
                 }
-            });
+                
+                query += `)`;
+                
+                db.all(query, params, (err, rows) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        const conexionesActivas = rows.length;
+                        // Solo considerar múltiples conexiones si hay 2 O MÁS conexiones activas diferentes
+                        // Esto permite que un jugador se conecte por primera vez
+                        const tieneConexionesMultiples = conexionesActivas >= 2;
+                        
+                        console.log(`🔍 Verificación de conexiones para ${nombreJugador}: ${conexionesActivas} activas`);
+                        
+                        // Si hay exactamente una conexión activa, verificar si es del mismo jugador
+                        if (conexionesActivas === 1 && rows.length > 0) {
+                            const conexionExistente = rows[0];
+                            // Si el auth es el mismo, es la misma sesión (permitido)
+                            if (conexionExistente.auth_jugador === authJugador) {
+                                console.log(`✅ Conexión permitida: misma sesión de ${nombreJugador}`);
+                                resolve({
+                                    tieneConexionesMultiples: false,
+                                    conexionesActivas: 0, // Tratar como nueva conexión
+                                    detalles: []
+                                });
+                                return;
+                            }
+                        }
+                        
+                        resolve({
+                            tieneConexionesMultiples,
+                            conexionesActivas,
+                            detalles: rows
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error('❌ Error en verificarConexionesExistentes:', error);
+                reject(error);
+            }
         });
     },
     
@@ -723,6 +829,593 @@ const dbFunctions = {
                 }
             });
         });
+    },
+    
+    // ====================== NUEVO SISTEMA DE BANEOS CON TABLA DEDICADA ======================
+    
+    // Registrar/actualizar UID de un jugador
+    actualizarUID: (nombreJugador, uid) => {
+        return new Promise((resolve, reject) => {
+            // Primero verificar si el jugador existe, si no, crearlo
+            const selectQuery = 'SELECT id FROM jugadores WHERE nombre = ?';
+            
+            db.get(selectQuery, [nombreJugador], (err, row) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                
+                if (row) {
+                    // Jugador existe, actualizar UID
+                    const updateQuery = 'UPDATE jugadores SET uid = ? WHERE nombre = ?';
+                    db.run(updateQuery, [uid, nombreJugador], function(err) {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            console.log(`✅ UID actualizado para ${nombreJugador}: ${uid}`);
+                            resolve({ jugadorId: row.id, uid: uid, actualizado: true });
+                        }
+                    });
+                } else {
+                    // Jugador no existe, crear con UID
+                    const insertQuery = `INSERT INTO jugadores (nombre, uid, partidos, victorias, derrotas, 
+                                        goles, asistencias, autogoles, xp, nivel, fechaPrimerPartido, fechaUltimoPartido)
+                                        VALUES (?, ?, 0, 0, 0, 0, 0, 0, 40, 1, ?, ?)`;
+                    const fechaActual = new Date().toISOString();
+                    
+                    db.run(insertQuery, [nombreJugador, uid, fechaActual, fechaActual], function(err) {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            console.log(`✅ Jugador creado con UID ${nombreJugador}: ${uid}`);
+                            resolve({ jugadorId: this.lastID, uid: uid, actualizado: false });
+                        }
+                    });
+                }
+            });
+        });
+    },
+    
+    // Obtener jugador por UID
+    obtenerJugadorPorUID: (uid) => {
+        return new Promise((resolve, reject) => {
+            const query = 'SELECT * FROM jugadores WHERE uid = ?';
+            db.get(query, [uid], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row);
+                }
+            });
+        });
+    },
+    
+    // Banear jugador en base de datos
+    banearJugador: (nombreJugador, uid, adminNombre, razon = 'Baneado por admin', tiempoMinutos = null) => {
+        return new Promise((resolve, reject) => {
+            const fechaBan = new Date().toISOString();
+            
+            console.log(`📊 [DB] Iniciando proceso de baneo para: ${nombreJugador} con UID: ${uid}`);
+            console.log(`📊 [DB] Parámetros - Admin: ${adminNombre}, Razón: ${razon}, Tiempo: ${tiempoMinutos}`);
+            
+            // Primero asegurar que el jugador tenga UID
+            dbFunctions.actualizarUID(nombreJugador, uid).then(() => {
+                console.log(`✅ [DB] UID actualizado correctamente para ${nombreJugador}`);
+                
+                // Usar una consulta más específica para evitar problemas
+                const query = `UPDATE jugadores 
+                              SET baneado = 1, fecha_ban = ?, razon_ban = ?, admin_ban = ? 
+                              WHERE uid = ?`;
+                
+                console.log(`📊 [DB] Ejecutando consulta de baneo con parámetros:`, [fechaBan, razon, adminNombre, uid]);
+                
+                db.run(query, [fechaBan, razon, adminNombre, uid], function(err) {
+                    if (err) {
+                        console.error(`❌ [DB] Error en consulta SQL de baneo:`, err);
+                        console.error(`❌ [DB] Consulta que falló:`, query);
+                        console.error(`❌ [DB] Parámetros que fallaron:`, [fechaBan, razon, adminNombre, uid]);
+                        reject(err);
+                    } else if (this.changes === 0) {
+                        console.warn(`⚠️ [DB] No se encontró jugador con UID ${uid} para banear`);
+                        
+                        // Intentar con una búsqueda por nombre como respaldo
+                        const fallbackQuery = `UPDATE jugadores 
+                                              SET baneado = 1, fecha_ban = ?, razon_ban = ?, admin_ban = ? 
+                                              WHERE nombre = ?`;
+                        
+                        console.log(`🔄 [DB] Intentando baneo por nombre: ${nombreJugador}`);
+                        
+                        db.run(fallbackQuery, [fechaBan, razon, adminNombre, nombreJugador], function(fallbackErr) {
+                            if (fallbackErr) {
+                                console.error(`❌ [DB] Error en consulta de respaldo:`, fallbackErr);
+                                reject(fallbackErr);
+                            } else if (this.changes === 0) {
+                                const error = new Error(`Jugador no encontrado para banear: ${nombreJugador} (UID: ${uid})`);
+                                console.error(`❌ [DB] ${error.message}`);
+                                reject(error);
+                            } else {
+                                console.log(`✅ [DB] Jugador baneado por nombre: ${nombreJugador} (${this.changes} cambios)`);
+                                resolve({
+                                    nombreJugador,
+                                    uid,
+                                    adminNombre,
+                                    razon,
+                                    fechaBan,
+                                    tiempoMinutos,
+                                    cambios: this.changes,
+                                    metodo: 'por_nombre'
+                                });
+                            }
+                        });
+                    } else {
+                        console.log(`✅ [DB] Jugador baneado exitosamente: ${nombreJugador} (UID: ${uid}) por ${adminNombre}`);
+                        console.log(`📊 [DB] Cambios realizados: ${this.changes}`);
+                        resolve({
+                            nombreJugador,
+                            uid,
+                            adminNombre,
+                            razon,
+                            fechaBan,
+                            tiempoMinutos,
+                            cambios: this.changes,
+                            metodo: 'por_uid'
+                        });
+                    }
+                });
+            }).catch((uidError) => {
+                console.error(`❌ [DB] Error actualizando UID antes del baneo:`, uidError);
+                reject(uidError);
+            });
+        });
+    },
+
+    // Obtener lista de jugadores baneados en la última hora
+    obtenerJugadoresBaneadosRecientes: () => {
+        return new Promise((resolve, reject) => {
+            const query = `SELECT nombre, uid FROM jugadores 
+                          WHERE baneado = 1 AND fecha_ban >= datetime('now', '-1 hour') 
+                          ORDER BY fecha_ban DESC`;
+            
+            db.all(query, [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const jugadoresBaneadosRecientes = rows.map(row => ({
+                        nombre: row.nombre,
+                        uid: row.uid
+                    }));
+                    
+                    resolve(jugadoresBaneadosRecientes);
+                }
+            });
+        });
+    },
+
+    // Obtener lista de jugadores baneados en las últimas 24 horas
+    obtenerJugadoresBaneados24h: () => {
+        return new Promise((resolve, reject) => {
+            const query = `SELECT nombre, uid, fecha_ban, razon_ban, admin_ban FROM jugadores 
+                          WHERE baneado = 1 AND fecha_ban >= datetime('now', '-24 hours') 
+                          ORDER BY fecha_ban DESC`;
+            
+            db.all(query, [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const jugadoresBaneados24h = rows.map(row => ({
+                        nombre: row.nombre,
+                        uid: row.uid,
+                        fechaBan: row.fecha_ban,
+                        razonBan: row.razon_ban || 'Sin razón especificada',
+                        adminBan: row.admin_ban || 'Desconocido'
+                    }));
+                    
+                    resolve(jugadoresBaneados24h);
+                }
+            });
+        });
+    },
+
+    // Verificar si un UID existe en la base de datos y su estado de baneo
+    verificarJugadorPorUID: (uid) => {
+        return new Promise((resolve, reject) => {
+            const query = 'SELECT nombre, uid, baneado, fecha_ban, razon_ban, admin_ban FROM jugadores WHERE uid = ?';
+            
+            db.get(query, [uid], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    if (!row) {
+                        resolve({
+                            existe: false,
+                            baneado: false,
+                            nombre: null,
+                            uid: uid,
+                            mensaje: `No se encontró ningún jugador con UID: ${uid}`
+                        });
+                    } else {
+                        resolve({
+                            existe: true,
+                            baneado: row.baneado === 1,
+                            nombre: row.nombre,
+                            uid: row.uid,
+                            fechaBan: row.fecha_ban,
+                            razonBan: row.razon_ban,
+                            adminBan: row.admin_ban,
+                            mensaje: row.baneado === 1 
+                                ? `El jugador ${row.nombre} está baneado desde ${row.fecha_ban}` 
+                                : `El jugador ${row.nombre} no está baneado`
+                        });
+                    }
+                }
+            });
+        });
+    },
+
+    // Desbanear jugador en base de datos
+    desbanearJugador: (uid) => {
+        return new Promise((resolve, reject) => {
+            // Primero obtener información del jugador baneado
+            const selectQuery = 'SELECT * FROM jugadores WHERE uid = ? AND baneado = 1';
+            
+            db.get(selectQuery, [uid], (err, jugador) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                
+                if (!jugador) {
+                    reject(new Error('Jugador no encontrado o no está baneado'));
+                    return;
+                }
+                
+                // Desbanear en la base de datos
+                const updateQuery = `UPDATE jugadores 
+                                    SET baneado = 0, fecha_ban = NULL, razon_ban = NULL, admin_ban = NULL 
+                                    WHERE uid = ?`;
+                
+                db.run(updateQuery, [uid], function(err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        console.log(`✅ Jugador desbaneado en DB: ${jugador.nombre} (UID: ${uid})`);
+                        resolve({
+                            nombreJugador: jugador.nombre,
+                            uid: uid,
+                            fechaBanOriginal: jugador.fecha_ban,
+                            razonOriginal: jugador.razon_ban,
+                            adminOriginal: jugador.admin_ban,
+                            cambios: this.changes
+                        });
+                    }
+                });
+            });
+        });
+    },
+    
+    // Verificar si un jugador está baneado
+    verificarBaneoJugador: (nombreJugador, uid = null) => {
+        return new Promise((resolve, reject) => {
+            let query = 'SELECT * FROM jugadores WHERE baneado = 1 AND (nombre = ?';
+            let params = [nombreJugador];
+            
+            if (uid) {
+                query += ' OR uid = ?';
+                params.push(uid);
+            }
+            
+            query += ')';
+            
+            db.get(query, params, (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const estaBaneado = !!row;
+                    resolve({
+                        estaBaneado,
+                        datosJugador: row,
+                        nombreJugador: row?.nombre || nombreJugador,
+                        uid: row?.uid || uid,
+                        fechaBan: row?.fecha_ban,
+                        razonBan: row?.razon_ban,
+                        adminBan: row?.admin_ban
+                    });
+                }
+            });
+        });
+    },
+    
+    // Obtener lista de jugadores baneados
+    obtenerJugadoresBaneados: () => {
+        return new Promise((resolve, reject) => {
+            const query = `SELECT nombre, uid, fecha_ban, razon_ban, admin_ban 
+                          FROM jugadores 
+                          WHERE baneado = 1 
+                          ORDER BY fecha_ban DESC`;
+            
+            db.all(query, [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const jugadoresBaneados = rows.map(row => ({
+                        nombre: row.nombre,
+                        uid: row.uid,
+                        fechaBan: row.fecha_ban,
+                        razonBan: row.razon_ban || 'Sin razón especificada',
+                        adminBan: row.admin_ban || 'Desconocido',
+                        diasBaneado: row.fecha_ban ? Math.floor((new Date() - new Date(row.fecha_ban)) / (1000 * 60 * 60 * 24)) : 0
+                    }));
+                    
+                    resolve(jugadoresBaneados);
+                }
+            });
+        });
+    },
+    
+    // ====================== FUNCIONES PARA NUEVO SISTEMA DE BANEOS CON TABLA BANEOS ======================
+    
+    // Crear baneo en la nueva tabla baneos
+    crearBaneo: (authId, nombre, razon, admin, duracion = 0) => {
+        return new Promise((resolve, reject) => {
+            const query = `INSERT INTO baneos (auth_id, nombre, razon, admin, fecha, duracion, activo)
+                          VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 1)`;
+            
+            db.run(query, [authId, nombre, razon, admin, duracion], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    console.log(`✅ Nuevo baneo creado: ${nombre} (ID: ${this.lastID})`);
+                    resolve({
+                        id: this.lastID,
+                        authId: authId,
+                        nombre: nombre,
+                        razon: razon,
+                        admin: admin,
+                        duracion: duracion
+                    });
+                }
+            });
+        });
+    },
+    
+    // Verificar si un jugador está baneado (nueva tabla)
+    estaBaneado: (authId, callback) => {
+        // Verificar que el callback sea una función
+        if (typeof callback !== 'function') {
+            console.error('❌ ERROR: estaBaneado requiere un callback válido');
+            return;
+        }
+        
+        const query = `SELECT * FROM baneos 
+                      WHERE auth_id = ? AND activo = 1 
+                      ORDER BY fecha DESC LIMIT 1`;
+        
+        db.get(query, [authId], (err, row) => {
+            if (err || !row) {
+                callback(false);
+                return;
+            }
+            
+            // Verificar si el baneo temporal ha expirado
+            if (row.duracion > 0) {
+                const fechaBan = new Date(row.fecha);
+                const ahora = new Date();
+                const tiempoTranscurrido = ahora.getTime() - fechaBan.getTime();
+                const tiempoLimite = row.duracion * 60 * 1000; // duracion en minutos a milisegundos
+                
+                if (tiempoTranscurrido >= tiempoLimite) {
+                    // Baneo temporal expirado, desactivar automáticamente
+                    dbFunctions.desactivarBaneo(row.id)
+                        .then(() => {
+                            console.log(`⏰ Baneo temporal expirado automáticamente: ${row.nombre}`);
+                            callback(false);
+                        })
+                        .catch(() => {
+                            callback(false);
+                        });
+                    return;
+                }
+            }
+            
+            callback(row);
+        });
+    },
+    
+    // Desactivar baneo (desbanear) manteniendo historial
+    desactivarBaneo: (baneoId) => {
+        return new Promise((resolve, reject) => {
+            const query = `UPDATE baneos SET activo = 0 WHERE id = ?`;
+            
+            db.run(query, [baneoId], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    console.log(`✅ Baneo desactivado: ID ${baneoId}`);
+                    resolve({
+                        baneoId: baneoId,
+                        cambios: this.changes
+                    });
+                }
+            });
+        });
+    },
+    
+    // Desbanear por auth_id
+    desbanearJugadorNuevo: (authId) => {
+        return new Promise((resolve, reject) => {
+            // Primero obtener información del baneo activo
+            const selectQuery = `SELECT * FROM baneos WHERE auth_id = ? AND activo = 1 LIMIT 1`;
+            
+            db.get(selectQuery, [authId], (err, baneo) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                
+                if (!baneo) {
+                    reject(new Error('No se encontró baneo activo para este jugador'));
+                    return;
+                }
+                
+                // Desactivar el baneo
+                const updateQuery = `UPDATE baneos SET activo = 0 WHERE auth_id = ? AND activo = 1`;
+                
+                db.run(updateQuery, [authId], function(err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        console.log(`✅ Jugador desbaneado: ${baneo.nombre} (Auth: ${authId})`);
+                        resolve({
+                            authId: authId,
+                            nombre: baneo.nombre,
+                            fechaBanOriginal: baneo.fecha,
+                            razonOriginal: baneo.razon,
+                            adminOriginal: baneo.admin,
+                            cambios: this.changes
+                        });
+                    }
+                });
+            });
+        });
+    },
+    
+    // Obtener baneos activos
+    obtenerBaneosActivos: () => {
+        return new Promise((resolve, reject) => {
+            const query = `SELECT * FROM baneos WHERE activo = 1 ORDER BY fecha DESC`;
+            
+            db.all(query, [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const baneosFormateados = rows.map(row => ({
+                        id: row.id,
+                        authId: row.auth_id,
+                        nombre: row.nombre,
+                        razon: row.razon,
+                        admin: row.admin,
+                        fecha: row.fecha,
+                        duracion: row.duracion,
+                        diasBaneado: Math.floor((new Date() - new Date(row.fecha)) / (1000 * 60 * 60 * 24))
+                    }));
+                    
+                    resolve(baneosFormateados);
+                }
+            });
+        });
+    },
+    
+    // Obtener historial completo de baneos (activos e inactivos)
+    obtenerHistorialBaneos: (limite = 50) => {
+        return new Promise((resolve, reject) => {
+            const query = `SELECT * FROM baneos ORDER BY fecha DESC LIMIT ?`;
+            
+            db.all(query, [limite], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const historialFormateado = rows.map(row => ({
+                        id: row.id,
+                        authId: row.auth_id,
+                        nombre: row.nombre,
+                        razon: row.razon,
+                        admin: row.admin,
+                        fecha: row.fecha,
+                        duracion: row.duracion,
+                        activo: row.activo === 1,
+                        diasTranscurridos: Math.floor((new Date() - new Date(row.fecha)) / (1000 * 60 * 60 * 24))
+                    }));
+                    
+                    resolve(historialFormateado);
+                }
+            });
+        });
+    },
+    
+    // Obtener baneos recientes (últimas 24 horas)
+    obtenerBaneosRecientes: () => {
+        return new Promise((resolve, reject) => {
+            const query = `SELECT * FROM baneos 
+                          WHERE fecha >= datetime('now', '-24 hours') 
+                          ORDER BY fecha DESC`;
+            
+            db.all(query, [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const baneosRecientes = rows.map(row => ({
+                        id: row.id,
+                        authId: row.auth_id,
+                        nombre: row.nombre,
+                        razon: row.razon,
+                        admin: row.admin,
+                        fecha: row.fecha,
+                        duracion: row.duracion,
+                        activo: row.activo === 1,
+                        horasTranscurridas: Math.floor((new Date() - new Date(row.fecha)) / (1000 * 60 * 60))
+                    }));
+                    
+                    resolve(baneosRecientes);
+                }
+            });
+        });
+    },
+    
+    // Buscar jugador por auth_id en baneos
+    buscarJugadorEnBaneos: (authId) => {
+        return new Promise((resolve, reject) => {
+            const query = `SELECT * FROM baneos WHERE auth_id = ? ORDER BY fecha DESC LIMIT 1`;
+            
+            db.get(query, [authId], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row ? {
+                        id: row.id,
+                        authId: row.auth_id,
+                        nombre: row.nombre,
+                        razon: row.razon,
+                        admin: row.admin,
+                        fecha: row.fecha,
+                        duracion: row.duracion,
+                        activo: row.activo === 1
+                    } : null);
+                }
+            });
+        });
+    },
+    
+    // Estadísticas de baneos
+    obtenerEstadisticasBaneos: () => {
+        return new Promise((resolve, reject) => {
+            const queries = {
+                totalBaneos: 'SELECT COUNT(*) as count FROM baneos',
+                baneosActivos: 'SELECT COUNT(*) as count FROM baneos WHERE activo = 1',
+                baneosInactivos: 'SELECT COUNT(*) as count FROM baneos WHERE activo = 0',
+                baneos24h: 'SELECT COUNT(*) as count FROM baneos WHERE fecha >= datetime("now", "-24 hours")',
+                baneos7dias: 'SELECT COUNT(*) as count FROM baneos WHERE fecha >= datetime("now", "-7 days")',
+                baneosTemporales: 'SELECT COUNT(*) as count FROM baneos WHERE duracion > 0',
+                baneosPermanentes: 'SELECT COUNT(*) as count FROM baneos WHERE duracion = 0'
+            };
+            
+            const resultados = {};
+            let completadas = 0;
+            const totalQueries = Object.keys(queries).length;
+            
+            Object.entries(queries).forEach(([key, query]) => {
+                db.get(query, [], (err, row) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    resultados[key] = row.count;
+                    completadas++;
+                    if (completadas === totalQueries) {
+                        resolve(resultados);
+                    }
+                });
+            });
+        });
     }
 };
 
@@ -732,8 +1425,8 @@ const roomConfig = {
     playerName: "",
     password: null,
     maxPlayers: 23,
-    public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGiOc74dyGgONYNKRg.jpkAUqRrfFw",
+    public: false,  // Cambiar a true para que la sala sea pública
+    token: "thr1.AAAAAGiPqxhviyDfwN7cUw.oKqjZxo2b9A",
     geo: { code: 'AR', lat: -34.6118, lon: -58.3960 },
     noPlayer: true
 };
@@ -799,6 +1492,28 @@ const webhooks = {
         await page.exposeFunction('nodeActualizarActividadConexion', dbFunctions.actualizarActividadConexion);
         await page.exposeFunction('nodeLimpiarConexionesInactivas', dbFunctions.limpiarConexionesInactivas);
         await page.exposeFunction('nodeObtenerEstadisticasConexiones', dbFunctions.obtenerEstadisticasConexiones);
+        
+        // Exponer funciones del sistema de baneos mejorado (tabla jugadores)
+        await page.exposeFunction('nodeActualizarUID', dbFunctions.actualizarUID);
+        await page.exposeFunction('nodeObtenerJugadorPorUID', dbFunctions.obtenerJugadorPorUID);
+        await page.exposeFunction('nodeBanearJugador', dbFunctions.banearJugador);
+        await page.exposeFunction('nodeDesbanearJugador', dbFunctions.desbanearJugador);
+        await page.exposeFunction('nodeVerificarBaneoJugador', dbFunctions.verificarBaneoJugador);
+        await page.exposeFunction('nodeVerificarJugadorPorUID', dbFunctions.verificarJugadorPorUID);
+        await page.exposeFunction('nodeObtenerJugadoresBaneados', dbFunctions.obtenerJugadoresBaneados);
+        await page.exposeFunction('nodeObtenerJugadoresBaneadosRecientes', dbFunctions.obtenerJugadoresBaneadosRecientes);
+        await page.exposeFunction('nodeObtenerJugadoresBaneados24h', dbFunctions.obtenerJugadoresBaneados24h);
+        
+        // Exponer funciones del nuevo sistema de baneos (tabla baneos)
+        await page.exposeFunction('nodeCrearBaneo', dbFunctions.crearBaneo);
+        await page.exposeFunction('nodeEstaBaneado', dbFunctions.estaBaneado);
+        await page.exposeFunction('nodeDesactivarBaneo', dbFunctions.desactivarBaneo);
+        await page.exposeFunction('nodeDesbanearJugadorNuevo', dbFunctions.desbanearJugadorNuevo);
+        await page.exposeFunction('nodeObtenerBaneosActivos', dbFunctions.obtenerBaneosActivos);
+        await page.exposeFunction('nodeObtenerHistorialBaneos', dbFunctions.obtenerHistorialBaneos);
+        await page.exposeFunction('nodeObtenerBaneosRecientes', dbFunctions.obtenerBaneosRecientes);
+        await page.exposeFunction('nodeBuscarJugadorEnBaneos', dbFunctions.buscarJugadorEnBaneos);
+        await page.exposeFunction('nodeObtenerEstadisticasBaneos', dbFunctions.obtenerEstadisticasBaneos);
 
         // Integrar sistemas compartidos
         await page.exposeFunction('cargarEstadisticasGlobales', dbFunctions.cargarEstadisticasGlobales);
@@ -1189,7 +1904,10 @@ const webhooks = {
         console.log('   - Limpieza inicial: 5 minutos después del inicio');
         console.log('   - Limpieza automática: cada 24 horas');
         console.log('   - Limpieza de conexiones: cada 5 minutos');
-        console.log('   - Comando manual disponible en el bot');
+console.log('   - Comando manual disponible en el bot');
+
+        // Ejecutar limpieza de conexiones inmediatamente al iniciar
+        ejecutarLimpiezaConexiones();
         
         // Mantener el proceso vivo
         // Graceful shutdown

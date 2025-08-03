@@ -681,6 +681,11 @@ let cooldownGlobal = new Map(); // {playerID: timestamp}
 let jugadoresSilenciadosPorSpam = new Map(); // {playerID: {finSilencio: timestamp, razon: string}}
 
 function verificarSpam(jugador, mensaje) {
+    // EXCEPCIÓN PARA ADMINISTRADORES - Los admins no pueden ser silenciados por spam
+    if (esAdminBasico(jugador)) {
+        return false; // Los administradores están exentos del sistema anti-spam
+    }
+    
     const ahora = Date.now();
     const control = spamControl.get(jugador.id) || {
         count: 0, 
@@ -2517,14 +2522,14 @@ function detectarCambioMapa() {
         console.log(`⚽ DEBUG: Partido en curso, verificando cambios de mapa necesarios...`);
         
         // CAMBIOS A MAPAS MENORES (cuando bajan jugadores)
-        // Cambiar de biggerx7 a biggerx5 si hay menos de 11 jugadores
-        if (mapaActual === "biggerx7" && jugadoresActivos < 11) {
+        // Cambiar de biggerx7 a biggerx5 si hay menos de 10 jugadores
+        if (mapaActual === "biggerx7" && jugadoresActivos < 10) {
             cambioMapaEnProceso = true;
-            console.log(`📉 DEBUG: Cambiando de x7 a x5 (${jugadoresActivos} < 11)`);
+            console.log(`📉 DEBUG: Cambiando de x7 a x5 (${jugadoresActivos} < 10)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx5");
-            anunciarInfo(`🔄 Menos de 11 jugadores durante partido (${jugadoresActivos}). Cambiando de x7 a x5...`);
+            anunciarInfo(`🔄 Menos de 10 jugadores durante partido (${jugadoresActivos}). Cambiando de x7 a x5...`);
             
             setTimeout(() => {
                 autoBalanceEquipos();
@@ -2554,11 +2559,11 @@ function detectarCambioMapa() {
         // Cambiar de biggerx3 a biggerx1 si hay menos de 3 jugadores
         if (mapaActual === "biggerx3" && jugadoresActivos < 3) {
             cambioMapaEnProceso = true;
-            console.log(`📉 DEBUG: Cambiando de x3 a x1 (${jugadoresActivos} < 2)`);
+            console.log(`📉 DEBUG: Cambiando de x3 a x1 (${jugadoresActivos} < 3)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx1");
-            anunciarInfo(`🔄 Menos de 2 jugadores durante partido (${jugadoresActivos}). Cambiando de x3 a x1...`);
+            anunciarInfo(`🔄 Menos de 3 jugadores durante partido (${jugadoresActivos}). Cambiando de x3 a x1...`);
             
             setTimeout(() => {
                 autoBalanceEquipos();
@@ -2568,11 +2573,11 @@ function detectarCambioMapa() {
             return;
         }
         
-        // CAMBIOS A MAPAS MAYORES (cuando suben jugadores) - NUEVA FUNCIONALIDAD
-        // Cambiar de biggerx1 a biggerx3 si hay 7 o más jugadores
-        if (mapaActual === "biggerx1" && jugadoresActivos >= 7) {
+        // CAMBIOS A MAPAS MAYORES (cuando suben jugadores)
+        // Cambiar de biggerx1 a biggerx3 si hay 5 o más jugadores
+        if (mapaActual === "biggerx1" && jugadoresActivos >= 5) {
             cambioMapaEnProceso = true;
-            console.log(`📈 DEBUG: Cambiando de x1 a x3 durante partido (${jugadoresActivos} >= 7)`);
+            console.log(`📈 DEBUG: Cambiando de x1 a x3 durante partido (${jugadoresActivos} >= 5)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx3");
@@ -2586,10 +2591,10 @@ function detectarCambioMapa() {
             return;
         }
         
-        // Cambiar de biggerx3 a biggerx5 si hay 11 o más jugadores
-        if (mapaActual === "biggerx3" && jugadoresActivos >= 11) {
+        // Cambiar de biggerx3 a biggerx5 si hay 9 o más jugadores
+        if (mapaActual === "biggerx3" && jugadoresActivos >= 9) {
             cambioMapaEnProceso = true;
-            console.log(`📈 DEBUG: Cambiando de x3 a x5 durante partido (${jugadoresActivos} >= 11)`);
+            console.log(`📈 DEBUG: Cambiando de x3 a x5 durante partido (${jugadoresActivos} >= 9)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx5");
@@ -2603,10 +2608,10 @@ function detectarCambioMapa() {
             return;
         }
         
-        // Cambiar de biggerx5 a biggerx7 si hay 16 o más jugadores
-        if (mapaActual === "biggerx5" && jugadoresActivos >= 16) {
+        // Cambiar de biggerx5 a biggerx7 si hay 14 o más jugadores
+        if (mapaActual === "biggerx5" && jugadoresActivos >= 14) {
             cambioMapaEnProceso = true;
-            console.log(`📈 DEBUG: Cambiando de x5 a x7 durante partido (${jugadoresActivos} >= 16)`);
+            console.log(`📈 DEBUG: Cambiando de x5 a x7 durante partido (${jugadoresActivos} >= 14)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx7");
@@ -2627,21 +2632,21 @@ function detectarCambioMapa() {
     // FUERA DE PARTIDO: Cambiar mapas según cantidad de jugadores
     console.log(`🔄 DEBUG: Fuera de partido, verificando cambio de mapa necesario...`);
     
-    // LÓGICA CORREGIDA DE CAMBIO DE MAPA:
-    // 0-6 jugadores: biggerx1
-    // 7-10 jugadores: biggerx3  
-    // 11-15 jugadores: biggerx5
-    // 16+ jugadores: biggerx7
+    // LÓGICA ACTUALIZADA DE CAMBIO DE MAPA:
+    // 0-4 jugadores: biggerx1
+    // 5-9 jugadores: biggerx3  
+    // 10-14 jugadores: biggerx5
+    // 15+ jugadores: biggerx7
     
     let mapaRequerido = null;
     
-    if (jugadoresActivos <= 6) {
+    if (jugadoresActivos <= 4) {
         mapaRequerido = "biggerx1";
-    } else if (jugadoresActivos >= 7 && jugadoresActivos <= 10) {
+    } else if (jugadoresActivos >= 5 && jugadoresActivos <= 9) {
         mapaRequerido = "biggerx3";
-    } else if (jugadoresActivos >= 11 && jugadoresActivos <= 15) {
+    } else if (jugadoresActivos >= 10 && jugadoresActivos <= 14) {
         mapaRequerido = "biggerx5";
-    } else if (jugadoresActivos >= 16) {
+    } else if (jugadoresActivos >= 15) {
         mapaRequerido = "biggerx7";
     }
     
@@ -2958,12 +2963,16 @@ case "ayuda":
             room.sendAnnouncement("¡Únete a la comunidad para enterarte de torneos, eventos y mucho más!", jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
             break;
             
-        case "mapa":
+case "mapa":
+            if (!esAdmin(jugador)) {
+                anunciarError("❌ Solo los administradores pueden cambiar el mapa.", jugador);
+                return;
+            }
             if (args[1]) {
                 if (cambiarMapa(args[1])) {
                     detectarCambioMapa();
                 } else {
-                anunciarError("Mapa no encontrado. Usa: biggerx3, biggerx5, biggerx7, training", jugador);
+                    anunciarError("Mapa no encontrado. Usa: biggerx3, biggerx5, biggerx7, training", jugador);
                 }
             } else {
                 anunciarInfo("📋 Uso: !mapa <código> (biggerx3, biggerx5, biggerx7, training)");
@@ -6607,7 +6616,7 @@ function configurarEventos() {
         }
         
         // Team chat - PROCESAR PRIMERO para evitar mostrar mensaje original
-        if (mensaje.startsWith("t ")) {
+        if (mensaje.startsWith("t ") || mensaje.startsWith("T ")) {
             const msgEquipo = mensaje.slice(2);
             const jugadores = room.getPlayerList();
             

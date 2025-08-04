@@ -526,9 +526,9 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = false;
+const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGiQAVS8AZalDx7UCg.dbK6qcDhUk4";
+const token = "thr1.AAAAAGiQ4VfAOT0otuq53w.Uj0aZNg1R8k";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -1527,10 +1527,12 @@ let advertenciasJugadores = new Map(); // {playerID: cantidad_de_advertencias}
 let jugadoresBaneadosUID = new Map(); // {auth: {nombre: string, razon: string, fecha: string, admin: string, duracion?: number}}
 let jugadoresUID = new Map(); // {playerID: auth} - Mapeo temporal de IDs a UIDs
 
-// SISTEMA DE PROTECCIÓN CONTRA MÚLTIPLES IPs
+// SISTEMA DE PROTECCIÓN CONTRA MÚLTIPLES CONEXIONES DEL MISMO NAVEGADOR
+const MAX_JUGADORES_POR_IP = 1; // Máximo 1 jugador por navegador/IP
+let conexionesPorAuth = new Map(); // {auth: {jugadores: Set(playerIDs), timestamp: number}}
+let jugadoresPorAuth = new Map(); // {playerID: auth} - Mapeo temporal de IDs a UIDs
 let conexionesPorIP = new Map(); // {ip: {jugadores: Set(playerIDs), timestamp: number}}
 let jugadoresPorIP = new Map(); // {playerID: ip} - Mapeo de jugador a IP
-const MAX_JUGADORES_POR_IP = 2; // Máximo 2 jugadores por IP
 const TIEMPO_LIMITE_IP = 30 * 60 * 1000; // 30 minutos de gracia para la misma IP
 let ipsBloqueadas = new Map(); // {ip: {razon: string, timestamp: number}} - IPs temporalmente bloqueadas
 
@@ -1543,32 +1545,28 @@ let ipsBloqueadas = new Map(); // {ip: {razon: string, timestamp: number}} - IPs
  */
 function obtenerIdentificadorConexion(jugador) {
     try {
-        // En HaxBall Headless, combinamos múltiples factores para detectar conexiones únicas
+        // Para detectar el mismo navegador, usamos solo factores que sean iguales entre pestañas
         let identificadores = [];
         
-        // 1. Auth del jugador (mismo para pestañas del mismo navegador)
+        // 1. Auth del jugador (MISMO para todas las pestañas del mismo navegador)
         if (jugador && jugador.auth) {
             identificadores.push(`auth:${jugador.auth}`);
+        } else {
+            // Si no hay auth, usar una combinación del nombre y conexión base
+            if (jugador && jugador.name) {
+                identificadores.push(`name:${jugador.name}`);
+            }
+            // Agregar un identificador por defecto para navegadores sin auth
+            identificadores.push('noauth:default');
         }
         
-        // 2. ID único de la conexión (diferente para cada pestaña)
-        if (jugador && jugador.id !== undefined) {
-            identificadores.push(`id:${jugador.id}`);
-        }
+        // NO incluir ID único ni timestamp para que sea igual entre pestañas
         
-        // 3. Timestamp de conexión para evitar colisiones
-        identificadores.push(`time:${Date.now()}`);
-        
-        // 4. Nombre del jugador
-        if (jugador && jugador.name) {
-            identificadores.push(`name:${jugador.name}`);
-        }
-        
-        // Crear identificador único combinando todos los factores
+        // Crear identificador consistente para el mismo navegador
         const identificadorCompleto = identificadores.join('|');
         const hash = simpleHash(identificadorCompleto);
         
-        // Generar "IP simulada" basada en el hash completo
+        // Generar "IP simulada" basada solo en factores consistentes
         return `192.168.${Math.floor(hash / 256) % 256}.${hash % 256}`;
         
     } catch (error) {
@@ -1584,20 +1582,54 @@ function obtenerIdentificadorConexion(jugador) {
  */
 function detectarMultiplesConexiones(jugador) {
     try {
-        if (!jugador || !jugador.auth) {
+        if (!jugador) {
             return false;
         }
         
-        // Obtener todos los jugadores conectados
-        const jugadoresConectados = room.getPlayerList();
+        console.log(`🔍 DEBUG: Verificando múltiples conexiones para ${jugador.name} (ID: ${jugador.id}, Auth: ${jugador.auth})`);
         
-        // Buscar otros jugadores con el mismo auth pero diferente ID
-        const jugadoresConMismoAuth = jugadoresConectados.filter(j => 
-            j.auth === jugador.auth && j.id !== jugador.id
-        );
+        // Obtener todos los jugadores conectados EXCLUYENDO al jugador actual
+        const jugadoresConectados = room.getPlayerList().filter(j => j.id !== jugador.id);
         
-        // Si hay jugadores con el mismo auth pero diferente ID, son múltiples pestañas
-        return jugadoresConMismoAuth.length > 0;
+        console.log(`🔍 DEBUG: Jugadores ya conectados: ${jugadoresConectados.length}`);
+        jugadoresConectados.forEach(j => {
+            console.log(`  - ${j.name} (ID: ${j.id}, Auth: ${j.auth})`);
+        });
+        
+        // MÉTODO 1: Verificar por AUTH (más confiable)
+        if (jugador.auth) {
+            const jugadoresConMismoAuth = jugadoresConectados.filter(j => 
+                j.auth && j.auth === jugador.auth
+            );
+            
+            if (jugadoresConMismoAuth.length > 0) {
+                console.log(`🚫 DEBUG: Detectadas ${jugadoresConMismoAuth.length} conexiones con el mismo AUTH: ${jugador.auth}`);
+                jugadoresConMismoAuth.forEach(j => {
+                    console.log(`  - Jugador duplicado: ${j.name} (ID: ${j.id})`);
+                });
+                return true;
+            }
+        }
+        
+        // MÉTODO 2: Verificar por IP simulada como respaldo
+        const ipJugador = obtenerIdentificadorConexion(jugador);
+        if (ipJugador) {
+            const jugadoresConMismaIP = jugadoresConectados.filter(j => {
+                const ipOtroJugador = obtenerIdentificadorConexion(j);
+                return ipOtroJugador === ipJugador;
+            });
+            
+            if (jugadoresConMismaIP.length > 0) {
+                console.log(`🚫 DEBUG: Detectadas ${jugadoresConMismaIP.length} conexiones con la misma IP: ${ipJugador}`);
+                jugadoresConMismaIP.forEach(j => {
+                    console.log(`  - Jugador con misma IP: ${j.name} (ID: ${j.id})`);
+                });
+                return true;
+            }
+        }
+        
+        console.log(`✅ DEBUG: No se detectaron múltiples conexiones para ${jugador.name}`);
+        return false;
         
     } catch (error) {
         console.error(`❌ Error detectando múltiples conexiones:`, error);
@@ -2557,7 +2589,22 @@ function mezclarEquiposAleatoriamenteFinPartido() {
                 setTimeout(() => {
                     console.log(`🚀 DEBUG fin partido: Llamando a verificarAutoStart después de espera...`);
                     mezclaProcesandose = false; // Desactivar control ANTES de verificar auto start
+                    
+                    // CORRECCIÓN: Llamar múltiples veces a verificarAutoStart para asegurar que se ejecute
                     verificarAutoStart();
+                    
+                    // Llamada adicional después de 1 segundo para asegurar que el auto-start funcione
+                    setTimeout(() => {
+                        console.log(`🚀 DEBUG fin partido: Segunda llamada a verificarAutoStart...`);
+                        verificarAutoStart();
+                    }, 1000);
+                    
+                    // Tercera llamada como respaldo
+                    setTimeout(() => {
+                        console.log(`🚀 DEBUG fin partido: Tercera llamada a verificarAutoStart (respaldo)...`);
+                        verificarAutoStart();
+                    }, 2000);
+                    
                 }, 500); // Aumentado a 500ms para dar más tiempo
         }, 30); // Optimizado a 30ms
         
@@ -2855,12 +2902,27 @@ function verificarInactividad() {
 let cambioMapaEnProceso = false;
 // Variable para detectar si el partido terminó por cambio de mapa
 let terminoPorCambioMapa = false;
+// Variables para controlar el spam de logs
+let ultimoEstadoLogeado = {
+    jugadores: -1,
+    mapa: '',
+    partido: false,
+    timestamp: 0
+};
+const INTERVALO_LOG_THROTTLE = 60000; // Solo loguear cambios cada 60 segundos
+// Control específico para el mensaje "Cambio de mapa ya en proceso"
+let ultimoLogCambioEnProceso = 0;
+const INTERVALO_LOG_CAMBIO_PROCESO = 120000; // Solo loguear "cambio en proceso" cada 2 minutos
 
 // FUNCIÓN PARA DETECTAR CAMBIO DE MAPA
 function detectarCambioMapa() {
     // Si ya hay un cambio de mapa en proceso, no ejecutar otro
     if (cambioMapaEnProceso) {
-        console.log("🔄 DEBUG: Cambio de mapa ya en proceso, saltando...");
+        const ahora = Date.now();
+        if (ahora - ultimoLogCambioEnProceso > INTERVALO_LOG_CAMBIO_PROCESO) {
+            console.log("🔄 DEBUG: Cambio de mapa ya en proceso, saltando...");
+            ultimoLogCambioEnProceso = ahora;
+        }
         return;
     }
     
@@ -2879,7 +2941,16 @@ function detectarCambioMapa() {
     // Contar SOLO jugadores activos (en equipos 1 y 2, no espectadores)
     const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
     
+const ahora = Date.now();
+if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresActivos !== ultimoEstadoLogeado.jugadores || mapaActual !== ultimoEstadoLogeado.mapa || partidoEnCurso !== ultimoEstadoLogeado.partido) {
     console.log(`🔍 DEBUG detectarCambioMapa: ${jugadoresActivos} jugadores activos, mapa actual: ${mapaActual}, partido en curso: ${partidoEnCurso}`);
+    ultimoEstadoLogeado = {
+        jugadores: jugadoresActivos,
+        mapa: mapaActual,
+        partido: partidoEnCurso,
+        timestamp: ahora
+    };
+}
 
     // Durante partidos, cambiar mapas tanto a menores (si bajan jugadores) como a mayores (si suben jugadores)
     if (partidoEnCurso) {
@@ -5596,6 +5667,28 @@ function actualizarEstadisticasGlobales(datosPartido) {
             });
         }
         
+        // Vallas Invictas
+        const esArqueroRojo = jugadorPartido.nombre === datosPartido.arqueroRed;
+        const esArqueroAzul = jugadorPartido.nombre === datosPartido.arqueroBlue;
+        
+        if (esArqueroRojo && datosPartido.golesBlue === 0) {
+            statsGlobal.vallasInvictas++;
+            estadisticasGlobales.records.vallasInvictas.push({
+                jugador: jugadorPartido.nombre,
+                tiempo: datosPartido.duracion,
+                fecha: fechaActual
+            });
+        }
+        
+        if (esArqueroAzul && datosPartido.golesRed === 0) {
+            statsGlobal.vallasInvictas++;
+            estadisticasGlobales.records.vallasInvictas.push({
+                jugador: jugadorPartido.nombre,
+                tiempo: datosPartido.duracion,
+                fecha: fechaActual
+            });
+        }
+
         // Récords individuales del partido
         if (jugadorPartido.goles > estadisticasGlobales.records.mayorGoles.cantidad) {
             estadisticasGlobales.records.mayorGoles = {
@@ -5618,8 +5711,8 @@ function actualizarEstadisticasGlobales(datosPartido) {
         statsGlobal.promedioAsistencias = (statsGlobal.asistencias / statsGlobal.partidos).toFixed(2);
         
         // ====================== GENERACIÓN AUTOMÁTICA DE CÓDIGO DE RECUPERACIÓN ======================
-        // Generar código automáticamente cuando el jugador alcanza exactamente 10 partidos
-        if (statsGlobal.partidos === 10 && !statsGlobal.codigoRecuperacion) {
+// Generar código automáticamente cuando el jugador alcanza exactamente 5 partidos
+        if (statsGlobal.partidos === 5 && !statsGlobal.codigoRecuperacion) {
             statsGlobal.codigoRecuperacion = generarCodigoRecuperacion(jugadorPartido.nombre);
             statsGlobal.fechaCodigoCreado = new Date().toISOString();
             
@@ -5627,7 +5720,7 @@ function actualizarEstadisticasGlobales(datosPartido) {
             const jugadorEnSala = room.getPlayerList().find(j => j.name === jugadorPartido.nombre);
             if (jugadorEnSala) {
                 setTimeout(() => {
-                    room.sendAnnouncement("🎉 ¡FELICITACIONES! Has alcanzado 10 partidos jugados", jugadorEnSala.id, parseInt("00FF00", 16), "bold", 0);
+                    room.sendAnnouncement("🎉 ¡FELICITACIONES! Has alcanzado 5 partidos jugados", jugadorEnSala.id, parseInt("00FF00", 16), "bold", 0);
                     room.sendAnnouncement(`🔐 Tu código de recuperación se ha generado automáticamente: ${statsGlobal.codigoRecuperacion}`, jugadorEnSala.id, parseInt(AZUL_LNB, 16), "bold", 0);
                     room.sendAnnouncement("💡 Guarda este código en un lugar seguro. Úsalo con '!recuperar [código]' para recuperar tus estadísticas", jugadorEnSala.id, parseInt("87CEEB", 16), "normal", 0);
                     room.sendAnnouncement("📋 Puedes ver tu código en cualquier momento con '!codigo' o '!cod'", jugadorEnSala.id, parseInt("87CEEB", 16), "normal", 0);
@@ -5690,9 +5783,9 @@ function mostrarRecords(solicitante) {
         .sort((a, b) => b.asistencias - a.asistencias)
         .slice(0, 5);
     
-    // Top 5 por win rate (mínimo 10 partidos)
+// Top 5 por win rate (mínimo 5 partidos)
     const topWinRate = Object.values(estadisticasGlobales.jugadores)
-        .filter(j => j.partidos >= 10)
+        .filter(j => j.partidos >= 5)
         .sort((a, b) => (b.victorias/b.partidos) - (a.victorias/a.partidos))
         .slice(0, 5);
     
@@ -5928,22 +6021,14 @@ function mostrarCodigoRecuperacion(jugador) {
     if (!stats.codigoRecuperacion) {
         stats.codigoRecuperacion = generarCodigoRecuperacion(jugador.name);
         stats.fechaCodigoCreado = new Date().toISOString();
-        guardarEstadisticasGlobales();
+        guardarEstadisticasGlobalesCompletas();
     }
     
-    const lineas = [
-        "🔐 TU CÓDIGO DE RECUPERACIÓN:",
-        `📋 Código: ${stats.codigoRecuperacion}`,
-        `📅 Creado: ${new Date(stats.fechaCodigoCreado).toLocaleDateString()}`,
-        "",
-        "💡 INSTRUCCIONES:",
-        "• Guarda este código en un lugar seguro",
-        "• Úsalo con '!recuperar [código]' desde otro dispositivo",
-        "• Solo tú puedes usar este código con tu nombre",
-        "• El código no expira pero es único por jugador",
-        "",
-        `📊 Estadísticas vinculadas: ${stats.partidos} partidos, ${stats.goles} goles`
-    ];
+        const lineas = [
+            `🔐 Código de recuperación: ${stats.codigoRecuperacion} (${new Date(stats.fechaCodigoCreado).toLocaleDateString()})`,
+            "💡 Usá '!recuperar [código]' desde otro dispositivo y guardalo en un lugar seguro.",
+            `📊 Stats: ${stats.partidos} partidos, ${stats.goles} goles`
+        ];
     
     lineas.forEach(linea => {
         room.sendAnnouncement(linea, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
@@ -5975,11 +6060,6 @@ function recuperarEstadisticas(jugador, codigo) {
         return;
     }
     
-    // Verificar que el nombre actual coincida con el original (protección básica)
-    if (jugador.name.toLowerCase() !== jugadorOriginal.toLowerCase()) {
-        room.sendAnnouncement("❌ Este código pertenece a otro jugador. Solo puedes recuperar tus propias estadísticas.", jugador.id, parseInt("FF0000", 16), "normal", 0);
-        return;
-    }
     
     // Verificar si ya existe un jugador con este nombre (evitar duplicados)
     const statsActuales = estadisticasGlobales.jugadores[jugador.name];
@@ -6003,27 +6083,14 @@ function recuperarEstadisticas(jugador, codigo) {
         delete estadisticasGlobales.jugadores[jugadorOriginal];
     }
     
-    guardarEstadisticasGlobales();
+    guardarEstadisticasGlobalesCompletas();
     
-    const lineas = [
-        "✅ ESTADÍSTICAS RECUPERADAS EXITOSAMENTE",
-        `📊 Partidos: ${statsOriginales.partidos}`,
-        `⚽ Goles: ${statsOriginales.goles}`,
-        `🎯 Asistencias: ${statsOriginales.asistencias}`,
-        `🏆 Victorias: ${statsOriginales.victorias}`,
-        `💔 Derrotas: ${statsOriginales.derrotas}`,
-        `📈 Win Rate: ${((statsOriginales.victorias/statsOriginales.partidos)*100).toFixed(1)}%`,
-        "",
-        "🎮 Tus estadísticas están ahora disponibles en este dispositivo",
-        "💾 Usa '!stats' para ver el resumen completo"
-    ];
-    
-    lineas.forEach(linea => {
-        room.sendAnnouncement(linea, jugador.id, parseInt("00FF00", 16), "normal", 0);
-    });
+    const mensaje = `✅ Stats recuperadas: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A | ${statsOriginales.victorias} V | ${statsOriginales.derrotas} D | Win Rate: ${((statsOriginales.victorias/statsOriginales.partidos)*100).toFixed(1)}%\n🎮 Ahora están disponibles en este dispositivo. Usá '!me' para más info.`;
+
+    room.sendAnnouncement(mensaje, jugador.id, parseInt("00FF00", 16), "normal", 0);
     
     // Anuncio público (opcional)
-anunciarExito(`🔄 ${jugador.name} ha recuperado sus estadísticas (${statsOriginales.partidos} partidos)`);
+    anunciarExito(`🔄 ${jugador.name} ha recuperado sus estadísticas (${statsOriginales.partidos} partidos)`);
 }
 
 // FUNCIÓN PARA DESAFIAR A PPT
@@ -6621,7 +6688,7 @@ function enviarReportePartidoDiscord() {
     
     // Si terminó por goles y fue corto, mostrar mensaje explicativo
     if (estadisticasPartido.duracion < segundosMinimoPartido && terminoEfectivoPorGoles) {
-        anunciarInfo(`ℹ️ Partido terminó por diferencia de gol - enviando reporte al Discord`);
+        // Mensaje removido
     }
     
     if (!validarMapaPersonalizado()) return;
@@ -8906,7 +8973,7 @@ function usarFetchParaEnvio(payload) {
             console.log('🔄 DEBUG: ID anterior:', idAnterior, '-> ID nuevo:', data.id);
             
             // Marcar enlace como confirmado si se solicita
-            if (!enlaceRealConfirmado && enlaceRealSala && enlaceRealSala !== "https://www.haxball.com/play?c=abcd1234") {
+            if (!enlaceRealConfirmado && enlaceRealSala && !enlaceRealSala.includes('abcd1234')) {
                 enlaceRealConfirmado = true;
                 console.log('🔗 DEBUG: enlaceRealConfirmado = true (mensaje nuevo enviado)');
             }
@@ -9056,7 +9123,7 @@ function tieneEnlaceReal() {
         return true;
     }
     // Si no, verificar que tengamos un enlace real válido
-    return enlaceRealSala && enlaceRealSala !== "https://www.haxball.com/play?c=abcd1234";
+    return enlaceRealSala && !enlaceRealSala.includes('abcd1234');
 }
 
 // FUNCIÓN DEPRECADA - Reemplazada por enviarOEditarReporteSala para consistencia

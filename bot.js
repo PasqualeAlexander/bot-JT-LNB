@@ -73,7 +73,7 @@ const crearTablas = () => {
         db.run(`ALTER TABLE jugadores ADD COLUMN ${columna.nombre} ${columna.definicion}`, (err) => {
             if (err) {
                 if (err.message.includes('duplicate column name')) {
-                    console.log(`✅ Columna ${columna.nombre} ya existe`);
+                    // Columna ya existe - no mostrar log
                 } else {
                     console.error(`❌ Error agregando columna ${columna.nombre}:`, err.message);
                     
@@ -92,8 +92,6 @@ const crearTablas = () => {
                         }
                     });
                 }
-            } else {
-                console.log(`✅ Columna ${columna.nombre} agregada exitosamente`);
             }
         });
     });
@@ -144,7 +142,6 @@ const crearTablas = () => {
         activo INTEGER DEFAULT 1
     );`);
     
-    console.log('✅ Tablas de base de datos creadas/verificadas');
 };
 
 // Funciones de base de datos
@@ -156,15 +153,15 @@ const dbFunctions = {
                           (nombre, partidos, victorias, derrotas, goles, asistencias, autogoles, 
                            mejorRachaGoles, mejorRachaAsistencias, hatTricks, vallasInvictas, 
                            tiempoJugado, promedioGoles, promedioAsistencias, fechaPrimerPartido, 
-                           fechaUltimoPartido, xp, nivel, updated_at)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+                           fechaUltimoPartido, xp, nivel, codigoRecuperacion, fechaCodigoCreado, updated_at)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
             
             db.run(query, [
                 nombre, stats.partidos, stats.victorias, stats.derrotas, stats.goles, 
                 stats.asistencias, stats.autogoles, stats.mejorRachaGoles, stats.mejorRachaAsistencias, 
                 stats.hatTricks, stats.vallasInvictas, stats.tiempoJugado, stats.promedioGoles, 
                 stats.promedioAsistencias, stats.fechaPrimerPartido, stats.fechaUltimoPartido, 
-                stats.xp, stats.nivel
+                stats.xp, stats.nivel, stats.codigoRecuperacion, stats.fechaCodigoCreado
             ], function(err) {
                 if (err) reject(err);
                 else resolve(this.lastID);
@@ -228,7 +225,9 @@ const dbFunctions = {
                             fechaPrimerPartido: row.fechaPrimerPartido || new Date().toISOString(),
                             fechaUltimoPartido: row.fechaUltimoPartido || new Date().toISOString(),
                             xp: row.xp || 40,
-                            nivel: row.nivel || 1
+                            nivel: row.nivel || 1,
+                            codigoRecuperacion: row.codigoRecuperacion || null,
+                            fechaCodigoCreado: row.fechaCodigoCreado || null
                         };
                     });
                     
@@ -1425,8 +1424,8 @@ const roomConfig = {
     playerName: "",
     password: null,
     maxPlayers: 23,
-    public: false,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGiPqxhviyDfwN7cUw.oKqjZxo2b9A",
+    public: true,  // Cambiar a true para que la sala sea pública
+    token: "thr1.AAAAAGiQ4VfAOT0otuq53w.Uj0aZNg1R8k",
     geo: { code: 'AR', lat: -34.6118, lon: -58.3960 },
     noPlayer: true
 };
@@ -1640,11 +1639,14 @@ const webhooks = {
                 text.includes('enlaceRealSala') ||
                 text.match(/https:\/\/www\.haxball\.com\/play\?c=[a-zA-Z0-9]+/)) {
                 
-                console.log(`🔗 [ENLACE DETECTADO] ${text}`);
+                // Solo mostrar logs si no es el enlace temporal de inicialización
+                if (!text.includes('abcd1234')) {
+                    console.log(`🔗 [ENLACE DETECTADO] ${text}`);
+                }
                 
                 // Extraer el enlace si está en el texto
                 const linkMatch = text.match(/https:\/\/www\.haxball\.com\/play\?c=[a-zA-Z0-9]+/);
-                if (linkMatch) {
+                if (linkMatch && !linkMatch[0].includes('abcd1234')) {
                     console.log(`🎯 [ENLACE EXTRAÍDO] ${linkMatch[0]}`);
                 }
             }
@@ -1725,7 +1727,7 @@ const webhooks = {
                     }
                     
                     // Verificar variables del bot
-                    if (typeof enlaceRealSala !== 'undefined') {
+                    if (typeof enlaceRealSala !== 'undefined' && !enlaceRealSala.includes('abcd1234')) {
                         console.log('✅ DEBUG: enlaceRealSala disponible:', enlaceRealSala);
                     }
                     
@@ -1749,7 +1751,7 @@ const webhooks = {
                 // Ejecutar código en el navegador para obtener el enlace
                 const enlace = await page.evaluate(() => {
                     // Intentar obtener el enlace desde las variables globales del bot
-                    if (typeof enlaceRealSala !== 'undefined' && enlaceRealSala && enlaceRealSala !== 'https://www.haxball.com/play?c=abcd1234') {
+                    if (typeof enlaceRealSala !== 'undefined' && enlaceRealSala && !enlaceRealSala.includes('abcd1234')) {
                         return enlaceRealSala;
                     }
                     

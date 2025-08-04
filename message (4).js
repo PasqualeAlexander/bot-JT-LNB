@@ -526,9 +526,9 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = true;
+const roomPublic = false;
 const roomPassword = null;
-const token = "thr1.AAAAAGiRLrY9ePGxURLKhA.s8W2s4Q_iVY";
+const token = "thr1.AAAAAGiRPFjdCbe9iV7lZQ.4wdLmq6pzsk";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -3070,9 +3070,9 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             return;
         }
         
-        // Cambiar de biggerx5 a biggerx7 si hay 14 o más jugadores
+        // Cambiar de biggerx5 a biggerx7 si hay 12 o más jugadores
         // MODIFICADO: NO detener partido en x5, solo notificar que esperará al final
-        if (mapaActual === "biggerx5" && jugadoresActivos >= 14) {
+        if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
             console.log(`📈 DEBUG: Detectados ${jugadoresActivos} jugadores en x5, pero NO deteniendo partido`);
             anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados. El mapa cambiará a x7 al finalizar este partido.`);
             // NO detenemos el partido, solo notificamos
@@ -4353,7 +4353,10 @@ case "kick":
                     nodeCrearBaneo(uid, jugadorObjetivo.name, razon, jugador.name, tiempo, ipJugador)
                         .then((resultado) => {
                             console.log(`✅ Baneo registrado en DB:`, resultado);
-                            anunciarInfo(`📊 Baneo registrado en la base de datos con UID: ${uid}`);
+                            // Enviar mensaje privado solo al admin que ejecutó el ban
+                            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
+                                room.sendAnnouncement(`ℹ️ 📊 Baneo registrado en la base de datos con UID: ${uid}`, jugador.id, parseInt("87CEEB", 16), "normal", 0);
+                            }
                         })
                         .catch((error) => {
                             console.error(`❌ Error registrando baneo en DB:`, error);
@@ -7784,7 +7787,7 @@ function configurarEventos() {
                 // Crear el mensaje con formato de chat normal pero con el mensaje del comando
                 const mensajeConNivel = `〔Nv. ${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensajeNumerico}`;
                 
-                // Retransmitir el mensaje modificado con nivel usando color crema
+                // Retransmitir el mensaje modificado con nivel usando color crema para comandos rápidos
                 room.sendAnnouncement(mensajeConNivel, null, parseInt("F5DEB3", 16), "normal", 1);
                 
                 return false; // No mostrar el mensaje original
@@ -7910,8 +7913,18 @@ procesarComando(jugador, mensaje);
         // para que el sistema de chat nativo funcione correctamente.
         // Solo interceptamos comandos especiales, team chat y mensajes privados.
         
-        // PERMITIR que el mensaje normal siga su curso natural en HaxBall
-        return true; // Permitir que HaxBall procese el mensaje normalmente
+        // Obtener el nivel del jugador y mostrar en el chat
+        const nombreOriginal = obtenerNombreOriginal(jugador);
+        const nivel = obtenerNivelJugador(nombreOriginal);
+        const emojiNivel = obtenerEmojiNivel(nivel);
+        
+        // Crear el mensaje con formato de chat normal pero agregando el nivel
+        const mensajeConNivel = `〔Nv. ${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensaje}`;
+        
+        // Retransmitir el mensaje modificado con nivel usando color blanco para mensajes normales
+        room.sendAnnouncement(mensajeConNivel, null, parseInt("FFFFFF", 16), "normal", 1);
+        
+        return false; // No mostrar el mensaje original sin formato
     };
     
     // Jugador se une
@@ -8205,11 +8218,13 @@ procesarComando(jugador, mensaje);
 setTimeout(() => {
                 if (room && room.sendAnnouncement) {
                     room.sendAnnouncement(
-                        "📸 ¡LNB ahora tiene TikTok! Seguinos en https://www.tiktok.com/@lnbhaxball y mandanos tus clips para compartir.\n" +
-                        "🎶 ¡LNB ahora tiene Instagram! Seguinos en https://www.instagram.com/lnbhaxball/ y mandanos tus clips para compartir.\n" +
-                        "📹 ¡LNB ahora tiene Youtube! Seguinos en https://youtube.com/liganacionaldebigger\n" +
-                        "📹 ¡LNB ahora tiene Twitch! Seguinos en https://twitch.tv/liganacionalbigger\n" +
-                        "━━━━━━━━━━━━━┓ LNB 🔥 Discord: 'discord.gg/nJRhZXRNCA' ┏━━━━━━━━━━━━━\n" +
+                        "📣 ¡LNB AHORA ESTÁ EN TODAS LAS REDES!!\n" +
+                        "🎥 TikTok: https://www.tiktok.com/@lnbhaxball\n" +
+                        "📸 Instagram: https://www.instagram.com/lnbhaxball/\n" +
+                        "📹 YouTube: https://youtube.com/liganacionaldebigger\n" +
+                        "📺 Twitch: https://twitch.tv/liganacionalbigger\n" +
+                        "📤 Mandanos tus clips para compartir 💥\n" +
+                        "━━━━━━━━━━━━━┓ LNB 🔥 Discord: 'discord.gg/nJRhZXRNCA' ┏━━━━━━━━━━━━━ \n" +
                         "Script by ИФT\n" +
                         "ℹ️ 🔵 Usa !ayuda para ver los comandos disponibles",
                         jugador.id,

@@ -528,7 +528,7 @@ const roomName = "⚡🔵 LNB JUEGAN TODOS X7 🔵⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGiRINQArNLMBxHQtQ.DYERMtquIUU";
+const token = "thr1.AAAAAGiRLrY9ePGxURLKhA.s8W2s4Q_iVY";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -6604,18 +6604,11 @@ function detectarArqueros() {
     }
 }
 
-// FUNCIÓN PARA ACTUALIZAR REPLAY
+// FUNCIÓN PARA ACTUALIZAR REPLAY (durante el partido)
 function actualizarReplay() {
     try {
-        // Intentar obtener el replay usando diferentes métodos
-        if (typeof room.stopRecording === 'function') {
-            // Si tenemos stopRecording, usarlo para obtener el replay
-            replayData = room.stopRecording();
-            // Reiniciar grabación inmediatamente para continuar grabando
-            if (partidoEnCurso && typeof room.startRecording === 'function') {
-                room.startRecording();
-            }
-        } else if (typeof room.getReplay === 'function') {
+        // Durante el partido, solo usar getReplay para no interrumpir la grabación
+        if (typeof room.getReplay === 'function') {
             replayData = room.getReplay();
         }
         
@@ -6626,6 +6619,31 @@ function actualizarReplay() {
             replayActual = `Replay_${Date.now()}_${estadisticasPartido.golesRed}_${estadisticasPartido.golesBlue}`;
         }
     } catch (error) {
+        replayActual = `Replay_${Date.now()}_${estadisticasPartido.golesRed}_${estadisticasPartido.golesBlue}_error`;
+    }
+}
+
+// FUNCIÓN PARA FINALIZAR REPLAY (al terminar el partido)
+function finalizarReplay() {
+    try {
+        // Al final del partido, detener definitivamente la grabación
+        if (typeof room.stopRecording === 'function') {
+            replayData = room.stopRecording();
+            console.log("🎬 Grabación de replay finalizada");
+        } else if (typeof room.getReplay === 'function') {
+            replayData = room.getReplay();
+        }
+        
+        if (replayData) {
+            replayActual = `Replay_${Date.now()}_${estadisticasPartido.golesRed}_${estadisticasPartido.golesBlue}`;
+            console.log(`🎬 Replay final capturado: ${replayActual}`);
+        } else {
+            // Crear identificador para el replay aunque no tengamos datos
+            replayActual = `Replay_${Date.now()}_${estadisticasPartido.golesRed}_${estadisticasPartido.golesBlue}`;
+            console.log(`⚠️ Replay final sin datos: ${replayActual}`);
+        }
+    } catch (error) {
+        console.log("❌ Error al finalizar replay:", error);
         replayActual = `Replay_${Date.now()}_${estadisticasPartido.golesRed}_${estadisticasPartido.golesBlue}_error`;
     }
 }
@@ -8590,8 +8608,8 @@ room.onTeamGoal = function(equipo) {
             // Enviar puntuaciones privadas a cada jugador después de mostrar el resultado
             enviarPuntuacionesPrivadas(); // Eliminado delay innecesario
             
-            // Actualizar replay final antes de enviar reporte
-            actualizarReplay();
+            // Finalizar replay antes de enviar reporte
+            finalizarReplay();
             
             // Guardar replay en PC si está configurado
             if (guardarReplaysEnPC) {

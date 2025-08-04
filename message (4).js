@@ -528,7 +528,7 @@ const roomName = "⚡🔵 LNB JUEGAN TODOS X7 🔵⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGiQ4VfAOT0otuq53w.Uj0aZNg1R8k";
+const token = "thr1.AAAAAGiRINQArNLMBxHQtQ.DYERMtquIUU";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -1685,6 +1685,13 @@ function limpiarConexionesIP(jugador) {
                 if (conexionIP.jugadores.size === 0) {
                     conexionesPorIP.delete(ipJugador);
                     console.log(`🧹 DEBUG IP: IP ${ipJugador} completamente limpia`);
+                    
+                    // *** IMPORTANTE: Limpiar también el bloqueo temporal si no hay más conexiones ***
+                    const bloqueIP = ipsBloqueadas.get(ipJugador);
+                    if (bloqueIP) {
+                        ipsBloqueadas.delete(ipJugador);
+                        console.log(`🔓 DEBUG IP: Bloqueo temporal removido para IP ${ipJugador} (jugador desconectado)`);
+                    }
                 } else {
                     console.log(`🧹 DEBUG IP: IP ${ipJugador} aún tiene ${conexionIP.jugadores.size} conexiones`);
                 }

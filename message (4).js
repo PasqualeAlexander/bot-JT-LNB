@@ -5349,7 +5349,9 @@ function mostrarColores(jugador) {
         "racing - Camiseta Racing Club (Argentina)",
         "sanLorenzo - Camiseta San Lorenzo (Argentina)",
         "newells - Camiseta Newell's Old Boys (Argentina)",
-        "rosarioCentral - Camiseta Rosario Central (Argentina)"
+        "rosarioCentral - Camiseta Rosario Central (Argentina)",
+        "pfc - Camiseta PFC titular",
+        "pfc2 - Camiseta PFC alternativa"
 ];
     
     colores.forEach(color => {
@@ -5446,10 +5448,22 @@ function asignarColor(equipo, codigo, jugador) {
         palmeiras: {
             angle: 0,
             textColor: "FFFFFF",
-            colors: ["005029", "005029", "FFFFFF"]
+            colors: ["00AEEF", "00AEEF", "FFFFFF"]
         },
 
-        corinthians: {
+        pfc: {
+            angle: 90,
+            textColor: "000000",
+            colors: ["FF90DA", "FF88DA", "FF80DA"]
+        },
+
+        pfc2: {
+            angle: 120,
+            textColor: "F954FF",
+            colors: ["3D3D3D", "383838", "2E2E2E"]
+        },
+
+        argentina: {
             angle: 0,
             textColor: "000000",
             colors: ["FFFFFF", "FFFFFF", "000000"]
@@ -5574,24 +5588,6 @@ function asignarColor(equipo, codigo, jugador) {
             angle: 0, 
             textColor: "FFFFFF", 
             colors: ["FFFFFF", "1F3821", "FFFFFF"] 
-        },
-
-        bov: { 
-            angle: 50, 
-            textColor: "FFFFFF", 
-            colors: ["FEC459", "275186", "DD1329"] 
-        },
-        
-        bov1: { 
-            angle: 180, 
-            textColor: "FFFFFF", 
-            colors: ["D2CFC9", "6F282E", "7D2D34"] 
-        },
-        
-        bov2: { 
-            angle: 50, 
-            textColor: "FFFFFF", 
-            colors: ["000000", "275186", "FEC459"] 
         },
 
         adb: { 

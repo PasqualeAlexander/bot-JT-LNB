@@ -524,11 +524,11 @@ async function registrarJugador(nombre) {
 
 // ==================== CONFIGURACIÓN DE LA SALA ====================
 // Variables de configuración (estas deben coincidir con bot.js)
-const roomName = "⚡🔵 LNB JUEGAN TODOS X7 🔵⚡";
+const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
 const maxPlayers = 23;
 const roomPublic = false;
 const roomPassword = null;
-const token = "thr1.AAAAAGiRPFjdCbe9iV7lZQ.4wdLmq6pzsk";
+const token = "thr1.AAAAAGiRdWjQcTUCIhQjEw.m70apvaEbQ0";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -2569,14 +2569,7 @@ function mezclarEquiposAleatoriamenteFinPartido() {
             room.setPlayerTeam(jugadoresMezclados[i].id, 2);
         }
         
-        // NO activar bloqueo de movimiento después de fin de partido - dejar libre
-        anunciarGeneral("✅ Equipos mezclados para el próximo partido. ¡Listos para jugar!", "00FF00", "bold");
         
-        // Mensaje informativo sobre jugadores AFK - REMOVIDO
-        // const jugadoresAFK = todosJugadores.filter(j => j.team === 0 && !idsJugadoresAMezclar.includes(j.id));
-        // if (jugadoresAFK.length > 0) {
-        //     anunciarInfo(`💤 Jugadores AFK: ${jugadoresAFK.map(j => j.name).join(", ")} - usa !back para volver`);
-        // }
         
         // Mostrar los equipos formados y verificar que se hicieron correctamente
         setTimeout(() => {
@@ -3232,7 +3225,7 @@ function iniciarAnunciosDiscord() {
     intervalDiscord = setInterval(() => {
         try {
             if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-                room.sendAnnouncement("━━━━━━━━━━━━━┓ LNB 🔥 Discord: 'discord.gg/nJRhZXRNCA' ┏━━━━━━━━━━━━━", null, parseInt(CELESTE_LNB, 16), "normal", 1);
+                room.sendAnnouncement("━━━━━━━━━━━━━┓ LNB 🔥 Discord: 'discord.gg/nJRhZXRNCA' ┏━━━━━━━━━━━━━", null, parseInt(CELESTE_LNB, 16), "bold", 0);
             }
         } catch (error) {
             // Error en anuncio de Discord
@@ -3413,7 +3406,7 @@ case "ayuda":
             
         case "ds":
         case "discord":
-            room.sendAnnouncement("🔗 Link de Discord: discord.gg/nJRhZXRNCA", jugador.id, parseInt(COLORES.INFO, 16), "bold", 0);
+            room.sendAnnouncement("━━━━━━━━━━━━━┓ LNB 🔥 Discord: 'discord.gg/nJRhZXRNCA' ┏━━━━━━━━━━━━━", jugador.id, parseInt(COLORES.INFO, 16), "bold", 0);
             room.sendAnnouncement("¡Únete a la comunidad para enterarte de torneos, eventos y mucho más!", jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
             break;
             
@@ -3493,6 +3486,150 @@ case "mapa":
                 anunciarError(`📋 Uso: ${comandoUsado} <código> | ${comandoUsado} list`, jugador);
                 anunciarError(`💡 Ejemplo: ${comandoUsado} dd | ${comandoUsado} bov | ${comandoUsado} realMadrid`, jugador);
             }
+            break;
+            
+        // Comandos específicos de camisetas personalizadas
+        case "tbl":
+            // !camis TBL -> /colors red 60 000000 363636 303030
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoTBL = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoTBL, "tbl", jugador);
+            break;
+            
+        case "dd2":
+            // !camis dd2 -> /colors blue 0 FFFFFF FFFFFF 1F3821 FFFFFF
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoDD2 = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoDD2, "dd2", jugador);
+            break;
+            
+        case "hyz":
+            // !camis hyz -> /colors red 60 4D4D4D 000000 000000 000000
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoHYZ = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoHYZ, "hyz", jugador);
+            break;
+            
+        case "hyz2":
+            // !camis hyz2 -> /colors red 60 26C5FF 801296 801296 26C5FF
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoHYZ2 = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoHYZ2, "hyz2", jugador);
+            break;
+            
+        case "fnv":
+            // !camis fnv -> /colors red 60 000000 F8842B F8842B E86B27
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoFNV = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoFNV, "fnv", jugador);
+            break;
+            
+        case "fnv2":
+            // !camis fnv2 -> /colors blue 60 000000 F8842B F8842B E86B27
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoFNV2 = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoFNV2, "fnv2", jugador);
+            break;
+            
+        case "avh":
+            // !camis avh -> /colors red 60 A4A800 000029 000221 00001C
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoAVH = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoAVH, "avh", jugador);
+            break;
+            
+        case "avh2":
+            // !camis avh2 -> /colors red 180 39373B 949E9C 8D9695 868F8E
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoAVH2 = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoAVH2, "avh2", jugador);
+            break;
+            
+        case "avh3":
+            // !camis avh3 -> /colors red 66 FFCBA3 3B0047 54084A 690942
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoAVH3 = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoAVH3, "avh3", jugador);
+            break;
+            
+        case "lmdt":
+            // !camis lmdt -> /colors red 120 FADB69 090A0E
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoLMDT = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoLMDT, "lmdt", jugador);
+            break;
+            
+        case "lmdt2":
+            // !camis lmdt2 -> /colors red 120 090A0E FADB69
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoLMDT2 = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoLMDT2, "lmdt2", jugador);
+            break;
+            
+        case "adb2":
+            // !camis adb2 -> /colors red 90 C70C0C 1E7315 FFFFFF 000000
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoADB2 = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoADB2, "adb2", jugador);
+            break;
+            
+        case "adb3":
+            // !camis adb3 -> /colors red 66 A35417 FF3BF2 4FFF72 4EA2F5
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoADB3 = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoADB3, "adb3", jugador);
             break;
             
             
@@ -4194,7 +4331,6 @@ case "kick":
                     // Mensaje personalizado según el tipo de admin que ejecuta el kick
                     const tipoAdmin = esSuperAdmin(jugador) ? "Super Admin" : 
                                      esAdmin(jugador) ? "Admin Full" : "Admin Básico";
-                    anunciarAdvertencia(`🥾 ${jugadorObjetivo.name} ha sido expulsado por ${tipoAdmin}: ${razon}`);
                     
                     // Enviar notificación al webhook
                     const ipJugadorObjetivo = obtenerIPJugador(jugadorObjetivo);
@@ -5055,16 +5191,19 @@ case "kick":
         case "ig":
         case "instagram":
             room.sendAnnouncement("━━━━━━━━━┓ LNB 🔥 Instagram: 'https://www.instagram.com/lnbhaxball/' ┏━━━━━━━━━", jugador.id, parseInt(CELESTE_LNB, 16), "bold", 0);
+            room.sendAnnouncement("📲 Seguinos para ver clips, historias, resultados y lo mejor de cada jornada", jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
             break;
             
         case "tiktok":
         case "tt":
             room.sendAnnouncement("━━━━━━━━━━━━━┓ LNB 🔥 TikTok: 'https://www.tiktok.com/@lnbhaxball' ┏━━━━━━━━━━━━━", jugador.id, parseInt(CELESTE_LNB, 16), "bold", 0);
+            room.sendAnnouncement("🔥 Mirá los mejores goles, fails y momentos virales... ¡Seguinos y sumate al show!", jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
             break;
             
         case "youtube":
         case "yt":
-            room.sendAnnouncement("━━━━━━━━━━━━━┓ LNB 🔥 Youtube: 'https://youtube.com/liganacionaldebigger' ┏━━━━━━━━━━━━━", jugador.id, parseInt(CELESTE_LNB, 16), "bold", 0);
+            room.sendAnnouncement("━━━━━━━━━┓ LNB 🔥 Youtube: 'https://youtube.com/liganacionaldebigger' ┏━━━━━━━━━", jugador.id, parseInt(CELESTE_LNB, 16), "bold", 0);
+            room.sendAnnouncement("📲 Seguinos y activá la campanita para no perderte partidos, goles y momentos épicos de la liga.", jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
             break;
             
         case "activarvip":
@@ -5463,10 +5602,101 @@ function asignarColor(equipo, codigo, jugador) {
             colors: ["DECE83", "FFFFFF", "DEDEDE"] 
         },
         
-        esc2: { 
+        esc2: {
             angle: 61, 
             textColor: "DECE83", 
             colors: ["000000", "DECE83", "A69A62"] 
+        },
+        
+        // Camisetas especiales adicionales
+        tbl: {
+            angle: 60,
+            textColor: "000000",
+            colors: ["363636", "303030"]
+        },
+        
+        hyz: {
+            angle: 60,
+            textColor: "4D4D4D",
+            colors: ["000000", "000000", "000000"]
+        },
+        
+        hyz2: {
+            angle: 60,
+            textColor: "26C5FF",
+            colors: ["801296", "801296", "26C5FF"]
+        },
+        
+        fnv: {
+            angle: 60,
+            textColor: "000000",
+            colors: ["F8842B", "F8842B", "E86B27"]
+        },
+        
+        fnv2: {
+            angle: 60,
+            textColor: "ABABAB ",
+            colors: ["052F99", "052C8F", "042B8C"]
+        },
+        
+        avh: {
+            angle: 60,
+            textColor: "A4A800",
+            colors: ["000029", "000221", "00001C"]
+        },
+        
+        avh2: {
+            angle: 180,
+            textColor: "39373B",
+            colors: ["949E9C", "8D9695", "868F8E"]
+        },
+        
+        avh3: {
+            angle: 66,
+            textColor: "FFCBA3",
+            colors: ["3B0047", "54084A", "690942"]
+        },
+        
+        lmdt: {
+            angle: 120,
+            textColor: "FADB69",
+            colors: ["090A0E"]
+        },
+        
+        lmdt2: {
+            angle: 120,
+            textColor: "090A0E",
+            colors: ["FADB69"]
+        },
+        
+        adb2: {
+            angle: 90,
+            textColor: "C70C0C",
+            colors: ["1E7315", "FFFFFF", "000000"]
+        },
+        
+        adb3: {
+            angle: 66,
+            textColor: "A35417",
+            colors: ["A35417", "FF3BF2", "4FFF72", "4EA2F5"]
+        },
+        
+        do: {
+            angle: 0,
+            textColor: "000000",
+            colors: ["570B0B", "000000", "570B0B"]
+        },
+        
+        do1: {
+            angle: 0,
+            textColor: "F5F5F5",
+            colors: ["FFFFFF", "8A2222", "FCFCFC"]
+        },
+        
+        do2: {
+            angle: 90,
+            textColor: "F5F5F5",
+            colors: ["4A2626", "000000", "4A2626"]
         },
     };
     
@@ -5529,6 +5759,57 @@ function mostrarConfigReplays(jugador) {
         room.sendAnnouncement(linea, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
     });
 }
+
+// Función para aplicar camisetas especiales
+function aplicarCamisetaEspecial(jugador, configuracion) {
+    const team = jugador.team;
+    
+    // Verificar que el jugador esté en un equipo
+    if (team === 0) {
+        anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+        return;
+    }
+    
+    // Verificar si ya se alcanzó el máximo de cambios para este equipo
+    const cambiosEquipo = team === 1 ? cambiosCamisetaRed : cambiosCamisetaBlue;
+    if (cambiosEquipo >= maxCambiosCamiseta) {
+        const equipoNombre = team === 1 ? "Rojo" : "Azul";
+        anunciarError(`❌ El equipo ${equipoNombre} ha alcanzado el máximo de cambios de camiseta (${cambiosEquipo}/${maxCambiosCamiseta})`, jugador);
+        return;
+    }
+    
+    // Incrementar contador del equipo específico
+    if (team === 1) {
+        cambiosCamisetaRed++;
+    } else {
+        cambiosCamisetaBlue++;
+    }
+    
+    const equipoNombre = team === 1 ? "Rojo" : "Azul";
+    const cambiosEquipoActual = team === 1 ? cambiosCamisetaRed : cambiosCamisetaBlue;
+    
+    // Aplicar la configuración de camiseta
+    const { angle = 0, textColor, colors } = configuracion;
+    
+    // Convertir colores hexadecimales a enteros para Haxball
+    const hexColors = colors.map(c => parseInt(c, 16));
+    const hexTextColor = parseInt(textColor, 16);
+    
+    room.setTeamColors(team, angle, hexTextColor, hexColors);
+    
+    // Mensaje principal del cambio
+    room.sendAnnouncement(`👕 ${jugador.name} cambió la camiseta del equipo ${equipoNombre} a un diseño especial. Cambios: (${cambiosEquipoActual}/${maxCambiosCamiseta})`, null, parseInt("FF8C00", 16), "bold", 1);
+    
+    // Verificar si se alcanzó el máximo para este equipo
+    if (cambiosEquipoActual >= maxCambiosCamiseta) {
+        room.sendAnnouncement(`⚠️ El equipo ${equipoNombre} ha alcanzado el número máximo de cambios de camiseta para este partido.`, null, parseInt("FF0000", 16), "bold", 1);
+    } else if (cambiosEquipoActual === maxCambiosCamiseta - 1) {
+        room.sendAnnouncement(`⚠️ ¡Atención! El equipo ${equipoNombre} solo tiene 1 cambio de camiseta disponible.`, null, parseInt("FFA500", 16), "bold", 1);
+    }
+    
+    anunciarExito(`Camiseta especial aplicada correctamente al equipo ${equipoNombre}`, jugador);
+}
+
 
 // FUNCIONES DE ESTADÍSTICAS PERSISTENTES CON LOCALSTORAGE
 async function cargarEstadisticasGlobalesCompletas() {
@@ -5778,6 +6059,20 @@ function mostrarEstadisticasJugador(solicitante, nombreJugador) {
     const statsMessage = `📊 ${nombreJugador.toUpperCase()} | 🎮 Partidos: ${stats.partidos} | ⏱️ Tiempo: ${horasJugadas} h | 🏆 V: ${stats.victorias} | 💔 D: ${stats.derrotas} | 📈 WR: ${winRate}% | ⚽ Goles: ${stats.goles} (${stats.promedioGoles}/partido) | 🎯 Asistencias: ${stats.asistencias} (${stats.promedioAsistencias}/partido) | 😱 Autogoles: ${stats.autogoles} | 🎩 Hat-tricks: ${stats.hatTricks} | 🛡️ Vallas invictas: ${stats.vallasInvictas} | 📅 ${fechaUltima}`;
     
     room.sendAnnouncement(statsMessage, solicitante.id, 0xFFFF00, "normal", 0);
+    
+    // Mostrar código de recuperación si el jugador está consultando sus propias estadísticas
+    if (solicitante.name === nombreJugador && stats.partidos > 0) {
+        // Generar código si no existe
+        if (!stats.codigoRecuperacion) {
+            stats.codigoRecuperacion = generarCodigoRecuperacion(nombreJugador);
+            stats.fechaCodigoCreado = new Date().toISOString();
+            guardarEstadisticasGlobalesCompletas();
+        }
+        
+        // Mostrar código de recuperación
+        room.sendAnnouncement(`🔐 Tu código de recuperación: ${stats.codigoRecuperacion}`, solicitante.id, parseInt(AZUL_LNB, 16), "bold", 0);
+        room.sendAnnouncement("💡 Guarda este código para recuperar tus estadísticas en otro dispositivo con '!recuperar [código]'", solicitante.id, parseInt("87CEEB", 16), "normal", 0);
+    }
 }
 
 function mostrarRecords(solicitante) {
@@ -6070,23 +6365,28 @@ function recuperarEstadisticas(jugador, codigo) {
         return;
     }
     
-    
-    // Verificar si ya existe un jugador con este nombre (evitar duplicados)
+    // Verificar si ya existe un jugador con este nombre y mostrar información
     const statsActuales = estadisticasGlobales.jugadores[jugador.name];
     
     if (statsActuales && statsActuales.partidos > 0) {
-        // Ya hay estadísticas para este nombre, preguntar si quiere fusionar
-        room.sendAnnouncement("⚠️ Ya tienes estadísticas en este dispositivo.", jugador.id, parseInt("FFA500", 16), "normal", 0);
-        room.sendAnnouncement("💡 Si quieres fusionar estadísticas, contacta a un administrador.", jugador.id, parseInt("87CEEB", 16), "normal", 0);
+        // Mostrar comparación sin fusionar automáticamente
+        room.sendAnnouncement("⚠️ Ya tienes estadísticas existentes:", jugador.id, parseInt("FFA500", 16), "bold", 0);
+        room.sendAnnouncement(`📊 Actuales: ${statsActuales.partidos} PJ | ${statsActuales.goles} G | ${statsActuales.asistencias} A`, jugador.id, parseInt("87CEEB", 16), "normal", 0);
+        room.sendAnnouncement(`🔄 A recuperar: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A`, jugador.id, parseInt("87CEEB", 16), "normal", 0);
+        room.sendAnnouncement("❌ No se puede recuperar porque ya tienes estadísticas. Contacta a un administrador si necesitas ayuda.", jugador.id, parseInt("FF0000", 16), "normal", 0);
         return;
+    } else {
+        // No hay estadísticas actuales, recuperar directamente
+        estadisticasGlobales.jugadores[jugador.name] = {
+            ...statsOriginales,
+            nombre: jugador.name,
+            fechaRecuperacion: new Date().toISOString(),
+            dispositivo: "recuperado"
+        };
+        
+        const mensaje = `✅ Stats recuperadas: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A | ${statsOriginales.victorias} V | ${statsOriginales.derrotas} D | Win Rate: ${((statsOriginales.victorias/statsOriginales.partidos)*100).toFixed(1)}%`;
+        room.sendAnnouncement(mensaje, jugador.id, parseInt("00FF00", 16), "normal", 0);
     }
-    
-    // Recuperar estadísticas
-    estadisticasGlobales.jugadores[jugador.name] = {
-        ...statsOriginales,
-        fechaRecuperacion: new Date().toISOString(),
-        dispositivo: "recuperado"
-    };
     
     // Eliminar las estadísticas del nombre original si es diferente
     if (jugadorOriginal !== jugador.name) {
@@ -6095,12 +6395,10 @@ function recuperarEstadisticas(jugador, codigo) {
     
     guardarEstadisticasGlobalesCompletas();
     
-    const mensaje = `✅ Stats recuperadas: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A | ${statsOriginales.victorias} V | ${statsOriginales.derrotas} D | Win Rate: ${((statsOriginales.victorias/statsOriginales.partidos)*100).toFixed(1)}%\n🎮 Ahora están disponibles en este dispositivo. Usá '!me' para más info.`;
-
-    room.sendAnnouncement(mensaje, jugador.id, parseInt("00FF00", 16), "normal", 0);
+    room.sendAnnouncement("🎮 Usá '!me' para ver tus estadísticas completas.", jugador.id, parseInt("87CEEB", 16), "normal", 0);
     
-    // Anuncio público (opcional)
-    anunciarExito(`🔄 ${jugador.name} ha recuperado sus estadísticas (${statsOriginales.partidos} partidos)`);
+    // Anuncio público
+    anunciarExito(`🔄 ${jugador.name} ha recuperado sus estadísticas`);
 }
 
 // FUNCIÓN PARA DESAFIAR A PPT
@@ -6575,6 +6873,137 @@ function calcularMejorJugador() {
     });
     
     return mejorJugador;
+}
+
+// FUNCIÓN PARA CORREGIR POSICIONES DE SPAWN - MEJORADA
+function corregirPosicionesSpawn() {
+    try {
+        const jugadores = room.getPlayerList();
+        const jugadoresEnEquipos = jugadores.filter(j => j.team === 1 || j.team === 2);
+        
+        if (jugadoresEnEquipos.length === 0) return;
+        
+        console.log(`🔧 DEBUG: Corrigiendo posiciones de spawn para ${jugadoresEnEquipos.length} jugadores en mapa ${mapaActual}`);
+        
+        // Obtener configuraciones específicas del mapa
+        let configuracionMapa = {
+            limiteArcoIzquierdo: -400,
+            limiteArcoDerecho: 400,
+            spawnDistanceCorrecta: 280,
+            posicionSeguraRoja: { x: -200, y: 0 },
+            posicionSeguraAzul: { x: 200, y: 0 }
+        };
+        
+        // Ajustar configuraciones según el mapa actual
+        switch(mapaActual) {
+            case 'biggerx7':
+                configuracionMapa = {
+                    limiteArcoIzquierdo: -1000,
+                    limiteArcoDerecho: 1000,
+                    spawnDistanceCorrecta: 300,
+                    posicionSeguraRoja: { x: -400, y: 0 },
+                    posicionSeguraAzul: { x: 400, y: 0 }
+                };
+                break;
+            case 'biggerx5':
+                configuracionMapa = {
+                    limiteArcoIzquierdo: -650,
+                    limiteArcoDerecho: 650,
+                    spawnDistanceCorrecta: 400,
+                    posicionSeguraRoja: { x: -300, y: 0 },
+                    posicionSeguraAzul: { x: 300, y: 0 }
+                };
+                break;
+            case 'biggerx3':
+                configuracionMapa = {
+                    limiteArcoIzquierdo: -480,
+                    limiteArcoDerecho: 480,
+                    spawnDistanceCorrecta: 400,
+                    posicionSeguraRoja: { x: -200, y: 0 },
+                    posicionSeguraAzul: { x: 200, y: 0 }
+                };
+                break;
+            case 'biggerx1':
+                configuracionMapa = {
+                    limiteArcoIzquierdo: -320,
+                    limiteArcoDerecho: 320,
+                    spawnDistanceCorrecta: 280,
+                    posicionSeguraRoja: { x: -150, y: 0 },
+                    posicionSeguraAzul: { x: 150, y: 0 }
+                };
+                break;
+        }
+        
+        // Contador de correcciones realizadas
+        let correccionesRealizadas = 0;
+        
+        // Verificar y corregir jugadores que están mal posicionados
+        jugadoresEnEquipos.forEach(jugador => {
+            if (!jugador.position) {
+                console.log(`⚠️ DEBUG: Jugador ${jugador.name} no tiene posición, usando posición segura por defecto`);
+                // Asignar posición segura según equipo
+                const posicionSegura = jugador.team === 1 ? configuracionMapa.posicionSeguraRoja : configuracionMapa.posicionSeguraAzul;
+                try {
+                    room.setPlayerDiscProperties(jugador.id, {
+                        x: posicionSegura.x,
+                        y: posicionSegura.y
+                    });
+                    correccionesRealizadas++;
+                    console.log(`✅ DEBUG: Posición segura asignada a ${jugador.name} en (${posicionSegura.x}, ${posicionSegura.y})`);
+                } catch (error) {
+                    console.error(`❌ DEBUG: Error asignando posición segura a ${jugador.name}:`, error);
+                }
+                return;
+            }
+            
+            const posX = jugador.position.x;
+            const posY = jugador.position.y;
+            let necesitaCorreccion = false;
+            let nuevaX = posX;
+            let nuevaY = posY;
+            
+            // Verificar si está demasiado cerca del arco (caso principal del problema)
+            if (jugador.team === 1) {
+                // Equipo rojo: no debe estar muy cerca del arco izquierdo
+                if (posX < configuracionMapa.limiteArcoIzquierdo + 200) {
+                    nuevaX = configuracionMapa.posicionSeguraRoja.x;
+                    necesitaCorreccion = true;
+                    console.log(`🔧 DEBUG: Jugador rojo ${jugador.name} demasiado cerca del arco (x:${posX}) -> moviendo a posición segura (x:${nuevaX})`);
+                }
+            } else if (jugador.team === 2) {
+                // Equipo azul: no debe estar muy cerca del arco derecho
+                if (posX > configuracionMapa.limiteArcoDerecho - 200) {
+                    nuevaX = configuracionMapa.posicionSeguraAzul.x;
+                    necesitaCorreccion = true;
+                    console.log(`🔧 DEBUG: Jugador azul ${jugador.name} demasiado cerca del arco (x:${posX}) -> moviendo a posición segura (x:${nuevaX})`);
+                }
+            }
+            
+            // También corregir posiciones Y extremas (fuera del campo)
+            if (Math.abs(posY) > 250) {
+                nuevaY = 0; // Posición central en Y
+                necesitaCorreccion = true;
+                console.log(`🔧 DEBUG: Corrigiendo posición Y extrema de ${jugador.name} desde y:${posY} a y:${nuevaY}`);
+            }
+            
+            // Aplicar corrección si es necesaria
+            if (necesitaCorreccion) {
+                try {
+                    room.setPlayerDiscProperties(jugador.id, {
+                        x: nuevaX,
+                        y: nuevaY
+                    });
+                } catch (error) {
+                    console.log(`❌ Error corrigiendo posición de ${jugador.name}:`, error);
+                }
+            }
+        });
+        
+        console.log(`✅ DEBUG: Corrección de posiciones de spawn completada`);
+        
+    } catch (error) {
+        console.log("❌ Error en corregirPosicionesSpawn:", error);
+    }
 }
 
 function detectarArqueros() {
@@ -8556,8 +8985,7 @@ room.onTeamGoal = function(equipo) {
         if (validarMapaPersonalizado()) {
             inicializarEstadisticas();
             
-            // Mensaje de inicio del partido
-            anunciarGeneral("🚀 ⭐ ¡PARTIDO INICIADO! ⭐ 🚀", "00FF00", "bold");
+            // Mensaje de inicio del partido removido
             
             // Inicializar grabación de replay
             if (typeof room.startRecording === 'function') {
@@ -8568,6 +8996,11 @@ room.onTeamGoal = function(equipo) {
                     console.log("❌ Error al iniciar grabación:", error);
                 }
             }
+            
+            // CORRECCIÓN: Forzar posiciones correctas de spawn después de iniciar
+            setTimeout(() => {
+                corregirPosicionesSpawn();
+            }, 100); // Muy poco tiempo para que se ejecute rápido
             
             // Detectar arqueros
             setTimeout(() => {

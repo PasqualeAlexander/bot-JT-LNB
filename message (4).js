@@ -3235,52 +3235,69 @@ function iniciarAnunciosDiscord() {
 
 // FUNCIONES DE COMANDOS
 function mostrarAyuda(jugador, contexto) {
-const comandosPublicos = [
-        "📋 COMANDOS GENERALES: Con !stats [jugador] consultás las estadísticas de alguien, mientras que !me te muestra las tuyas. Si necesitás ayuda, podés usar !llamaradmin [mensaje] para contactar a un admin."
-    ];
+const comandosPublicos = [];
 
     const comandosMovimiento = [
-        "\n🏃‍♂️ COMANDOS DE MOVIMIENTO:",
-        "!afk - Ir a espectadores",
-        "!back - Volver de AFK a un equipo",
-        "!nv / !bb - Abandonar la sala"
+        "\n🏃 Sala / Movimiento:",
+        "!back !afk !nv !bb !llamaradmin [msg]",
+        "\n🎨 Camisetas:",
+        "!tbl, !dd, !dd2, !hyz, !hyz2, !fnv, !fnv2, !avh, !avh2, !avh3, !lmdt, !lmdt2, !adb, !adb2, !adb3, !do, !do1, !do2."
     ];
 
     const comandosPersonalizacion = [
-        "\n🎨 COMANDOS DE PERSONALIZACIÓN:",
-        "!msg_gol <mensaje> - Configura tu mensaje personalizado de gol",
-        "!msg_asistencia <mensaje> - Configura tu mensaje personalizado de asistencia",
-        "!ver_mensajes - Ver mensajes configurados",
-        "!limpiar_mensajes - Eliminar mensajes personalizados"
+        "\n🎨 Personalización:",
+        "!colors [código] !colors list !festejo gol/asis [msg]",
+        "!ver_mensajes !limpiar_mensajes"
     ];
 
     const comandosSala = [
-        "\n🏟️ COMANDOS DE SALA:",
-        "!mapa <código> - Cambia el mapa",
-        "!biggerx3, !biggerx5, !biggerx7, !training - Cambios rápidos de mapa",
-        "!colors / !camis red|blue <código> - Cambiar camisetas",
-        "!colors / !camis list - Ver códigos disponibles",
-        "!colors / !camis dd - Camiseta especial LNB"
+        "\n🏟️ COMANDOS DE INFORMACIÓN DE SALA:",
+        "!mapa - Ver información del mapa actual",
+        "!tiempo - Ver tiempo transcurrido del partido", 
+        "!puntuacion - Ver tu puntuación en el partido actual (1-10)",
+        "\n💬 COMANDOS DE CHAT:",
+        "t [mensaje] - Enviar mensaje al chat de equipo",
+        "@@[jugador] [mensaje] - Enviar mensaje privado",
+        "\n📱 SISTEMA ANTI-SPAM:",
+        "- Máximo 3 mensajes cada 5 segundos",
+        "- Cooldown automático por spam excesivo",
+        "- Mensajes duplicados filtrados"
     ];
 
     const comandosModeracion = [
-        "\n🛡️ COMANDOS DE MODERACIÓN:",
-        "!warn <jugador> [razón] - Advertir jugador (admin)",
-        "!mute <jugador> [tiempo] [razón] - Silenciar jugador (superadmin)",
-        "!kick <jugador> [razón] - Expulsar jugador (superadmin)",
-        "!ban <jugador> [tiempo] [razón] - Banear jugador (superadmin)",
-        "!unban <UID> - Desbanear jugador por UID (superadmin)",
-        "!clear_bans - Limpiar todos los baneos (admin)"
+        "\n⚖️ COMANDOS DE MODERACIÓN (ADMINS):",
+        "!warn [jugador] [razón] - Advertir a un jugador (3 warns = kick)",
+        "!mute [jugador] [tiempo_min] [razón] - Silenciar jugador temporalmente",
+        "!unmute [jugador] - Quitar silencio a un jugador", 
+        "!kick [jugador] [razón] - Expulsar jugador de la sala",
+        "!ban [jugador] [tiempo_min] [razón] - Banear jugador",
+        "!unban [uid/nombre/ip] - Desbanear jugador",
+        "!banlist - Ver lista de jugadores baneados activos",
+        "!clearbans - Limpiar todos los baneos masivamente",
+        "!clear_bans - Limpiar lista de baneos de HaxBall",
+        "\n🔍 COMANDOS DE DEBUG (SUPER ADMIN):",
+        "!debug_unban [uid] - Probar métodos de desbaneo con info detallada"
     ];
 
 
     const comandosAvanzado = [
-        "\n🔧 COMANDOS AVANZADOS:",
-        "!replay_config - Configurar replays",
-        "!toggle_replays <tipo> - Activar/desactivar tipos de replay",
-        "!pause / !resume / !stop - Controles del partido",
-        "!autostart / !autostop - Configurar automatización",
-        "!balance - Balance manual de equipos"
+        "\n⚙️ COMANDOS AVANZADOS (ADMINS):",
+        "!claim [contraseña] - Reclamar rol de administrador",
+        "!mapa [código] - Cambiar mapa (biggerx3, biggerx5, biggerx7, training)",
+        "!biggerx3 / !3 - Cambiar a mapa Bigger x3",
+        "!biggerx5 / !5 - Cambiar a mapa Bigger x5",
+        "!biggerx7 / !7 - Cambiar a mapa Bigger x7",
+        "!training / !tr - Cambiar a mapa de entrenamiento",
+        "!pw [contraseña] - Establecer contraseña de sala",
+        "!clear_password - Eliminar contraseña de sala",
+        "!pause - Pausar partido",
+        "!resume - Reanudar partido",
+        "!stop - Detener partido manualmente",
+        "!autostart - Activar/desactivar inicio automático",
+        "!autostop - Activar/desactivar parada automática",
+        "!balance - Balancear equipos manualmente",
+        "!replay_config - Ver configuración de replays",
+        "!toggle_replays [tipo] - Activar/desactivar tipos de replays"
     ];
 
     const comandosChat = [
@@ -3291,27 +3308,13 @@ const comandosPublicos = [
     ];
 
     const comandosStats = [
-        "\n📊 COMANDOS DE ESTADÍSTICAS:",
-        "!stats [jugador] - Tus estadísticas o las de otro jugador",
-        "!me - Muestra tus estadísticas personales",
-        "!record / !records - Récords históricos de la sala",
-        "!compare <jugador1> <jugador2> - Compara estadísticas",
-        "!h2h / !headtohead <jugador> - Comparar head-to-head",
-        "!top <estadística> - Ver top jugadores (goles, asistencias, etc.)",
-        "!codigo - Obtener tu código de recuperación de stats",
-        "!recuperar <código> - Recuperar tus stats",
-        "!puntuacion - Ver tu puntuación actual en el partido (1-10)"
+        "\n📊 Estadísticas:",
+        "!stats [jugador], !me, !record, !compare <jugador1> <jugador2>, !h2h, !top [estadística], !codigo, !recuperar <código>, !puntuacion ."
     ];
 
     const comandosFun = [
-        "\n🎲 COMANDOS DIVERTIDOS:",
-        "!coin - Lanza una moneda (cara o cruz)",
-        "!random <número> - Número aleatorio hasta el límite que elijas",
-        "!ship <jugador> - Calcula tu compatibilidad amorosa",
-        "!ppt <piedra|papel|tijeras> <jugador> - Desafía a Piedra, Papel o Tijeras",
-        "!cm [jugador] - Medidor especial (comando humorístico)",
-        "!nenazo - Mensaje especial",
-        "!nov - Mensaje especial"
+        "\n🎲 Fun:",
+        "!coin !random [n] !ship !ppt [opc] [jugador] !cm !nenazo !nov"
     ];
     
     const comandosAdmin = [
@@ -3323,6 +3326,14 @@ const comandosPublicos = [
         "!mute <jugador> [tiempo] [razón] - Silenciar (superadmin)",
         "!kick <jugador> [razón] - Expulsar (superadmin)",
         "!ban <jugador> [tiempo] [razón] - Banear (superadmin)"
+    ];
+    
+    const comandosRedes = [
+        "\n🌐 COMANDOS DE REDES SOCIALES:",
+        "!discord / !ds - Ver enlace del servidor de Discord",
+        "!instagram / !ig - Ver enlace de Instagram oficial",
+        "!youtube / !yt - Ver enlace del canal de YouTube",
+        "!tiktok / !tt - Ver enlace de TikTok oficial"
     ];
 
     let output = [];
@@ -3342,9 +3353,6 @@ const comandosPublicos = [
         case 'personalizacion':
             output = comandosPersonalizacion;
             break;
-        case 'sala':
-            output = comandosSala;
-            break;
         case 'moderacion':
             output = comandosModeracion;
             break;
@@ -3354,10 +3362,13 @@ const comandosPublicos = [
         case 'chat':
             output = comandosChat;
             break;
+        case 'redes':
+            output = comandosRedes;
+            break;
         default:
             output = [
                 ...comandosPublicos,
-                "\n💡 Usa !ayuda stats, !ayuda fun, !ayuda admin, !ayuda movimiento, !ayuda personalizacion, !ayuda sala, !ayuda moderacion, !ayuda avanzado, o !ayuda chat para más comandos."
+                "\n💡 Usa !ayuda stats, !ayuda fun, !ayuda admin, !ayuda movimiento, !ayuda personalizacion, !ayuda moderacion, !ayuda avanzado, !ayuda chat, o !ayuda redes para más comandos."
             ];
     }
     

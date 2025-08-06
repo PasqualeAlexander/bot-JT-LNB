@@ -1546,6 +1546,9 @@ let jugadoresMuteados = new Set(); // IDs de jugadores silenciados permanentemen
 let jugadoresMuteadosTemporales = new Map(); // {playerID: {finMute: timestamp, razon: string, timeoutId: timeoutId}}
 let advertenciasJugadores = new Map(); // {playerID: cantidad_de_advertencias}
 
+// SISTEMA PARA MANEJAR SALIDAS VOLUNTARIAS
+let jugadoresSaliendoVoluntariamente = new Set(); // IDs de jugadores que están saliendo voluntariamente (!nv, !bb)
+
 // SISTEMA DE UID PARA BANEOS
 let jugadoresBaneadosUID = new Map(); // {auth: {nombre: string, razon: string, fecha: string, admin: string, duracion?: number}}
 let jugadoresUID = new Map(); // {playerID: auth} - Mapeo temporal de IDs a UIDs
@@ -3942,6 +3945,7 @@ case "mapa":
             break;
             
         case "cm":
+        case "memide":
             let objetivo;
             if (args[1]) {
                 const nombreObjetivo = args.slice(1).join(" ");
@@ -4107,7 +4111,10 @@ case "mapa":
             
         case "nv":
         case "bb":
-            // Abandonar la sala completamente
+            // Marcar que este jugador se va voluntariamente para evitar mensajes duplicados
+            jugadoresSaliendoVoluntariamente.add(jugador.id);
+            
+            // Mostrar solo UN mensaje de despedida
             anunciarGeneral(`👋 ${jugador.name} abandonó la sala. ¡Hasta la vista!`, "888888");
             
             // Usar setTimeout para permitir que el mensaje se muestre antes de la expulsión
@@ -6451,6 +6458,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             break;
             
         case "asistencias":
+        case "asis":
             topJugadores = jugadores
                 .sort((a, b) => b.asistencias - a.asistencias)
                 .slice(0, 10);
@@ -6490,7 +6498,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             break;
             
         default:
-            room.sendAnnouncement("❌ Estadística no válida. Usa: goles, asistencias, vallas, autogoles, mvps", solicitante.id, parseInt("FF0000", 16), "normal", 0);
+            room.sendAnnouncement("❌ Estadística no válida. Usa: goles, asistencias (asis), vallas, autogoles, mvps", solicitante.id, parseInt("FF0000", 16), "normal", 0);
             return;
     }
     
@@ -6509,6 +6517,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
                 info = `(${jugador.promedioGoles}/partido)`;
                 break;
             case "asistencias":
+            case "asis":
                 valor = jugador.asistencias;
                 info = `(${jugador.promedioAsistencias}/partido)`;
                 break;
@@ -8343,7 +8352,7 @@ function configurarEventos() {
                     mensajeNumerico = "¡Gracias!";
                     break;
                 case 24:
-                    mensajeNumerico = "¡Buena Salvada!";
+                    mensajeNumerico = "¡Buena salvada!";
                     break;
                 case 25:
                     mensajeNumerico = "LA MAFIA A COLOCAAAAAAAAAAAAAAAAAAR";
@@ -8355,7 +8364,7 @@ function configurarEventos() {
                     mensajeNumerico = "PIPA PIPA PIPA PIPA NONONONONONO";
                     break;
                 case 28:
-                    mensajeNumerico = "776420 pesos la recaudacion para esta nueva edicion del superclasico del futbol argentino MARTEEEEN GOOOOOOOOOOOOOOL";
+                    mensajeNumerico = "¡Buen riflazo!";
                     break;
                 case 29:
                     mensajeNumerico = "¡NOOOO FABIÁNIIII!";
@@ -8980,7 +8989,14 @@ setTimeout(() => {
     // Jugador sale
     room.onPlayerLeave = function(jugador) {
         const nombreOriginal = obtenerNombreOriginal(jugador);
-        anunciarGeneral(`👋 💨 ${nombreOriginal} se desconectó de la sala 💨`, "888888");
+        
+        // Solo mostrar mensaje de desconexión si NO se fue voluntariamente
+        if (!jugadoresSaliendoVoluntariamente.has(jugador.id)) {
+            anunciarGeneral(`👋 💨 ${nombreOriginal} se desconectó de la sala 💨`, "888888");
+        } else {
+            // Limpiar el flag ya que el jugador ya salió
+            jugadoresSaliendoVoluntariamente.delete(jugador.id);
+        }
         
         // Si era admin
         if (adminActual && adminActual.id === jugador.id) {

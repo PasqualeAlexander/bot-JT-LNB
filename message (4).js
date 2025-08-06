@@ -547,9 +547,9 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = false;
+const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGiS3o1IlalxaFvBdA.pmAhv_eTFdo";
+const token = "thr1.AAAAAGiTqFJxx2HfzIfetQ.4FpAKECkS-c";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room

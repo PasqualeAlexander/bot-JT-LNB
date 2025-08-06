@@ -7793,7 +7793,12 @@ anunciarError("❌ Ya has votado en la votación actual", jugador);
         
         // Agregar voto
         votacionLlamarAdmin.votos.add(jugador.id);
-        anunciarInfo(`🗳️ ${jugador.name} votó para llamar admin. Votos: ${votacionLlamarAdmin.votos.size}/${votantesMinimos}`);
+        
+        // Mostrar el motivo nuevamente cuando alguien vota (en color amarillo como el de gol)
+        anunciarGeneral(`🚨 Motivo: "${votacionLlamarAdmin.mensaje}"`, COLORES.DORADO, "bold");
+        
+        // Mostrar votos actuales en color amarillo como el de gol
+        anunciarGeneral(`🗳️ ${jugador.name} votó para llamar admin. Votos: ${votacionLlamarAdmin.votos.size}/${votantesMinimos}`, COLORES.DORADO, "bold");
         
         // Verificar si se alcanzó el mínimo
         if (votacionLlamarAdmin.votos.size >= votantesMinimos) {

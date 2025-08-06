@@ -25,6 +25,7 @@ if (isNode && typeof fetch === 'undefined') {
 
 // Importar sistema de desbaneo
 let ejecutarDesbaneo = null;
+let unbanMejorado = null;
 if (isNode) {
     try {
         const unbanSystem = require('./unban_system.js');
@@ -32,6 +33,26 @@ if (isNode) {
         console.log('✅ Sistema de desbaneo importado correctamente');
     } catch (error) {
         console.warn('⚠️ No se pudo importar el sistema de desbaneo:', error.message);
+    }
+    
+    // Importar sistema de desbaneo mejorado
+    try {
+        const unbanMejoradoSystem = require('./unban_mejorado.js');
+        unbanMejorado = unbanMejoradoSystem.unbanMejorado;
+        console.log('✅ Sistema de desbaneo mejorado importado correctamente');
+    } catch (error) {
+        console.warn('⚠️ No se pudo importar el sistema de desbaneo mejorado:', error.message);
+    }
+}
+
+// Importar sistema de reparación para baneos temporales
+let fixBaneosTemporales = null;
+if (isNode) {
+    try {
+        fixBaneosTemporales = require('./fix_baneos_temporales.js');
+        console.log('✅ Sistema de reparación de baneos temporales importado correctamente');
+    } catch (error) {
+        console.warn('⚠️ No se pudo importar el sistema de reparación de baneos temporales:', error.message);
     }
 }
 
@@ -526,9 +547,9 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = true;
+const roomPublic = false;
 const roomPassword = null;
-const token = "thr1.AAAAAGiShuTYaMh7_El59A.7D6ARjIknzE";
+const token = "thr1.AAAAAGiSod8Rv6XEmdUCqQ.ZAiXoa71aa4";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -1980,6 +2001,73 @@ function obtenerJugadorPorNombreOUID(identificador) {
     return null;
 }
 
+// FUNCIÓN PARA OBTENER JUGADOR POR ID NUMÉRICO (ID REAL DEL JUGADOR)
+function obtenerJugadorPorID(id) {
+    const jugadores = obtenerJugadoresSinHost();
+    const idNum = parseInt(id);
+    
+    // Debug detallado
+    console.log(`🔍 DEBUG obtenerJugadorPorID: Buscando ID ${id} (convertido a ${idNum})`);
+    console.log(`📊 DEBUG obtenerJugadorPorID: Total jugadores sin host: ${jugadores.length}`);
+    console.log(`📋 DEBUG obtenerJugadorPorID: Lista de jugadores:`);
+    jugadores.forEach((j, index) => {
+        console.log(`  [${index}] ${j.name} (ID real: ${j.id})`);
+    });
+    
+    // Verificar que el ID sea válido
+    if (isNaN(idNum)) {
+        console.log(`❌ DEBUG obtenerJugadorPorID: ID no es un número válido: ${id}`);
+        return null;
+    }
+    
+    if (idNum < 0) {
+        console.log(`❌ DEBUG obtenerJugadorPorID: ID es negativo: ${idNum}`);
+        return null;
+    }
+    
+    // Buscar jugador por ID real en lugar de índice del array
+    const jugadorEncontrado = jugadores.find(j => j.id === idNum);
+    
+    if (!jugadorEncontrado) {
+        console.log(`❌ DEBUG obtenerJugadorPorID: Jugador con ID real ${idNum} no encontrado`);
+        return null;
+    }
+    
+    console.log(`✅ DEBUG obtenerJugadorPorID: Jugador encontrado con ID real ${idNum}: ${jugadorEncontrado.name}`);
+    
+    return jugadorEncontrado;
+}
+
+// FUNCIÓN PARA MOSTRAR LISTA DE JUGADORES CON IDs
+function mostrarListaJugadoresConIDs(jugador) {
+    const jugadores = obtenerJugadoresSinHost();
+    
+    if (jugadores.length === 0) {
+        anunciarInfo("📋 No hay jugadores en la sala actualmente.", jugador);
+        return;
+    }
+    
+    room.sendAnnouncement("📋 LISTA DE JUGADORES CON IDs:", jugador.id, parseInt(COLORES.INFO, 16), "bold", 0);
+    room.sendAnnouncement("═══════════════════════════════════════", jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+    
+    jugadores.forEach((j, index) => {
+        const nombreOriginal = obtenerNombreOriginal(j);
+        const equipo = j.team === 1 ? "🔴" : j.team === 2 ? "🔵" : "⚪";
+        const estado = j.team === 0 ? "SPEC" : `EQUIPO ${j.team === 1 ? "ROJO" : "AZUL"}`;
+        
+        room.sendAnnouncement(
+            `(${index}) ${equipo} ${nombreOriginal} - ${estado}`, 
+            jugador.id, 
+            parseInt(COLORES.PRIMARIO, 16), 
+            "normal", 
+            0
+        );
+    });
+    
+    room.sendAnnouncement("═══════════════════════════════════════", jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+    room.sendAnnouncement("💡 Usa !kick #ID o !ban #ID para moderar por ID", jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+}
+
 // FUNCIÓN MEJORADA PARA OBTENER UID DE UN JUGADOR CON VERIFICACIÓN ROBUSTA DE DUPLICADOS
 function obtenerUID(jugador) {
     try {
@@ -3269,12 +3357,13 @@ const comandosPublicos = [];
         "!warn [jugador] [razón] - Advertir a un jugador (3 warns = kick)",
         "!mute [jugador] [tiempo_min] [razón] - Silenciar jugador temporalmente",
         "!unmute [jugador] - Quitar silencio a un jugador", 
-        "!kick [jugador] [razón] - Expulsar jugador de la sala",
-        "!ban [jugador] [tiempo_min] [razón] - Banear jugador",
+        "!kick <jugador|#ID> [razón] - Expulsar jugador de la sala",
+        "!ban <jugador|#ID> [tiempo_min] [razón] - Banear jugador",
         "!unban [uid/nombre/ip] - Desbanear jugador",
         "!banlist - Ver lista de jugadores baneados activos",
         "!clearbans - Limpiar todos los baneos masivamente",
         "!clear_bans - Limpiar lista de baneos de HaxBall",
+        "# - Ver lista de jugadores con sus IDs numéricos",
         "\n🔍 COMANDOS DE DEBUG (SUPER ADMIN):",
         "!debug_unban [uid] - Probar métodos de desbaneo con info detallada"
     ];
@@ -3324,8 +3413,9 @@ const comandosPublicos = [];
         "!clear_password - Eliminar contraseña de sala",
         "!warn <jugador> [razón] - Advertir jugador",
         "!mute <jugador> [tiempo] [razón] - Silenciar (superadmin)",
-        "!kick <jugador> [razón] - Expulsar (superadmin)",
-        "!ban <jugador> [tiempo] [razón] - Banear (superadmin)"
+        "!kick <jugador|#ID> [razón] - Expulsar (superadmin)",
+        "!ban <jugador|#ID> [tiempo] [razón] - Banear (superadmin)",
+        "# - Ver lista de jugadores con IDs"
     ];
     
     const comandosRedes = [
@@ -3382,6 +3472,10 @@ async function procesarComando(jugador, mensaje) {
     const comando = args[0].toLowerCase();
     
     switch (comando) {
+        case "#":
+            // Comando especial para mostrar lista de jugadores con IDs
+            mostrarListaJugadoresConIDs(jugador);
+            break;
         case "ship":
             if (args[1]) {
                 const nombreObjetivo = args.slice(1).join(" ");
@@ -4315,9 +4409,25 @@ case "kick":
             }
             
             if (args[1]) {
-                const nombreJugador = args[1];
+                const inputJugador = args[1];
                 const razon = args.slice(2).join(" ") || "Expulsado por admin";
-                const jugadorObjetivo = obtenerJugadorPorNombre(nombreJugador);
+                let jugadorObjetivo = null;
+                
+                // Verificar si es un ID numérico (empieza con #)
+                if (inputJugador.startsWith('#')) {
+                    const id = inputJugador.substring(1);
+                    jugadorObjetivo = obtenerJugadorPorID(id);
+                    
+                    if (!jugadorObjetivo) {
+                        anunciarError(`❌ ID inválido: ${id}. Usa # para ver la lista de jugadores con IDs.`, jugador);
+                        return;
+                    }
+                    
+                    anunciarInfo(`🎯 Jugador seleccionado por ID #${id}: ${jugadorObjetivo.name}`, jugador);
+                } else {
+                    // Búsqueda por nombre tradicional
+                    jugadorObjetivo = obtenerJugadorPorNombre(inputJugador);
+                }
                 
                 if (jugadorObjetivo) {
                     // Verificar jerarquía de permisos
@@ -4351,7 +4461,7 @@ case "kick":
                     anunciarError("❌ Jugador no encontrado", jugador);
                 }
             } else {
-                anunciarError("📝 Uso: !kick <jugador> [razón]", jugador);
+                anunciarError("📝 Uso: !kick <jugador|#ID> [razón]. Usa # para ver IDs de jugadores.", jugador);
             }
             break;
             
@@ -4400,16 +4510,32 @@ case "kick":
 
             // 2. Validar argumentos
             if (!args[1]) {
-                anunciarError("📝 Uso: !ban <jugador> [tiempo] [razón]. El tiempo es en minutos.", jugador);
+                anunciarError("📝 Uso: !ban <jugador|#ID> [tiempo] [razón]. El tiempo es en minutos. Usa # para ver IDs.", jugador);
                 return;
             }
             
-            const nombreJugador = args[1];
-            const jugadorObjetivo = obtenerJugadorPorNombre(nombreJugador);
-
-            if (!jugadorObjetivo) {
-                anunciarError(`❌ Jugador "${nombreJugador}" no encontrado.`, jugador);
-                return;
+            const inputJugador = args[1];
+            let jugadorObjetivo = null;
+            
+            // Verificar si es un ID numérico (empieza con #)
+            if (inputJugador.startsWith('#')) {
+                const id = inputJugador.substring(1);
+                jugadorObjetivo = obtenerJugadorPorID(id);
+                
+                if (!jugadorObjetivo) {
+                    anunciarError(`❌ ID inválido: ${id}. Usa # para ver la lista de jugadores con IDs.`, jugador);
+                    return;
+                }
+                
+                anunciarInfo(`🎯 Jugador seleccionado por ID #${id}: ${jugadorObjetivo.name}`, jugador);
+            } else {
+                // Búsqueda por nombre tradicional
+                jugadorObjetivo = obtenerJugadorPorNombre(inputJugador);
+                
+                if (!jugadorObjetivo) {
+                    anunciarError(`❌ Jugador "${inputJugador}" no encontrado. Usa # para ver IDs de jugadores.`, jugador);
+                    return;
+                }
             }
 
             // 3. Prevenir que los admins se baneen entre sí
@@ -4495,15 +4621,56 @@ case "kick":
                 room.kickPlayer(jugadorObjetivo.id, `${razon} (${tiempoTexto})`, true); // true para banear
                 anunciarAdvertencia(`🚫 ${jugadorObjetivo.name} ha sido baneado ${tiempoTexto}. Razón: ${razon}`);
                 
+                // 7.1. Programar desbaneo automático si es temporal
+                if (tiempo && tiempo > 0) {
+                    const tiempoMs = tiempo * 60 * 1000; // Convertir minutos a millisegundos
+                    
+                    setTimeout(() => {
+                        try {
+                            // Desbanear por ID del jugador (si aún está disponible)
+                            if (jugadorObjetivo.id !== undefined) {
+                                room.clearBan(jugadorObjetivo.id);
+                                console.log(`⏰ Ban automáticamente levantado para ${jugadorObjetivo.name} (ID: ${jugadorObjetivo.id})`);
+                            }
+                            
+                            // Desbanear por UID (más confiable)
+                            if (uid) {
+                                room.clearBan(uid);
+                                console.log(`⏰ Ban automáticamente levantado para ${jugadorObjetivo.name} (UID: ${uid})`);
+                            }
+                            
+                            // Desbanear por IP si está disponible
+                            if (ipJugador) {
+                                room.clearBan(ipJugador);
+                                console.log(`⏰ Ban automáticamente levantado para ${jugadorObjetivo.name} (IP: ${ipJugador})`);
+                            }
+                            
+                            // Actualizar en la base de datos si está disponible
+                            if (typeof nodeDesbanearJugador === 'function') {
+                                nodeDesbanearJugador(uid, `Auto-desban después de ${tiempo} minutos`)
+                                    .then(() => {
+                                        console.log(`✅ Auto-desban registrado en DB para ${jugadorObjetivo.name}`);
+                                    })
+                                    .catch((error) => {
+                                        console.error(`❌ Error registrando auto-desban en DB:`, error);
+                                    });
+                            }
+                            
+                            anunciarInfo(`⏰ El ban temporal de ${jugadorObjetivo.name} ha expirado automáticamente.`);
+                            
+                        } catch (error) {
+                            console.error(`❌ Error en desbaneo automático para ${jugadorObjetivo.name}:`, error);
+                        }
+                    }, tiempoMs);
+                    
+                    console.log(`⏰ Desbaneo automático programado para ${jugadorObjetivo.name} en ${tiempo} minutos`);
+                }
+                
                 // 8. Registrar el baneo en la base de datos
                 if (typeof nodeBanearJugador === 'function') {
                     nodeCrearBaneo(uid, jugadorObjetivo.name, razon, jugador.name, tiempo, ipJugador)
                         .then((resultado) => {
                             console.log(`✅ Baneo registrado en DB:`, resultado);
-                            // Enviar mensaje privado solo al admin que ejecutó el ban
-                            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-                                room.sendAnnouncement(`ℹ️ 📊 Baneo registrado en la base de datos con UID: ${uid}`, jugador.id, parseInt("87CEEB", 16), "normal", 0);
-                            }
                         })
                         .catch((error) => {
                             console.error(`❌ Error registrando baneo en DB:`, error);
@@ -4538,9 +4705,38 @@ case "kick":
                 anunciarInfo(`🔄 Procesando solicitud de desbaneo para: ${input}...`, jugador);
 
                 try {
-                    // Usar el sistema de unban_system.js si está disponible
+                    // Usar el sistema de unban_mejorado.js si está disponible (prioridad)
+                    if (typeof unbanMejorado === 'function') {
+                        console.log(`🔧 UNBAN: Usando sistema mejorado de unban_mejorado.js`);
+                        
+                        const resultado = await unbanMejorado({
+                            input,
+                            admin: jugador,
+                            room,
+                            functions: {
+                                nodeObtenerJugadoresBaneados24h,
+                                nodeObtenerBaneosActivos,
+                                nodeDesbanearJugador,
+                                nodeDesbanearJugadorNuevo,
+                                anunciarError,
+                                anunciarExito,
+                                anunciarInfo,
+                                anunciarAdvertencia
+                            }
+                        });
+                        
+                        if (resultado && resultado.success) {
+                            console.log(`✅ UNBAN: Sistema mejorado ejecutado exitosamente - ${resultado.message}`);
+                        } else {
+                            console.log(`❌ UNBAN: Sistema mejorado no pudo completar el desbaneo - ${resultado?.message || 'Error desconocido'}`);
+                        }
+                        
+                        return false; // Evita que el mensaje se vea públicamente
+                    }
+                    
+                    // Usar el sistema de unban_system.js como fallback si está disponible
                     if (typeof ejecutarDesbaneo === 'function') {
-                        console.log(`🔧 UNBAN: Usando sistema robusto de unban_system.js`);
+                        console.log(`🔧 UNBAN: Usando sistema de fallback unban_system.js`);
                         
                         const funcionesRequeridas = {
                             nodeObtenerJugadoresBaneados24h,
@@ -4556,9 +4752,9 @@ case "kick":
                         const resultado = await ejecutarDesbaneo(input, jugador, room, funcionesRequeridas);
                         
                         if (resultado) {
-                            console.log(`✅ UNBAN: Sistema robusto ejecutado exitosamente`);
+                            console.log(`✅ UNBAN: Sistema de fallback ejecutado exitosamente`);
                         } else {
-                            console.log(`❌ UNBAN: Sistema robusto no pudo completar el desbaneo`);
+                            console.log(`❌ UNBAN: Sistema de fallback no pudo completar el desbaneo`);
                         }
                         
                         return false; // Evita que el mensaje se vea públicamente

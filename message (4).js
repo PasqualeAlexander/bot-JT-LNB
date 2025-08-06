@@ -547,9 +547,9 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = true;
+const roomPublic = false;
 const roomPassword = null;
-const token = "thr1.AAAAAGiTqFJxx2HfzIfetQ.4FpAKECkS-c";
+const token = "thr1.AAAAAGiT3y6efe1zf0I72Q.F5eXUFS5iCY";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -2385,7 +2385,7 @@ function anunciarError(mensaje, jugador) {
 function anunciarAdvertencia(mensaje, jugador = null) {
     if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
         const targetId = jugador ? jugador.id : null;
-        room.sendAnnouncement("⚠️ " + mensaje, targetId, parseInt("FFA500", 16), "bold", targetId ? 0 : 1);
+        room.sendAnnouncement("⚠️ " + mensaje, targetId, parseInt("FFD700", 16), "bold", targetId ? 0 : 1);
     } else {
         // Mensaje de advertencia enviado
     }
@@ -6309,7 +6309,7 @@ function actualizarEstadisticasGlobales(datosPartido) {
         };
     }
     
-    guardarEstadisticasGlobales(estadisticasGlobales);
+    guardarEstadisticasGlobalesCompletas();
 }
 
 function mostrarEstadisticasJugador(solicitante, nombreJugador) {

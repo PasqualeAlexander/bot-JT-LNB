@@ -549,7 +549,7 @@ const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
 const maxPlayers = 23;
 const roomPublic = false;
 const roomPassword = null;
-const token = "thr1.AAAAAGiSod8Rv6XEmdUCqQ.ZAiXoa71aa4";
+const token = "thr1.AAAAAGiS3o1IlalxaFvBdA.pmAhv_eTFdo";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -1507,10 +1507,12 @@ const MINIMO_MOVIMIENTO_AFK = 2; // Distancia mínima para no ser considerado AF
 const COOLDOWN_COMANDO = 15000; // 15 segundos de cooldown para comandos
 let intervalAFK = null;
 
-// SISTEMA DE BLOQUEO DE MOVIMIENTO
-let bloqueoMovimientoActivo = false; // Variable para bloquear movimiento después de mezcla
+// SISTEMA DE BLOQUEO DE MOVIMIENTO - BLOQUEO PERMANENTE
+let bloqueoMovimientoActivo = true; // Variable para bloquear SIEMPRE el movimiento manual entre equipos
 let equiposJugadoresAntesMovimiento = new Map(); // Para rastrear posiciones antes del movimiento
 let mezclaProcesandose = false; // Variable para evitar múltiples llamadas durante la mezcla
+let movimientoPermitidoPorComando = new Set(); // IDs de jugadores que tienen permitido moverse temporalmente por comandos
+let movimientoIniciadorPorBot = new Set(); // Set para tracking movimientos iniciados por el bot
 
 // Variables para el seguimiento de la pelota
 let ultimoTocador = null;
@@ -2399,6 +2401,10 @@ function agregarJugadorAEquipo(jugador) {
     const jugadoresRed = room.getPlayerList().filter(j => j.team === 1).length;
     const jugadoresBlue = room.getPlayerList().filter(j => j.team === 2).length;
     const equipo = jugadoresRed > jugadoresBlue ? 2 : 1;
+    
+    // CRÍTICO: Marcar este movimiento como iniciado por el bot
+    movimientoIniciadorPorBot.add(jugador.id);
+    
     room.setPlayerTeam(jugador.id, equipo);
     
     // Mensaje de unión al equipo removido para evitar spam
@@ -2439,6 +2445,10 @@ function autoBalanceEquipos() {
         for (let i = 0; i < jugadoresAMover; i++) {
             if (candidatos[i]) {
                 const jugador = candidatos[i];
+                
+                // CRÍTICO: Marcar este movimiento como iniciado por el bot
+                movimientoIniciadorPorBot.add(jugador.id);
+                
                 room.setPlayerTeam(jugador.id, equipoMenorEnum);
                 const equipoDestinoNombre = equipoMenorEnum === 1 ? '🔴 ROJO' : '🔵 AZUL';
                 
@@ -2640,10 +2650,9 @@ function mezclarEquiposAleatoriamenteFinPartido() {
         const mitad = Math.ceil(jugadoresMezclados.length / 2);
         console.log(`⚖️ DEBUG distribución fin partido: ${mitad} al rojo, ${jugadoresMezclados.length - mitad} al azul`);
         
-        // Desactivar bloqueo de movimiento ANTES de asignar equipos
-        const bloqueoAnterior = bloqueoMovimientoActivo;
-        bloqueoMovimientoActivo = false;
-        console.log(`🔓 DEBUG fin partido: Bloqueo desactivado temporalmente para mezcla`);
+        // Activar flag de mezcla para permitir movimientos del sistema durante la mezcla
+        mezclaProcesandose = true;
+        console.log(`🔄 DEBUG fin partido: Activando flag de mezcla para permitir movimientos del sistema`);
         
         // Asignar primera mitad al equipo rojo (1)
         for (let i = 0; i < mitad && i < jugadoresMezclados.length; i++) {
@@ -2759,10 +2768,9 @@ function mezclarEquiposAleatoriamente() {
         const mitad = Math.ceil(jugadoresMezclados.length / 2);
         console.log(`⚖️ DEBUG distribución: ${mitad} al rojo, ${jugadoresMezclados.length - mitad} al azul`);
         
-        // Desactivar bloqueo de movimiento ANTES de asignar equipos
-        const bloqueoAnterior = bloqueoMovimientoActivo;
-        bloqueoMovimientoActivo = false;
-        console.log(`🔓 DEBUG: Bloqueo desactivado temporalmente para mezcla`);
+        // Activar flag de mezcla para permitir movimientos del sistema
+        mezclaProcesandose = true;
+        console.log(`🔄 DEBUG: Activando flag de mezcla para permitir movimientos del sistema`);
         
         // Asignar primera mitad al equipo rojo (1)
         for (let i = 0; i < mitad && i < jugadoresMezclados.length; i++) {
@@ -2802,9 +2810,9 @@ function mezclarEquiposAleatoriamente() {
             }, 50);
         }
         
-        // Activar bloqueo de movimiento después de mezclar (tiempo reducido)
-        bloqueoMovimientoActivo = true;
-        anunciarGeneral("🔒 Equipos bloqueados. Solo puedes usar !afk para salir o !back para volver", "FFA500", "bold");
+        // Desactivar flag de mezcla y recordar que el bloqueo es permanente
+        mezclaProcesandose = false;
+        anunciarGeneral("🔒 Equipos formados. Solo puedes usar !afk para salir o !back para volver", "FFA500", "bold");
         
         // Mensaje informativo sobre jugadores AFK
         const jugadoresAFK = todosJugadores.filter(j => j.team === 0 && !idsJugadoresAMezclar.includes(j.id));
@@ -2841,12 +2849,10 @@ function mezclarEquiposAleatoriamente() {
                 }
             });
             
-            // Desactivar bloqueo de movimiento después de formar equipos
+            // NO desactivar bloqueo - el bloqueo es permanente
             setTimeout(() => {
-                if (bloqueoMovimientoActivo) {
-                    bloqueoMovimientoActivo = false;
-                    anunciarGeneral("🔓 Equipos formados. Bloqueo de movimiento desactivado", "00FF00", "normal");
-                }
+                // Mensaje informativo sobre el sistema permanente
+                anunciarInfo("ℹ️ Recordatorio: Usa !afk para ir a espectadores o !back para unirte a un equipo");
                 
                 // Verificar auto start después de desactivar bloqueo
                 setTimeout(() => {
@@ -4040,6 +4046,9 @@ case "mapa":
                     return;
                 }
                 
+                // Permitir movimiento por comando
+                movimientoPermitidoPorComando.add(jugador.id);
+                
                 room.setPlayerTeam(jugador.id, 0);
                 anunciarGeneral(`💤 ${jugador.name} se fue AFK a espectadores`, "888888");
                 
@@ -4074,6 +4083,9 @@ case "mapa":
                 const jugadoresRed = room.getPlayerList().filter(j => j.team === 1).length;
                 const jugadoresBlue = room.getPlayerList().filter(j => j.team === 2).length;
                 const equipoDestino = jugadoresRed <= jugadoresBlue ? 1 : 2;
+                
+                // Permitir movimiento por comando
+                movimientoPermitidoPorComando.add(jugador.id);
                 
                 room.setPlayerTeam(jugador.id, equipoDestino);
                 
@@ -4125,6 +4137,9 @@ case "mapa":
             const jugadoresRed = room.getPlayerList().filter(j => j.team === 1).length;
             const jugadoresBlue = room.getPlayerList().filter(j => j.team === 2).length;
             const equipoDestino = jugadoresRed <= jugadoresBlue ? 1 : 2;
+            
+            // Permitir movimiento por comando
+            movimientoPermitidoPorComando.add(jugador.id);
             
             room.setPlayerTeam(jugador.id, equipoDestino);
             
@@ -8442,13 +8457,25 @@ function configurarEventos() {
             
             // Si hay un mensaje para este número, procesarlo como mensaje normal
             if (mensajeNumerico) {
-                // Obtener el nivel del jugador y mostrar en el chat
-                const nombreOriginal = obtenerNombreOriginal(jugador);
-                const nivel = obtenerNivelJugador(nombreOriginal);
-                const emojiNivel = obtenerEmojiNivel(nivel);
-                
-                // Crear el mensaje con formato de chat normal pero con el mensaje del comando
-                const mensajeConNivel = `〔Nv. ${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensajeNumerico}`;
+        // Obtener el nivel del jugador y mostrar en el chat
+        const nombreOriginal = obtenerNombreOriginal(jugador);
+        const nivel = obtenerNivelJugador(nombreOriginal);
+        const emojiNivel = obtenerEmojiNivel(nivel);
+        
+        // Determinar formato según el rol de admin
+        let prefijoRol = '';
+        if (esSuperAdmin(jugador)) {
+            prefijoRol = `[👑 • ${emojiNivel} Nv. `;
+        } else if (esAdminBasico(jugador)) {
+            prefijoRol = `[👮🏻 • ${emojiNivel} Nv. `;
+        } else {
+            prefijoRol = '〔Nv. ';
+        }
+        
+        // Crear el mensaje con formato de chat normal pero con el mensaje del comando
+        const mensajeConNivel = esSuperAdmin(jugador) || esAdminBasico(jugador) 
+            ? `${prefijoRol}${nivel}] ${nombreOriginal}: ${mensajeNumerico}`
+            : `${prefijoRol}${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensajeNumerico}`;
                 
                 // Retransmitir el mensaje modificado con nivel usando color crema para comandos rápidos
                 room.sendAnnouncement(mensajeConNivel, null, parseInt("F5DEB3", 16), "normal", 1);
@@ -8581,8 +8608,20 @@ procesarComando(jugador, mensaje);
         const nivel = obtenerNivelJugador(nombreOriginal);
         const emojiNivel = obtenerEmojiNivel(nivel);
         
+        // Determinar formato según el rol de admin
+        let prefijoRol = '';
+        if (esSuperAdmin(jugador)) {
+            prefijoRol = `[👑 • ${emojiNivel} Nv. `;
+        } else if (esAdminBasico(jugador)) {
+            prefijoRol = `[👮🏻 • ${emojiNivel} Nv. `;
+        } else {
+            prefijoRol = '〔Nv. ';
+        }
+        
         // Crear el mensaje con formato de chat normal pero agregando el nivel
-        const mensajeConNivel = `〔Nv. ${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensaje}`;
+        const mensajeConNivel = esSuperAdmin(jugador) || esAdminBasico(jugador) 
+            ? `${prefijoRol}${nivel}] ${nombreOriginal}: ${mensaje}`
+            : `${prefijoRol}${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensaje}`;
         
         // Retransmitir el mensaje modificado con nivel usando color blanco para mensajes normales
         room.sendAnnouncement(mensajeConNivel, null, parseInt("FFFFFF", 16), "normal", 1);
@@ -8881,7 +8920,7 @@ procesarComando(jugador, mensaje);
 setTimeout(() => {
                 if (room && room.sendAnnouncement) {
                     room.sendAnnouncement(
-                        "📣 ¡LNB AHORA ESTÁ EN TODAS LAS REDES!!\n" +
+                        "━━━━━━━━━━━┓ 📣 ¡LNB AHORA ESTÁ EN TODAS LAS REDES!! ┏━━━━━━━━━━━━\n" +
                         "🎥 TikTok: https://www.tiktok.com/@lnbhaxball\n" +
                         "📸 Instagram: https://www.instagram.com/lnbhaxball/\n" +
                         "📹 YouTube: https://youtube.com/liganacionaldebigger\n" +
@@ -9154,27 +9193,48 @@ room.onTeamGoal = function(equipo) {
     
     // Jugador entra/sale del juego
     room.onPlayerTeamChange = function(jugador, equipoByAdmin) {
-        // Verificar si el movimiento está bloqueado y no es por acción administrativa
-        // IMPORTANTE: equipoByAdmin será el equipo destino cuando es movido por el sistema/bot
-        if (bloqueoMovimientoActivo && !esBot(jugador) && (equipoByAdmin === null || equipoByAdmin === undefined)) {
-            // Solo bloquear movimientos voluntarios del jugador (cuando equipoByAdmin es null/undefined)
-            // Los movimientos del sistema/bot tendrán equipoByAdmin con valor numérico
-            
-            // Guardar el equipo actual antes de revertir
+        // NUEVO SISTEMA: Verificar si el movimiento está permitido
+        // Los movimientos están SIEMPRE bloqueados excepto por:
+        // 1. El bot/sistema (cuando esBot(jugador) es true)
+        // 2. Comandos específicos (!afk, !back) que añaden temporalmente el ID del jugador al Set
+        // 3. Procesos internos del bot (mezcla, balance, etc.)
+        // 4. Movimientos iniciados por el bot (tracked in movimientoIniciadorPorBot Set)
+        
+        const esMovimientoPermitido = esBot(jugador) || 
+                                    movimientoPermitidoPorComando.has(jugador.id) || 
+                                    movimientoIniciadorPorBot.has(jugador.id) ||
+                                    mezclaProcesandose ||
+                                    (equipoByAdmin !== null && equipoByAdmin !== undefined);
+        
+        if (!esMovimientoPermitido) {
+            // Movimiento NO permitido - revertir
             const equipoAnterior = equiposJugadoresAntesMovimiento.get(jugador.id) || 0;
             
+            console.log(`🚫 DEBUG: Bloqueando movimiento manual de ${jugador.name} (ID: ${jugador.id}) - revirtiendo a equipo ${equipoAnterior}`);
+            
             // Revertir el movimiento
+            movimientoIniciadorPorBot.add(jugador.id); // Add to bot tracking to prevent reversal loop
             setTimeout(() => {
                 room.setPlayerTeam(jugador.id, equipoAnterior);
-                anunciarAdvertencia(`${jugador.name}, no puedes cambiar de equipo. Usa !afk para salir o !back para volver`, jugador);
-            }, 50);
+                anunciarAdvertencia(`🚫 ${jugador.name}, no puedes cambiar de equipo manualmente. Usa !afk para salir o !back para volver`, jugador);
+            }, 100);
             return;
         }
         
-        // Actualizar el registro de equipos si no está bloqueado
-        if (!bloqueoMovimientoActivo) {
-            equiposJugadoresAntesMovimiento.set(jugador.id, equipoByAdmin);
+        // El movimiento está permitido - limpiar permisos temporales y actualizar registro
+        if (movimientoPermitidoPorComando.has(jugador.id)) {
+            movimientoPermitidoPorComando.delete(jugador.id);
+            console.log(`✅ DEBUG: Movimiento por comando completado para ${jugador.name} (ID: ${jugador.id})`);
         }
+        
+        // Limpiar tracking de movimientos iniciados por el bot
+        if (movimientoIniciadorPorBot.has(jugador.id)) {
+            movimientoIniciadorPorBot.delete(jugador.id);
+            console.log(`✅ DEBUG: Movimiento iniciado por bot completado para ${jugador.name} (ID: ${jugador.id})`);
+        }
+        
+        // Actualizar el registro de equipos
+        equiposJugadoresAntesMovimiento.set(jugador.id, jugador.team);
         
         if (estadisticasPartido.iniciado && equipoByAdmin !== 0) {
             // Registrar jugador en estadísticas si se une durante el partido
@@ -9322,11 +9382,10 @@ room.onTeamGoal = function(equipo) {
             setTimeout(() => {
                 autoBalanceEquipos();
                 
-                // Desactivar bloqueo de movimiento si estaba activo
-                if (bloqueoMovimientoActivo) {
-                    bloqueoMovimientoActivo = false;
-                    anunciarGeneral("🔓 Bloqueo de movimiento desactivado", "00FF00", "normal");
-                }
+                // El bloqueo de movimiento es permanente - no desactivar
+                // Solo limpiar permisos temporales si los hay
+                movimientoPermitidoPorComando.clear();
+                console.log("🧹 DEBUG: Limpieza de permisos temporales de movimiento");
                 
                 setTimeout(() => {
                     verificarAutoStart();

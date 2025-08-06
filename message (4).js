@@ -3737,6 +3737,28 @@ case "mapa":
             asignarColor(equipoTextoADB3, "adb3", jugador);
             break;
             
+        case "cate":
+            // !camis cate -> /colors red 90 00C710 011F01
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoCate = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoCate, "cate", jugador);
+            break;
+            
+        case "cate2":
+            // !camis cate2 -> /colors blue 0 FFFFFF 009C05 0F0F0F
+            if (jugador.team === 0) {
+                anunciarError("❌ Debes estar en un equipo para cambiar la camiseta", jugador);
+                return;
+            }
+            // Detectar automáticamente el equipo del jugador
+            const equipoTextoCate2 = jugador.team === 1 ? "red" : "blue";
+            asignarColor(equipoTextoCate2, "cate2", jugador);
+            break;
+            
             
             
         case "festejo":
@@ -5882,6 +5904,18 @@ function asignarColor(equipo, codigo, jugador) {
             angle: 66,
             textColor: "A35417",
             colors: ["A35417", "FF3BF2", "4FFF72", "4EA2F5"]
+        },
+        
+        cate: {
+            angle: 90,
+            textColor: "00C710",
+            colors: ["011F01"]
+        },
+        
+        cate2: {
+            angle: 0,
+            textColor: "FFFFFF",
+            colors: ["009C05", "0F0F0F"]
         },
         
         do: {

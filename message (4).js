@@ -5573,9 +5573,9 @@ function asignarColor(equipo, codigo, jugador) {
         return;
     }
     
-    // Verificar si ya se alcanzó el máximo de cambios para este equipo
+    // Verificar si ya se alcanzó el máximo de cambios para este equipo (excepto para administradores)
     const cambiosEquipo = team === 1 ? cambiosCamisetaRed : cambiosCamisetaBlue;
-    if (cambiosEquipo >= maxCambiosCamiseta) {
+    if (cambiosEquipo >= maxCambiosCamiseta && !esAdminBasico(jugador)) {
         const equipoNombre = team === 1 ? "Rojo" : "Azul";
         anunciarError(`❌ El equipo ${equipoNombre} ha alcanzado el máximo de cambios de camiseta para este partido (${cambiosEquipo}/${maxCambiosCamiseta})`, jugador);
         return;
@@ -5904,11 +5904,13 @@ function asignarColor(equipo, codigo, jugador) {
     };
     
     if (colores[codigo]) {
-        // Incrementar contador del equipo específico
-        if (team === 1) {
-            cambiosCamisetaRed++;
-        } else {
-            cambiosCamisetaBlue++;
+        // Incrementar contador del equipo específico (solo para no-administradores)
+        if (!esAdminBasico(jugador)) {
+            if (team === 1) {
+                cambiosCamisetaRed++;
+            } else {
+                cambiosCamisetaBlue++;
+            }
         }
         
         const equipoNombre = team === 1 ? "Rojo" : "Azul";
@@ -5928,13 +5930,16 @@ function asignarColor(equipo, codigo, jugador) {
         // o se unan nuevos jugadores al equipo
         
         // Mensaje principal del cambio
-        room.sendAnnouncement(`👕 ${jugador.name} cambió la camiseta del equipo ${equipoNombre} a "${codigo.toUpperCase()}". Cambios: (${cambiosEquipo}/${maxCambiosCamiseta})`, null, parseInt("FF8C00", 16), "bold", 1);
+        const mensajeCambios = esAdminBasico(jugador) ? "(Admin - Ilimitados)" : `(${cambiosEquipo}/${maxCambiosCamiseta})`;
+        room.sendAnnouncement(`👕 ${jugador.name} cambió la camiseta del equipo ${equipoNombre} a "${codigo.toUpperCase()}". Cambios: ${mensajeCambios}`, null, parseInt("FF8C00", 16), "bold", 1);
         
-        // Verificar si se alcanzó el máximo para este equipo
-        if (cambiosEquipo >= maxCambiosCamiseta) {
-            room.sendAnnouncement(`⚠️ El equipo ${equipoNombre} ha alcanzado el número máximo de cambios de camiseta para este partido.`, null, parseInt("FF0000", 16), "bold", 1);
-        } else if (cambiosEquipo === maxCambiosCamiseta - 1) {
-            room.sendAnnouncement(`⚠️ ¡Atención! El equipo ${equipoNombre} solo tiene 1 cambio de camiseta disponible.`, null, parseInt("FFA500", 16), "bold", 1);
+        // Verificar si se alcanzó el máximo para este equipo (solo para no-administradores)
+        if (!esAdminBasico(jugador)) {
+            if (cambiosEquipo >= maxCambiosCamiseta) {
+                room.sendAnnouncement(`⚠️ El equipo ${equipoNombre} ha alcanzado el número máximo de cambios de camiseta para este partido.`, null, parseInt("FF0000", 16), "bold", 1);
+            } else if (cambiosEquipo === maxCambiosCamiseta - 1) {
+                room.sendAnnouncement(`⚠️ ¡Atención! El equipo ${equipoNombre} solo tiene 1 cambio de camiseta disponible.`, null, parseInt("FFA500", 16), "bold", 1);
+            }
         }
         
         anunciarExito(`Color ${codigo.toUpperCase()} aplicado correctamente al equipo ${equipoNombre}`, jugador);
@@ -5973,19 +5978,21 @@ function aplicarCamisetaEspecial(jugador, configuracion) {
         return;
     }
     
-    // Verificar si ya se alcanzó el máximo de cambios para este equipo
+    // Verificar si ya se alcanzó el máximo de cambios para este equipo (excepto para administradores)
     const cambiosEquipo = team === 1 ? cambiosCamisetaRed : cambiosCamisetaBlue;
-    if (cambiosEquipo >= maxCambiosCamiseta) {
+    if (cambiosEquipo >= maxCambiosCamiseta && !esAdminBasico(jugador)) {
         const equipoNombre = team === 1 ? "Rojo" : "Azul";
         anunciarError(`❌ El equipo ${equipoNombre} ha alcanzado el máximo de cambios de camiseta (${cambiosEquipo}/${maxCambiosCamiseta})`, jugador);
         return;
     }
     
-    // Incrementar contador del equipo específico
-    if (team === 1) {
-        cambiosCamisetaRed++;
-    } else {
-        cambiosCamisetaBlue++;
+    // Incrementar contador del equipo específico (solo para no-administradores)
+    if (!esAdminBasico(jugador)) {
+        if (team === 1) {
+            cambiosCamisetaRed++;
+        } else {
+            cambiosCamisetaBlue++;
+        }
     }
     
     const equipoNombre = team === 1 ? "Rojo" : "Azul";
@@ -6001,13 +6008,16 @@ function aplicarCamisetaEspecial(jugador, configuracion) {
     room.setTeamColors(team, angle, hexTextColor, hexColors);
     
     // Mensaje principal del cambio
-    room.sendAnnouncement(`👕 ${jugador.name} cambió la camiseta del equipo ${equipoNombre} a un diseño especial. Cambios: (${cambiosEquipoActual}/${maxCambiosCamiseta})`, null, parseInt("FF8C00", 16), "bold", 1);
+    const mensajeCambiosEspecial = esAdminBasico(jugador) ? "(Admin - Ilimitados)" : `(${cambiosEquipoActual}/${maxCambiosCamiseta})`;
+    room.sendAnnouncement(`👕 ${jugador.name} cambió la camiseta del equipo ${equipoNombre} a un diseño especial. Cambios: ${mensajeCambiosEspecial}`, null, parseInt("FF8C00", 16), "bold", 1);
     
-    // Verificar si se alcanzó el máximo para este equipo
-    if (cambiosEquipoActual >= maxCambiosCamiseta) {
-        room.sendAnnouncement(`⚠️ El equipo ${equipoNombre} ha alcanzado el número máximo de cambios de camiseta para este partido.`, null, parseInt("FF0000", 16), "bold", 1);
-    } else if (cambiosEquipoActual === maxCambiosCamiseta - 1) {
-        room.sendAnnouncement(`⚠️ ¡Atención! El equipo ${equipoNombre} solo tiene 1 cambio de camiseta disponible.`, null, parseInt("FFA500", 16), "bold", 1);
+    // Verificar si se alcanzó el máximo para este equipo (solo para no-administradores)
+    if (!esAdminBasico(jugador)) {
+        if (cambiosEquipoActual >= maxCambiosCamiseta) {
+            room.sendAnnouncement(`⚠️ El equipo ${equipoNombre} ha alcanzado el número máximo de cambios de camiseta para este partido.`, null, parseInt("FF0000", 16), "bold", 1);
+        } else if (cambiosEquipoActual === maxCambiosCamiseta - 1) {
+            room.sendAnnouncement(`⚠️ ¡Atención! El equipo ${equipoNombre} solo tiene 1 cambio de camiseta disponible.`, null, parseInt("FFA500", 16), "bold", 1);
+        }
     }
     
     anunciarExito(`Camiseta especial aplicada correctamente al equipo ${equipoNombre}`, jugador);

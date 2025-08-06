@@ -6525,11 +6525,11 @@ function mostrarTopJugadores(solicitante, estadistica) {
     });
     
     // Enviar título en línea separada
-    room.sendAnnouncement(lineas[0], solicitante.id, parseInt(AZUL_LNB, 16), "normal", 0);
+    room.sendAnnouncement(lineas[0], solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
     
     // Unir todos los jugadores en una sola línea
     const jugadoresEnLinea = lineas.slice(2).join(" • "); // Omitir título y separador
-    room.sendAnnouncement(jugadoresEnLinea, solicitante.id, parseInt(AZUL_LNB, 16), "normal", 0);
+    room.sendAnnouncement(jugadoresEnLinea, solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
 }
 
 // FUNCIONES DE CÓDIGO DE RECUPERACIÓN
@@ -8285,24 +8285,6 @@ function configurarEventos() {
             
             // Mapear números a mensajes
             switch (numero) {
-                case 4:
-                    mensajeNumerico = "EZ 😎";
-                    break;
-                case 5:
-                    mensajeNumerico = "💀";
-                    break;
-                case 6:
-                    mensajeNumerico = "NOOOOOOO 😭";
-                    break;
-                case 7:
-                    mensajeNumerico = "Perdón equipo 🙏";
-                    break;
-                case 8:
-                    mensajeNumerico = "¡Buen pase!";
-                    break;
-                case 9:
-                    mensajeNumerico = "¡Buen disparo!";
-                    break;
                 case 10:
                     mensajeNumerico = "¡Buena parada!";
                     break;
@@ -8337,16 +8319,16 @@ function configurarEventos() {
                     mensajeNumerico = "Amura inju";
                     break;
                 case 21:
-                    mensajeNumerico = "LA MAFIA A COLOCAAAAAAAAAAAR";
+                    mensajeNumerico = "¡Buen Disparo!";
                     break;
                 case 22:
-                    mensajeNumerico = "MIRA LA BOCHA Q PUSO ESTE TIPO";
+                    mensajeNumerico = "¡Buen Pase!";
                     break;
                 case 23:
-                    mensajeNumerico = "A NO LO QUE SACA";
+                    mensajeNumerico = "¡Buena Salvada!";
                     break;
                 case 24:
-                    mensajeNumerico = "Viven en un country...";
+                    mensajeNumerico = "LA MAFIA A COLOCAAAAAAAAAAAAAAAAAAR";
                     break;
                 case 25:
                     mensajeNumerico = "54321 almiron por arribaaaaaaaaaaaa";
@@ -8370,10 +8352,10 @@ function configurarEventos() {
                     mensajeNumerico = "Y VA EL TERCEROOOO";
                     break;
                 case 32:
-                    mensajeNumerico = "¡GOOOOOOL DE CHACARITAAA!";
+                    mensajeNumerico = "NOOOOOOO 😭";
                     break;
                 case 33:
-                    mensajeNumerico = "QUINTEROOOOOOOOOOOOOO";
+                    mensajeNumerico = "EZ 😎";
                     break;
                 case 34:
                     mensajeNumerico = "¡PEGÁLEEEEE BURRO!";

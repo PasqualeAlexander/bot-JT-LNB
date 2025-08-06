@@ -8340,13 +8340,13 @@ function configurarEventos() {
                     mensajeNumerico = "¡Buen Pase!";
                     break;
                 case 23:
-                    mensajeNumerico = "¡Buena Salvada!";
+                    mensajeNumerico = "¡Gracias!";
                     break;
                 case 24:
-                    mensajeNumerico = "LA MAFIA A COLOCAAAAAAAAAAAAAAAAAAR";
+                    mensajeNumerico = "¡Buena Salvada!";
                     break;
                 case 25:
-                    mensajeNumerico = "54321 almiron por arribaaaaaaaaaaaa";
+                    mensajeNumerico = "LA MAFIA A COLOCAAAAAAAAAAAAAAAAAAR";
                     break;
                 case 26:
                     mensajeNumerico = "Hacelo cuevas tiro goooooooool";

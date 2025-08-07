@@ -1255,11 +1255,18 @@ const mapas = {
         minJugadores: 2,
         maxJugadores: 6,
         hbs: `{"name":"Bigger x1 LNB","width":420,"height":200,"bg":{"width":380,"height":170,"kickOffRadius":120,"color":"444444"},"vertexes":[{"x":0,"y":170,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"vis":false},{"x":0,"y":85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":-85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":-170,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"bias":0,"curve":0,"vis":false},{"x":520,"y":150,"cMask":[]},{"x":520,"y":100,"cMask":[]},{"x":520,"y":-100,"cMask":[]},{"x":-520,"y":150,"cMask":[]},{"x":-520,"y":100,"cMask":[]},{"x":0,"y":85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"]},{"x":0,"y":-85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"]},{"x":0,"y":85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"]},{"x":-384.8105676799998,"y":-76.16293376,"cMask":["ball"],"cGroup":["red","blue","wall"],"color":"000000","curve":89.99999999999999},{"x":-380,"y":65,"bCoef":0,"cMask":["red","blue","ball"],"color":"000000"},{"x":380,"y":65,"bCoef":0,"cMask":["red","blue","ball"],"color":"000000"},{"x":420,"y":45,"bCoef":0,"cMask":["ball"],"color":"000000"},{"x":380,"y":-65,"bCoef":0,"cMask":["red","blue","ball"],"color":"000000"},{"x":420,"y":-42,"bCoef":0,"cMask":["ball"],"color":"000000"},{"x":-380,"y":170,"cMask":["ball"],"cGroup":["red","blue","wall"],"curve":0},{"x":380,"y":170,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":-380,"y":65,"cMask":["ball"],"cGroup":["red","blue","wall"],"curve":0},{"x":-380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":380,"y":-65,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":380,"y":65,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":420,"y":7,"bCoef":0,"cMask":["ball"],"color":"000000"},{"x":420,"y":-7,"bCoef":0,"cMask":["ball"],"color":"000000"},{"x":-380,"y":-70,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"]},{"x":380,"y":65,"cMask":[]},{"x":380,"y":-65,"cMask":[]},{"x":0,"y":85,"cMask":[]},{"x":0,"y":-85,"cMask":[]},{"x":0,"y":-310,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":310,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":-85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":-380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":380,"y":-170,"cMask":["ball"],"cGroup":["ball"],"color":"000000","bias":-60},{"x":380,"y":-65,"cMask":["ball"],"cGroup":["ball"],"color":"000000","bias":-60},{"x":380,"y":65,"cMask":[],"curve":0},{"x":380,"y":-65,"cMask":[],"curve":0},{"x":-380,"y":-65,"curve":-89.99999999,"color":"000000"},{"x":-380,"y":65,"curve":0,"color":"000000"},{"x":-420,"y":-45,"bCoef":0,"curve":0},{"x":-420,"y":45,"bCoef":0,"curve":-89.99999999},{"x":-380,"y":65,"curve":-89.99999999},{"x":-380,"y":65,"cMask":[],"curve":0},{"x":-380,"y":-65,"cMask":[],"curve":0},{"x":-380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"],"curve":0},{"x":-380,"y":-65,"cMask":["ball"],"cGroup":["red","blue","wall"],"color":"000000","curve":0},{"x":-380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":50},{"x":-380,"y":-65,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":50},{"x":0,"y":200,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"vis":false},{"x":0,"y":-200,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"bias":0,"curve":0,"vis":false}],"segments":[{"v0":0,"v1":1,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"v0":2,"v1":3,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"v0":9,"v1":10,"curve":180,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"],"curveF":6.123233995736766e-17},{"v0":10,"v1":11,"curve":180,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO"],"curveF":6.123233995736766e-17},{"v0":15,"v1":14,"curve":89.99999999999999,"color":"000000","bCoef":0,"cMask":["red","blue","ball"],"curveF":1.0000000000000002},{"v0":16,"v1":17,"curve":89.99999999999999,"color":"000000","bCoef":0,"cMask":["red","blue","ball"],"curveF":1.0000000000000002},{"v0":15,"v1":17,"color":"000000","bCoef":0,"cMask":["red","blue","ball"]},{"v0":18,"v1":19,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":50},{"v0":18,"v1":20,"curve":0,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":-60},{"v0":19,"v1":24,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":60},{"v0":25,"v1":26,"color":"000000","bCoef":0,"cMask":["ball"]},{"v0":28,"v1":29,"cMask":[]},{"v0":36,"v1":37,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":-50},{"v0":37,"v1":38,"color":"000000","cMask":["ball"],"cGroup":["ball"],"bias":-60},{"v0":41,"v1":43,"curve":-89.99999999,"color":"000000"},{"v0":43,"v1":44,"curve":0,"color":"000000","bCoef":0},{"v0":44,"v1":45,"curve":-89.99999999,"color":"000000"},{"v0":46,"v1":47,"curve":0,"cMask":[]},{"v0":50,"v1":51,"curve":0,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":50},{"v0":0,"v1":52,"vis":false,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"v0":3,"v1":53,"curve":0,"vis":false,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"bias":0}],"planes":[{"normal":[0,1],"dist":-210,"bCoef":0},{"normal":[0,-1],"dist":-210,"bCoef":0},{"normal":[1,0],"dist":-430,"bCoef":0},{"normal":[-1,0],"dist":-430,"bCoef":0}],"goals":[{"p0":[-390,55],"p1":[-390,-55],"team":"red"},{"p0":[390,55],"p1":[390,-55],"team":"blue"}],"discs":[{"radius":8.75,"invMass":1.11,"pos":[0,0],"color":"FFFFFF","cGroup":["ball","kick","score"],"damping":0.991},{"radius":0,"invMass":0,"pos":[-900,-19],"color":"transparent","bCoef":0,"cMask":["red"],"cGroup":["ball"]},{"radius":0,"invMass":0,"pos":[-900,29],"color":"transparent","bCoef":0,"cMask":["blue"],"cGroup":["ball"]},{"radius":0,"invMass":0,"pos":[-900,62],"color":"transparent","bCoef":0,"cMask":["red","blue"],"cGroup":["ball"]},{"radius":8,"invMass":0,"pos":[-380,-65],"color":"e56e56","cGroup":["ball"]},{"radius":8,"invMass":0,"pos":[380,-65],"color":"5689e5","cGroup":["ball"]},{"radius":8,"invMass":0,"pos":[380,65],"color":"5689e5","cGroup":["ball"]},{"radius":0,"pos":[-800,-340],"cMask":[]},{"radius":0,"pos":[-800,-340],"cMask":[]},{"radius":0,"pos":[800,-72],"cMask":[]},{"radius":0,"pos":[-800,340],"cMask":[]},{"radius":0,"pos":[800,340],"cMask":[]},{"radius":0,"pos":[-800,340],"cMask":[]},{"radius":0,"pos":[800,340],"cMask":[]},{"radius":8,"invMass":0,"pos":[-380,65],"color":"e56e56","cGroup":["ball"]}],"playerPhysics":{"bCoef":0.4,"damping":0.9605,"acceleration":0.12,"kickStrength":5.75,"cGroup":["red","blue"]},"ballPhysics":"disc0","spawnDistance":280,"canBeStored":false}`
+    },
+    training: {
+        nombre: "LNB Training x1",
+        minJugadores: 1,
+        maxJugadores: 1,
+        soloConUnJugador: true, // Flag especial para indicar que solo se activa con 1 jugador
+        hbs: `{"name":"LNB training x1","width":420,"height":200,"bg":{"width":380,"height":170,"kickOffRadius":120,"color":"444444"},"vertexes":[{"x":0,"y":170,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"vis":false},{"x":0,"y":85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":-85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":-170,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"bias":0,"curve":0,"vis":false},{"x":520,"y":150,"cMask":[]},{"x":520,"y":100,"cMask":[]},{"x":520,"y":-100,"cMask":[]},{"x":-520,"y":150,"cMask":[]},{"x":-520,"y":100,"cMask":[]},{"x":0,"y":85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"]},{"x":0,"y":-85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"]},{"x":0,"y":85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"]},{"x":-384.8105676799998,"y":-76.16293376,"cMask":["ball"],"cGroup":["red","blue","wall"],"color":"000000","curve":90},{"x":-380,"y":65,"bCoef":0,"cMask":["red","blue","ball"],"color":"000000"},{"x":380,"y":65,"bCoef":2,"cMask":["red","blue","ball"],"color":"000000","curve":90},{"x":420,"y":45,"bCoef":2,"cMask":["ball"],"color":"000000","_selected":"segment","curve":90},{"x":380,"y":-65,"bCoef":2,"cMask":["red","blue","ball"],"color":"000000","curve":90},{"x":420,"y":-42,"bCoef":2,"cMask":["ball"],"color":"000000","curve":90,"_selected":"segment"},{"x":-380,"y":170,"cMask":["ball"],"cGroup":["red","blue","wall"],"curve":0},{"x":380,"y":170,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":-380,"y":65,"cMask":["ball"],"cGroup":["red","blue","wall"],"curve":0},{"x":-380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":380,"y":-65,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":380,"y":65,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":420,"y":7,"bCoef":0,"cMask":["ball"],"color":"000000"},{"x":420,"y":-7,"bCoef":0,"cMask":["ball"],"color":"000000"},{"x":-380,"y":-70,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"]},{"x":380,"y":65,"cMask":[]},{"x":380,"y":-65,"cMask":[]},{"x":0,"y":85,"cMask":[]},{"x":0,"y":-85,"cMask":[]},{"x":0,"y":-310,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":310,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":-85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":0,"y":85,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"x":-380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"]},{"x":380,"y":-170,"cMask":["ball"],"cGroup":["ball"],"color":"000000","bias":-60},{"x":380,"y":-65,"cMask":["ball"],"cGroup":["ball"],"color":"000000","bias":-60},{"x":380,"y":65,"cMask":[],"curve":0},{"x":380,"y":-65,"cMask":[],"curve":0},{"x":-380,"y":-65,"bCoef":2,"curve":-90,"color":"000000"},{"x":-380,"y":65,"curve":0,"color":"000000"},{"x":-420,"y":-45,"bCoef":2,"curve":-90},{"x":-420,"y":45,"bCoef":2,"curve":-90},{"x":-380,"y":65,"bCoef":2,"curve":-90},{"x":-380,"y":65,"cMask":[],"curve":0},{"x":-380,"y":-65,"cMask":[],"curve":0},{"x":-380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"],"curve":0},{"x":-380,"y":-65,"cMask":["ball"],"cGroup":["red","blue","wall"],"color":"000000","curve":0},{"x":-380,"y":-170,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":50},{"x":-380,"y":-65,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":50},{"x":0,"y":200,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"vis":false},{"x":0,"y":-200,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"bias":0,"curve":0,"vis":false}],"segments":[{"v0":0,"v1":1,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"v0":2,"v1":3,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"v0":9,"v1":10,"curve":180,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["blueKO"],"curveF":6.123233995736766e-17},{"v0":10,"v1":11,"curve":180,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO"],"curveF":6.123233995736766e-17},{"v0":15,"v1":14,"curve":90,"color":"000000","bCoef":2,"cMask":["red","blue","ball"],"curveF":1.0000000000000002},{"v0":16,"v1":17,"curve":90,"color":"000000","bCoef":2,"cMask":["red","blue","ball"],"curveF":1.0000000000000002},{"v0":15,"v1":17,"color":"000000","bCoef":2,"cMask":["red","blue","ball"],"_selected":true},{"v0":18,"v1":19,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":50},{"v0":18,"v1":20,"curve":0,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":-60},{"v0":19,"v1":24,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":60},{"v0":25,"v1":26,"color":"000000","bCoef":0,"cMask":["ball"]},{"v0":28,"v1":29,"cMask":[]},{"v0":36,"v1":37,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":-50},{"v0":37,"v1":38,"color":"000000","cMask":["ball"],"cGroup":["ball"],"bias":-60},{"v0":41,"v1":43,"curve":-90,"color":"000000","bCoef":2},{"v0":43,"v1":44,"curve":0,"color":"000000","bCoef":2},{"v0":44,"v1":45,"curve":-90,"color":"000000","bCoef":2},{"v0":46,"v1":47,"curve":0,"cMask":[]},{"v0":50,"v1":51,"curve":0,"cMask":["ball"],"cGroup":["red","blue","wall"],"bias":50},{"v0":0,"v1":52,"vis":false,"bCoef":0.1,"cMask":["red","blue"],"cGroup":["redKO","blueKO"]},{"v0":3,"v1":53,"curve":0,"vis":false,"cMask":["red","blue"],"cGroup":["redKO","blueKO"],"bias":0}],"planes":[{"normal":[0,1],"dist":-210,"bCoef":0},{"normal":[0,-1],"dist":-210,"bCoef":0},{"normal":[1,0],"dist":-430,"bCoef":0},{"normal":[-1,0],"dist":-430,"bCoef":0}],"goals":[],"discs":[{"radius":8.75,"invMass":1.11,"pos":[0,0],"color":"FFFFFF","cGroup":["ball","kick","score"],"damping":0.991},{"radius":0,"invMass":0,"pos":[-900,-19],"color":"transparent","bCoef":0,"cMask":["red"],"cGroup":["ball"]},{"radius":0,"invMass":0,"pos":[-900,29],"color":"transparent","bCoef":0,"cMask":["blue"],"cGroup":["ball"]},{"radius":0,"invMass":0,"pos":[-900,62],"color":"transparent","bCoef":0,"cMask":["red","blue"],"cGroup":["ball"]},{"radius":8,"invMass":0,"pos":[-380,-65],"color":"e56e56","cGroup":["ball"]},{"radius":8,"invMass":0,"pos":[380,-65],"color":"5689e5","cGroup":["ball"]},{"radius":8,"invMass":0,"pos":[380,65],"color":"5689e5","cGroup":["ball"]},{"radius":0,"pos":[-800,-340],"cMask":[]},{"radius":0,"pos":[-800,-340],"cMask":[]},{"radius":0,"pos":[800,-72],"cMask":[]},{"radius":0,"pos":[-800,340],"cMask":[]},{"radius":0,"pos":[800,340],"cMask":[]},{"radius":0,"pos":[-800,340],"cMask":[]},{"radius":0,"pos":[800,340],"cMask":[]},{"radius":8,"invMass":0,"pos":[-380,65],"color":"e56e56","cGroup":["ball"]}],"playerPhysics":{"bCoef":0.4,"damping":0.9605,"acceleration":0.12,"kickStrength":5.75,"cGroup":["red","blue"]},"ballPhysics":"disc0","spawnDistance":280,"traits":{},"joints":[],"redSpawnPoints":[],"blueSpawnPoints":[],"canBeStored":false}`
     }
 };
 
 // VARIABLES GLOBALES
-let mapaActual = "biggerx1"; // Mapa inicial que será actualizado cuando se configure la sala
+let mapaActual = "training"; // Mapa inicial que será actualizado cuando se configure la sala
 let mapaRealmenteAplicado = false; // Flag para verificar que el mapa inicial se haya aplicado correctamente
 let adminActual = null;
 
@@ -3118,6 +3125,27 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
         }
         
         // CAMBIOS A MAPAS MAYORES (cuando suben jugadores)
+        // NUEVO: Cambiar de training a biggerx1 si hay 2 o más jugadores durante partido
+        if (mapaActual === "training" && jugadoresActivos >= 2) {
+            cambioMapaEnProceso = true;
+            terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
+            console.log(`📈 DEBUG CR�ÍTICO: Cambiando de training a x1 durante partido (${jugadoresActivos} >= 2)`);
+            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
+            room.stopGame();
+            cambiarMapa("biggerx1");
+            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de training a x1...`);
+            
+            setTimeout(() => {
+                autoBalanceEquipos();
+                verificarAutoStart();
+                setTimeout(() => { 
+                    cambioMapaEnProceso = false;
+                    terminoPorCambioMapa = false; // Resetear la bandera
+                }, 5000);
+            }, 1000);
+            return;
+        }
+        
         // Cambiar de biggerx1 a biggerx3 si hay 5 o más jugadores
         if (mapaActual === "biggerx1" && jugadoresActivos >= 5) {
             cambioMapaEnProceso = true;
@@ -3177,14 +3205,17 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
     console.log(`🔄 DEBUG: Fuera de partido, verificando cambio de mapa necesario...`);
     
     // LÓGICA ACTUALIZADA DE CAMBIO DE MAPA:
-    // 0-4 jugadores: biggerx1
-    // 5-9 jugadores: biggerx3  
-    // 10-11 jugadores: biggerx5
+    // 1 jugador: training (LNB Training x1)
+    // 2-4 jugadores: biggerx1 (Bigger x1 LNB)  
+    // 5-7 jugadores: biggerx3
+    // 8-11 jugadores: biggerx5
     // 12+ jugadores: biggerx7
     
     let mapaRequerido = null;
     
-    if (jugadoresActivos <= 4) {
+    if (jugadoresActivos === 1) {
+        mapaRequerido = "training";
+    } else if (jugadoresActivos >= 2 && jugadoresActivos <= 4) {
         mapaRequerido = "biggerx1";
     } else if (jugadoresActivos >= 5 && jugadoresActivos <= 7) {
         mapaRequerido = "biggerx3";
@@ -3192,6 +3223,15 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
         mapaRequerido = "biggerx5";
     } else if (jugadoresActivos >= 12) {
         mapaRequerido = "biggerx7";
+    }
+    
+    // DEPURACIÓN DETALLADA PARA EL CASO TRAINING -> BIGGERX1
+    if (jugadoresActivos === 2 && mapaActual === "training") {
+        console.log(`🔧 CASO ESPECIAL: Detectado cambio crítico training -> biggerx1`);
+        console.log(`🔧 - Jugadores activos: ${jugadoresActivos}`);
+        console.log(`🔧 - Mapa actual: ${mapaActual}`);
+        console.log(`🔧 - Mapa requerido: ${mapaRequerido}`);
+        console.log(`🔧 - ¿Cambio en proceso?: ${cambioMapaEnProceso}`);
     }
     
     console.log(`🔍 DEBUG DETALLADO: Jugadores activos: ${jugadoresActivos}, Mapa actual: ${mapaActual}, Mapa requerido: ${mapaRequerido}, Cambio en proceso: ${cambioMapaEnProceso}`);
@@ -4725,7 +4765,7 @@ case "kick":
                 }
                 
                 // 9. Enviar notificación al webhook
-                enviarNotificacionBanKick("ban", jugador.name, jugadorObjetivo.name, uid, tiempo, razon, ipJugador);
+                enviarNotificacionBanKick("ban", jugador.name, jugadorObjetivo.name, uid, tiempo, razon, ipJugador, jugadorObjetivo.id);
                 
             } catch (error) {
                 anunciarError(`❌ Error al banear jugador: ${error.message}`, jugador);
@@ -4733,20 +4773,98 @@ case "kick":
             }
             break;
 
+        // FUNCIÓN PARA EJECUTAR BANEO MEJORADO DESPUÉS DE OBTENER UID
+        function ejecutarBaneoMejorado(jugadorAdmin, jugadorObjetivo, uid, tiempo, razon) {
+            try {
+                console.log(`🔨 DEBUG: Ejecutando baneo mejorado para ${jugadorObjetivo.name} con UID ${uid}`);
+                
+                // Obtener IP del jugador para el desbaneo
+                const ipJugador = obtenerIPJugador(jugadorObjetivo);
+                
+                // Ejecutar el baneo en HaxBall
+                const tiempoTexto = tiempo ? `${tiempo} minutos` : "permanentemente";
+                room.kickPlayer(jugadorObjetivo.id, `${razon} (${tiempoTexto})`, true); // true para banear
+                
+                anunciarAdvertencia(`🚫 ${jugadorObjetivo.name} ha sido baneado ${tiempoTexto}. Razón: ${razon}`);
+                
+                // Programar desbaneo automático si es temporal
+                if (tiempo && tiempo > 0) {
+                    const tiempoMs = tiempo * 60 * 1000;
+                    
+                    setTimeout(() => {
+                        try {
+                            // Desbanear por UID
+                            if (uid) {
+                                room.clearBan(uid);
+                                console.log(`⏰ Ban automáticamente levantado para ${jugadorObjetivo.name} (UID: ${uid})`);
+                            }
+                            
+                            // Desbanear por IP si está disponible
+                            if (ipJugador) {
+                                room.clearBan(ipJugador);
+                                console.log(`⏰ Ban automáticamente levantado para ${jugadorObjetivo.name} (IP: ${ipJugador})`);
+                            }
+                            
+                            // Actualizar en la base de datos si está disponible
+                            if (typeof nodeDesbanearJugador === 'function') {
+                                nodeDesbanearJugador(uid, `Auto-desban después de ${tiempo} minutos`)
+                                    .then(() => {
+                                        console.log(`✅ Auto-desban registrado en DB para ${jugadorObjetivo.name}`);
+                                    })
+                                    .catch((error) => {
+                                        console.error(`❌ Error registrando auto-desban en DB:`, error);
+                                    });
+                            }
+                            
+                            anunciarInfo(`⏰ El ban temporal de ${jugadorObjetivo.name} ha expirado automáticamente.`);
+                            
+                        } catch (error) {
+                            console.error(`❌ Error en desbaneo automático para ${jugadorObjetivo.name}:`, error);
+                        }
+                    }, tiempoMs);
+                    
+                    console.log(`⏰ Desbaneo automático programado para ${jugadorObjetivo.name} en ${tiempo} minutos`);
+                }
+                
+                // Registrar el baneo en la base de datos
+                if (typeof nodeCrearBaneo === 'function') {
+                    nodeCrearBaneo(uid, jugadorObjetivo.name, razon, jugadorAdmin.name, tiempo, ipJugador)
+                        .then((resultado) => {
+                            console.log(`✅ Baneo registrado en DB:`, resultado);
+                            anunciarInfo(`📊 Baneo registrado exitosamente en la base de datos`, jugadorAdmin);
+                        })
+                        .catch((error) => {
+                            console.error(`❌ Error registrando baneo en DB:`, error);
+                            anunciarAdvertencia(`⚠️ Jugador baneado pero no se pudo registrar en la base de datos`);
+                        });
+                } else {
+                    console.warn('⚠️ Función nodeCrearBaneo no disponible');
+                }
+                
+                // Enviar notificación al webhook
+                enviarNotificacionBanKick("ban", jugadorAdmin.name, jugadorObjetivo.name, uid, tiempo, razon, ipJugador, jugadorObjetivo.id);
+                
+            } catch (error) {
+                anunciarError(`❌ Error ejecutando baneo mejorado: ${error.message}`, jugadorAdmin);
+                console.error(`❌ Error en ejecutarBaneoMejorado:`, error);
+            }
+        }
+        
         case "unban":
         case "desban":
+        case "banınıkaldır": // Comando en turco
             if (!esAdminBasico(jugador)) return;
             if (args[1]) {
                 const input = args[1].trim();
                 
                 if (!input) {
-                    anunciarError("❌ Uso correcto: !unban <uid|nombre|ip>", jugador);
+                    anunciarError("❌ Uso correcto: !unban <id_jugador>", jugador);
                     return false;
                 }
 
-                console.log(`🔧 UNBAN: Admin ${jugador.name} (ID: ${jugador.id}) solicita desbanear: "${input}"`);
+                console.log(`🔧 UNBAN: Admin ${jugador.name} (ID: ${jugador.id}) solicita desbanear ID: "${input}"`);
                 console.log(`🔧 UNBAN: UID del admin: ${jugador.auth || 'N/A'}`);
-                anunciarInfo(`🔄 Procesando solicitud de desbaneo para: ${input}...`, jugador);
+                anunciarInfo(`🔄 Procesando desbaneo para ID: ${input}...`, jugador);
 
                 try {
                     // Usar el sistema de unban_mejorado.js si está disponible (prioridad)
@@ -5072,6 +5190,169 @@ case "kick":
                 }
             } else {
                 anunciarError('❌ Uso: !debug_unban <uid|nombre|ip>', jugador);
+            }
+            break;
+
+        case "fixunban":
+        case "forceunban":
+            if (!esAdminBasico(jugador)) return;
+            if (args[1]) {
+                const input = args[1].trim();
+                
+                if (!input) {
+                    anunciarError("❌ Uso correcto: !fixunban <auth_id>", jugador);
+                    return false;
+                }
+
+                console.log(`🔧 FIXUNBAN: Admin ${jugador.name} forzando desbaneo para: "${input}"`);
+                anunciarAdvertencia(`🔧 Forzando resolución de desincronización para: ${input}`, jugador);
+
+                try {
+                    // Primero verificar si está baneado en BD
+                    let baneoActivoEnBD = false;
+                    
+                    if (typeof nodeObtenerBaneosActivos === 'function') {
+                        try {
+                            const baneosActivos = await nodeObtenerBaneosActivos();
+                            const baneoActivo = baneosActivos.find(b => b.authId === input);
+                            
+                            if (baneoActivo) {
+                                baneoActivoEnBD = true;
+                                console.log(`📋 FIXUNBAN: Baneo activo encontrado en BD: ${baneoActivo.nombre}`);
+                                anunciarInfo(`📋 Baneo activo encontrado en BD: ${baneoActivo.nombre}`, jugador);
+                            } else {
+                                console.log(`📋 FIXUNBAN: No hay baneos activos en BD para ${input}`);
+                                anunciarInfo(`📋 No hay baneos activos en BD - Desincronización confirmada`, jugador);
+                            }
+                        } catch (bdError) {
+                            console.error(`❌ FIXUNBAN: Error verificando baneos activos:`, bdError);
+                            anunciarError(`❌ Error verificando BD: ${bdError.message}`, jugador);
+                        }
+                    }
+                    
+                    // Forzar limpieza en BD si hay baneos
+                    if (baneoActivoEnBD) {
+                        anunciarInfo(`🔄 Limpiando baneo en BD...`, jugador);
+                        try {
+                            if (typeof nodeDesbanearJugadorNuevo === 'function') {
+                                await nodeDesbanearJugadorNuevo(input);
+                                console.log(`✅ FIXUNBAN: Jugador desbaneado en BD`);
+                                anunciarExito(`✅ Jugador desbaneado en BD`);
+                            }
+                        } catch (bdError) {
+                            console.error(`❌ FIXUNBAN: Error desbaneando en BD:`, bdError);
+                            anunciarError(`❌ Error desbaneando en BD: ${bdError.message}`, jugador);
+                        }
+                    }
+                    
+                    // Forzar múltiples métodos de limpieza en HaxBall
+                    anunciarInfo(`🔄 Forzando limpieza en HaxBall con múltiples métodos...`, jugador);
+                    
+                    let exitoso = false;
+                    let metodosExitosos = [];
+                    let metodosFallidos = [];
+                    
+                    // Método 1: clearBan directo
+                    try {
+                        room.clearBan(input);
+                        console.log(`✅ FIXUNBAN: clearBan directo exitoso para ${input}`);
+                        metodosExitosos.push('directo');
+                        exitoso = true;
+                    } catch (error) {
+                        console.warn(`⚠️ FIXUNBAN: clearBan directo falló para ${input}:`, error.message);
+                        metodosFallidos.push('directo');
+                    }
+                    
+                    // Método 2: clearBan como string
+                    try {
+                        room.clearBan(String(input));
+                        console.log(`✅ FIXUNBAN: clearBan string exitoso para ${input}`);
+                        metodosExitosos.push('string');
+                        exitoso = true;
+                    } catch (error) {
+                        console.warn(`⚠️ FIXUNBAN: clearBan string falló para ${input}:`, error.message);
+                        metodosFallidos.push('string');
+                    }
+                    
+                    // Método 3: Variantes de mayúsculas/minúsculas
+                    const variantes = [input.toUpperCase(), input.toLowerCase()];
+                    
+                    for (const variante of variantes) {
+                        if (variante === input) continue; // Skip si es igual al original
+                        
+                        try {
+                            room.clearBan(variante);
+                            console.log(`✅ FIXUNBAN: clearBan ${variante === input.toUpperCase() ? 'mayúsculas' : 'minúsculas'} exitoso`);
+                            metodosExitosos.push(variante === input.toUpperCase() ? 'upper' : 'lower');
+                            exitoso = true;
+                        } catch (error) {
+                            console.warn(`⚠️ FIXUNBAN: clearBan ${variante === input.toUpperCase() ? 'mayúsculas' : 'minúsculas'} falló:`, error.message);
+                            metodosFallidos.push(variante === input.toUpperCase() ? 'upper' : 'lower');
+                        }
+                    }
+                    
+                    // Método 4: Intento con números como ID
+                    if (!isNaN(input)) {
+                        try {
+                            room.clearBan(parseInt(input));
+                            console.log(`✅ FIXUNBAN: clearBan con parseInt exitoso para ${input}`);
+                            metodosExitosos.push('parseInt');
+                            exitoso = true;
+                        } catch (error) {
+                            console.warn(`⚠️ FIXUNBAN: clearBan parseInt falló:`, error.message);
+                            metodosFallidos.push('parseInt');
+                        }
+                    }
+                    
+                    // NOTA: clearBans() general removido por seguridad
+                    // No desbaneamos a TODOS los jugadores automáticamente
+                    
+                    // Mostrar resultados
+                    console.log(`📊 FIXUNBAN: Métodos exitosos: [${metodosExitosos.join(', ')}]`);
+                    console.log(`📊 FIXUNBAN: Métodos fallidos: [${metodosFallidos.join(', ')}]`);
+                    
+                    if (exitoso) {
+                        anunciarExito(`✅ Desincronización resuelta para ${input}`);
+                        anunciarInfo(`🔧 Métodos exitosos: ${metodosExitosos.join(', ')}`, jugador);
+                        anunciarInfo(`💡 El jugador debería poder conectar ahora`, jugador);
+                        console.log(`✅ FIXUNBAN: Exitoso para ${input}`);
+                        
+                        // Notificar éxito por webhook si está disponible
+                        if (typeof enviarNotificacionBanKick === 'function') {
+                            enviarNotificacionBanKick(
+                                "fixunban", 
+                                jugador.name, 
+                                input, 
+                                input, 
+                                0, 
+                                `Desincronización resuelta - Métodos: ${metodosExitosos.join(', ')}`, 
+                                null, 
+                                null
+                            );
+                        }
+                    } else {
+                        anunciarError(`❌ No se pudo resolver la desincronización para ${input}`, jugador);
+                        anunciarInfo(`🔧 Métodos intentados: ${metodosFallidos.join(', ')}`, jugador);
+                        anunciarAdvertencia(`⚠️ Puede requerir intervención manual o reinicio del bot`, jugador);
+                        console.log(`❌ FIXUNBAN: Falló para ${input}`);
+                    }
+                    
+                    // Verificar después del fix
+                    anunciarInfo(`🔍 Verificación post-fix recomendada:`, jugador);
+                    anunciarInfo(`💡 1. El jugador debe intentar conectar ahora`, jugador);
+                    anunciarInfo(`💡 2. Si persiste el problema, usar !debug_unban ${input}`, jugador);
+                    anunciarInfo(`💡 3. Como último recurso, reiniciar el bot`, jugador);
+                    
+                } catch (error) {
+                    console.error(`❌ FIXUNBAN: Error crítico:`, error);
+                    anunciarError(`❌ Error crítico en fixunban: ${error.message}`, jugador);
+                }
+
+                return false; // Evita que el mensaje se vea públicamente
+            } else {
+                anunciarError('❌ Debes especificar un Auth ID para forzar desbaneo', jugador);
+                anunciarInfo('💡 Uso: !fixunban <auth_id>', jugador);
+                anunciarInfo('💡 Este comando resuelve desincronizaciones entre BD y HaxBall', jugador);
             }
             break;
 
@@ -7977,7 +8258,7 @@ function enviarNotificacionClearBans(adminNombre, tipoLimpieza, jugadoresLimpiad
 }
 
 // FUNCIÓN PARA ENVIAR NOTIFICACIÓN DE BAN/KICK AL WEBHOOK
-function enviarNotificacionBanKick(tipo, adminNombre, jugadorNombre, jugadorID, duracion = null, razon = "No especificada", ipJugador = null) {
+function enviarNotificacionBanKick(tipo, adminNombre, jugadorNombre, jugadorIDOUID, duracion = null, razon = "No especificada", ipJugador = null, jugadorIDReal = null) {
     if (!webhookBanKick || webhookBanKick.length === 0) {
         return;
     }
@@ -7992,16 +8273,19 @@ function enviarNotificacionBanKick(tipo, adminNombre, jugadorNombre, jugadorID, 
     // Preparar información de IP si está disponible
     const infoIP = ipJugador ? ` | 🌐 IP: ${ipJugador}` : "";
     
+    // Usar el ID real del jugador si está disponible, sino usar el UID
+    const idParaMostrar = jugadorIDReal || jugadorIDOUID;
+    
     if (tipo === "ban") {
         accionTexto = "baneó a";
         if (duracion) {
-            mensaje = `\`\`\`⛔ [${fecha}, ${hora}] 🔨 ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${jugadorID}) por 🕒 ${duracion}${infoIP} | 📄 Motivo: ${razon}\`\`\``;
+            mensaje = `\`\`\`⛔ [${fecha}, ${hora}] 🔨 ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${idParaMostrar}) por 🕒 ${duracion}${infoIP} | 📄 Motivo: ${razon}\`\`\``;
         } else {
-            mensaje = `\`\`\`⛔ [${fecha}, ${hora}] 🔨 ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${jugadorID}) permanentemente${infoIP} | 📄 Motivo: ${razon}\`\`\``;
+            mensaje = `\`\`\`⛔ [${fecha}, ${hora}] 🔨 ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${idParaMostrar}) permanentemente${infoIP} | 📄 Motivo: ${razon}\`\`\``;
         }
     } else if (tipo === "kick") {
         accionTexto = "expulsó a";
-        mensaje = `\`\`\`⛔ [${fecha}, ${hora}] 🦵 ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${jugadorID})${infoIP} | 📄 Motivo: ${razon}\`\`\``;
+        mensaje = `\`\`\`⛔ [${fecha}, ${hora}] 🦵 ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${idParaMostrar})${infoIP} | 📄 Motivo: ${razon}\`\`\``;
     }
     
     const payload = {
@@ -8919,6 +9203,144 @@ procesarComando(jugador, mensaje);
         }
         // ====================== FIN GENERACIÓN UID MEJORADO =======================
         
+        // ====================== VERIFICACIÓN DE BANEOS AL CONECTAR ======================
+        // CRÍTICO: Verificar si el jugador está baneado antes de permitir la conexión
+        let jugadorBaneado = false;
+        
+        try {
+            console.log(`🚔 DEBUG: Verificando estado de baneo para ${jugador.name} (Auth: ${jugador.auth || 'N/A'})`);
+            
+            // Función local para manejar expulsión inmediata con control de estado
+            const expulsarJugador = (motivo, admin, razon, esBaneoNuevo = true) => {
+                if (jugadorBaneado) {
+                    console.log(`⚠️ Expulsión ya en proceso para ${jugador.name}, ignorando llamada duplicada`);
+                    return; // Evitar múltiples expulsiones
+                }
+                jugadorBaneado = true;
+                
+                console.log(`🚫 JUGADOR BANEADO DETECTADO: ${jugador.name} será expulsado inmediatamente`);
+                console.log(`📋 Motivo: ${motivo} | Admin: ${admin} | Razón: ${razon}`);
+                
+                // Expulsar inmediatamente con timeout mínimo para asegurar desconexión
+                setTimeout(() => {
+                    try {
+                        if (room && typeof room.kickPlayer === 'function') {
+                            room.kickPlayer(
+                                jugador.id, 
+                                `🚫 BANEADO: ${razon}. Admin: ${admin}. No intentes evadir el baneo.`, 
+                                true // Ban inmediato
+                            );
+                            console.log(`✅ Jugador baneado ${jugador.name} expulsado exitosamente`);
+                        } else {
+                            console.error(`❌ Room o kickPlayer no disponible para expulsar a ${jugador.name}`);
+                        }
+                    } catch (kickError) {
+                        console.error(`❌ Error expulsando jugador baneado ${jugador.name}:`, kickError);
+                        
+                        // Intentar expulsión de respaldo
+                        try {
+                            if (room && room.kickPlayer) {
+                                room.kickPlayer(jugador.id, "🚫 Acceso denegado por sistema de seguridad", false);
+                            }
+                        } catch (fallbackError) {
+                            console.error(`❌ Error también en expulsión de respaldo:`, fallbackError);
+                        }
+                    }
+                }, 50); // Timeout reducido para expulsión más rápida
+                
+                // Enviar notificación de manera asíncrona
+                setTimeout(() => {
+                    try {
+                        if (typeof enviarNotificacionBanKick === 'function') {
+                            enviarNotificacionBanKick(
+                                esBaneoNuevo ? "intento_conexion_baneado" : "intento_conexion_baneado_legacy", 
+                                admin, 
+                                jugador.name, 
+                                jugador.auth || 'N/A', 
+                                0, 
+                                `Jugador baneado intentó conectarse. Motivo: ${motivo}. Razón: ${razon}`, 
+                                null, 
+                                jugador.auth
+                            );
+                        }
+                    } catch (notifError) {
+                        console.error(`❌ Error enviando notificación de baneo:`, notifError);
+                    }
+                }, 200);
+            };
+            
+            // Verificar en la nueva tabla de baneos usando callback
+            if (typeof nodeEstaBaneado === 'function' && jugador.auth) {
+                console.log(`🔍 DEBUG: Verificando en tabla baneos para auth: ${jugador.auth}`);
+                
+                nodeEstaBaneado(jugador.auth, (baneo) => {
+                    try {
+                        if (baneo && !jugadorBaneado) {
+                            console.log(`🚫 JUGADOR BANEADO (Tabla nueva): ${jugador.name} (Auth: ${jugador.auth})`);
+                            console.log(`📋 Detalles del baneo: Admin: ${baneo.admin}, Razón: ${baneo.razon}, Fecha: ${baneo.fecha}`);
+                            
+                            expulsarJugador(
+                                "tabla_baneos", 
+                                baneo.admin || 'Sistema', 
+                                baneo.razon || 'Sin razón especificada', 
+                                true
+                            );
+                        } else if (baneo && jugadorBaneado) {
+                            console.log(`⚠️ Baneo detectado en tabla nueva pero jugador ya siendo expulsado: ${jugador.name}`);
+                        } else {
+                            console.log(`✅ DEBUG: Jugador ${jugador.name} no está baneado en tabla baneos`);
+                        }
+                    } catch (callbackError) {
+                        console.error(`❌ Error en callback de nodeEstaBaneado:`, callbackError);
+                    }
+                });
+            } else {
+                console.log(`⚠️ DEBUG: nodeEstaBaneado no disponible o jugador sin auth`);
+            }
+            
+            // Verificar en la tabla legacy de jugadores usando promesa
+            if (typeof nodeVerificarBaneoJugador === 'function') {
+                console.log(`🔍 DEBUG: Verificando en tabla jugadores para: ${jugador.name}`);
+                
+                nodeVerificarBaneoJugador(jugador.name, jugador.auth).then(resultado => {
+                    try {
+                        if (resultado && resultado.estaBaneado && !jugadorBaneado) {
+                            console.log(`🚫 JUGADOR BANEADO (Tabla legacy): ${jugador.name}`);
+                            console.log(`📋 Detalles legacy: Admin: ${resultado.adminBan}, Razón: ${resultado.razonBan}, Fecha: ${resultado.fechaBan}`);
+                            
+                            expulsarJugador(
+                                "tabla_jugadores", 
+                                resultado.adminBan || 'Sistema', 
+                                resultado.razonBan || 'Sin razón especificada', 
+                                false
+                            );
+                        } else if (resultado && resultado.estaBaneado && jugadorBaneado) {
+                            console.log(`⚠️ Baneo detectado en tabla legacy pero jugador ya siendo expulsado: ${jugador.name}`);
+                        } else {
+                            console.log(`✅ DEBUG: Jugador ${jugador.name} no está baneado en tabla jugadores`);
+                        }
+                    } catch (promiseError) {
+                        console.error(`❌ Error procesando resultado de nodeVerificarBaneoJugador:`, promiseError);
+                    }
+                }).catch(error => {
+                    console.error(`❌ Error verificando baneo legacy para ${jugador.name}:`, error);
+                });
+            } else {
+                console.log(`⚠️ DEBUG: nodeVerificarBaneoJugador no disponible`);
+            }
+            
+        } catch (error) {
+            console.error(`❌ Error en verificación de baneos para ${jugador.name}:`, error);
+        }
+        // ====================== FIN VERIFICACIÓN DE BANEOS ======================
+        
+        // Solo continuar con el proceso si el jugador no está baneado
+        // (el resto del código se ejecutará, pero si está baneado será expulsado rápidamente)
+        if (jugadorBaneado) {
+            console.log(`⚠️ Jugador ${jugador.name} será expulsado por baneo, cancelando proceso de bienvenida`);
+            return; // Terminar el proceso aquí
+        }
+        
         try {
             // Mensaje de bienvenida centrado y llamativo
             const mensajeBienvenida = `🔵⚡ ¡BIENVENIDO ${jugador.name.toUpperCase()} A LA LIGA NACIONAL DE BIGGER LNB! ⚡🔵`;
@@ -8976,14 +9398,25 @@ setTimeout(() => {
             }
         }, 1000);
         
-        // Auto-detección de mapa
-        setTimeout(() => {
-            try {
-                detectarCambioMapa();
-            } catch (error) {
-                console.error('❌ Error en detección de mapa:', error);
-            }
-        }, 2000);
+    // Auto-detección de mapa - con múltiples intentos para asegurar el cambio
+    setTimeout(() => {
+        try {
+            console.log(`🔄 DEBUG: Auto-detección de mapa tras entrada de jugador ${jugador.name}`);
+            detectarCambioMapa();
+        } catch (error) {
+            console.error('❌ Error en detección de mapa:', error);
+        }
+    }, 2000);
+    
+    // Segundo intento de detección para casos donde el primer intento no funcione
+    setTimeout(() => {
+        try {
+            console.log(`🔄 DEBUG: Segundo intento de auto-detección de mapa`);
+            detectarCambioMapa();
+        } catch (error) {
+            console.error('❌ Error en segundo intento de detección de mapa:', error);
+        }
+    }, 4000);
     };
     
     // Jugador sale
@@ -10133,6 +10566,9 @@ function inicializar() {
     
     // Configurar eventos
     configurarEventos();
+
+    // Restaurar baneos persistentes
+    restaurarBaneos();
     
     // Establecer mapa inicial usando la variable mapaActual
     console.log('🗺️ DEBUG: Configurando mapa inicial INMEDIATAMENTE...');
@@ -10282,6 +10718,50 @@ function inicializar() {
     anunciarInfo("🏆 Modo oficial disponible para administradores");
     anunciarInfo("🤖 Auto balance, auto start y auto stop ACTIVADOS");
     
+}
+
+// ==================== FUNCIÓN PARA RESTAURAR BANEOS PERSISTENTES ====================
+function restaurarBaneos() {
+    console.log('🔄 Restaurando baneos persistentes desde la base de datos...');
+    
+    // Usar la función de DB para obtener todos los baneos activos
+    if (typeof nodeObtenerBaneosActivos === 'function') {
+        nodeObtenerBaneosActivos()
+            .then(baneosActivos => {
+                if (baneosActivos && baneosActivos.length > 0) {
+                    console.log(`[BAN RESTORE] 🛡️ Se encontraron ${baneosActivos.length} baneos activos para restaurar.`);
+                    anunciarAdvertencia(`🛡️ Restaurando ${baneosActivos.length} baneos persistentes...`);
+
+                    let restaurados = 0;
+                    baneosActivos.forEach(baneo => {
+                        try {
+                            // Usamos el authId (UID) para banear, que es el método más fiable
+                            if (baneo.auth_id) {
+                                room.kickPlayer(baneo.auth_id, `Baneo restaurado: ${baneo.razon}`, true);
+                                restaurados++;
+                                console.log(`[BAN RESTORE] ✅ Restaurado: ${baneo.nombre} (Auth: ${baneo.auth_id})`);
+                            } else {
+                                console.warn(`[BAN RESTORE] ⚠️ No se pudo restaurar baneo para ${baneo.nombre} por falta de auth_id.`);
+                            }
+                        } catch (error) {
+                            console.error(`[BAN RESTORE] ❌ Error restaurando baneo para ${baneo.nombre}:`, error.message);
+                        }
+                    });
+
+                    console.log(`[BAN RESTORE] ✅ Proceso finalizado. ${restaurados} de ${baneosActivos.length} baneos fueron restaurados.`);
+                    anunciarExito(`✅ ${restaurados} baneos persistentes han sido restaurados.`);
+                } else {
+                    console.log('[BAN RESTORE] ✅ No hay baneos activos para restaurar.');
+                }
+            })
+            .catch(error => {
+                console.error('[BAN RESTORE] ❌ Error crítico al obtener baneos activos de la DB:', error);
+                anunciarError('❌ Error al cargar la lista de baneos desde la base de datos.');
+            });
+    } else {
+        console.warn('[BAN RESTORE] ⚠️ La función nodeObtenerBaneosActivos no está disponible. No se pueden restaurar baneos.');
+        anunciarAdvertencia('⚠️ No se pudo acceder a la función para restaurar baneos.');
+    }
 }
 
 // FUNCIÓN AUXILIAR PARA INICIALIZAR SISTEMAS

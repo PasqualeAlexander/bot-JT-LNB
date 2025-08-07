@@ -1278,29 +1278,73 @@ const dbFunctions = {
         });
     },
     
-    // Obtener baneos activos
+    // Obtener baneos activos (excluyendo temporales expirados)
     obtenerBaneosActivos: () => {
-        return new Promise((resolve, reject) => {
-            const query = `SELECT * FROM baneos WHERE activo = 1 ORDER BY fecha DESC`;
-            
-            db.all(query, [], (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    const baneosFormateados = rows.map(row => ({
-                        id: row.id,
-                        authId: row.auth_id,
-                        nombre: row.nombre,
-                        razon: row.razon,
-                        admin: row.admin,
-                        fecha: row.fecha,
-                        duracion: row.duracion,
-                        diasBaneado: Math.floor((new Date() - new Date(row.fecha)) / (1000 * 60 * 60 * 24))
-                    }));
+        return new Promise(async (resolve, reject) => {
+            try {
+                const query = `SELECT * FROM baneos WHERE activo = 1 ORDER BY fecha DESC`;
+                
+                db.all(query, [], async (err, rows) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
                     
-                    resolve(baneosFormateados);
-                }
-            });
+                    const ahora = new Date();
+                    const baneosRealmenteActivos = [];
+                    const baneosExpiradosALimpiar = [];
+                    
+                    // Procesar cada baneo para verificar si realmente está activo
+                    for (const row of rows) {
+                        // Verificar si es baneo temporal
+                        if (row.duracion > 0) {
+                            const fechaBan = new Date(row.fecha);
+                            const tiempoTranscurrido = ahora.getTime() - fechaBan.getTime();
+                            const tiempoLimite = row.duracion * 60 * 1000; // duración en minutos a milisegundos
+                            
+                            if (tiempoTranscurrido >= tiempoLimite) {
+                                // Baneo temporal expirado
+                                console.log(`⏰ Detectado baneo temporal expirado: ${row.nombre} (${Math.floor(tiempoTranscurrido / (60 * 1000))} min transcurridos de ${row.duracion} min límite)`);
+                                baneosExpiradosALimpiar.push(row.id);
+                                continue; // No incluir en la lista de activos
+                            }
+                        }
+                        
+                        // Baneo realmente activo (permanente o temporal no expirado)
+                        baneosRealmenteActivos.push({
+                            id: row.id,
+                            authId: row.auth_id,
+                            nombre: row.nombre,
+                            razon: row.razon,
+                            admin: row.admin,
+                            fecha: row.fecha,
+                            duracion: row.duracion,
+                            diasBaneado: Math.floor((ahora - new Date(row.fecha)) / (1000 * 60 * 60 * 24))
+                        });
+                    }
+                    
+                    // Limpiar automáticamente baneos temporales expirados
+                    if (baneosExpiradosALimpiar.length > 0) {
+                        console.log(`🧹 Limpiando automáticamente ${baneosExpiradosALimpiar.length} baneos temporales expirados...`);
+                        
+                        for (const baneoId of baneosExpiradosALimpiar) {
+                            try {
+                                await dbFunctions.desactivarBaneo(baneoId);
+                                console.log(`✅ Baneo temporal expirado limpiado: ID ${baneoId}`);
+                            } catch (cleanupError) {
+                                console.error(`❌ Error limpiando baneo expirado ID ${baneoId}:`, cleanupError);
+                            }
+                        }
+                    }
+                    
+                    console.log(`📊 Baneos procesados: ${rows.length} total, ${baneosRealmenteActivos.length} realmente activos, ${baneosExpiradosALimpiar.length} expirados limpiados`);
+                    resolve(baneosRealmenteActivos);
+                });
+                
+            } catch (error) {
+                console.error('❌ Error en obtenerBaneosActivos:', error);
+                reject(error);
+            }
         });
     },
     

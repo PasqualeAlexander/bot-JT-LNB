@@ -8627,10 +8627,10 @@ function configurarEventos() {
                     mensajeNumerico = "Amura inju";
                     break;
                 case 21:
-                    mensajeNumerico = "¡Buen Disparo!";
+                    mensajeNumerico = "¡Buen disparo!";
                     break;
                 case 22:
-                    mensajeNumerico = "¡Buen Pase!";
+                    mensajeNumerico = "¡Buen pase!";
                     break;
                 case 23:
                     mensajeNumerico = "¡Gracias!";

@@ -2442,8 +2442,21 @@ function autoBalanceEquipos() {
         const equipoMayor = jugadoresRed.length > jugadoresBlue.length ? jugadoresRed : jugadoresBlue;
         const equipoMenorEnum = jugadoresRed.length > jugadoresBlue.length ? 2 : 1;
 
-        // Jugadores candidatos a ser movidos (excluyendo al bot si es necesario)
-        const candidatos = equipoMayor.filter(p => !esBot(p));
+        // CORRECCIÓN: Excluir jugadores AFK del auto balance
+        // Los jugadores AFK no deben ser movidos de vuelta a los equipos automáticamente
+        const candidatos = equipoMayor.filter(p => {
+            // Excluir bot
+            if (esBot(p)) return false;
+            
+            // IMPORTANTE: Excluir jugadores que fueron movidos a espectadores por inactividad
+            // Si un jugador está marcado como AFK, no debe ser balanceado automáticamente
+            if (jugadoresAFK.has(p.id)) {
+                console.log(`🚫 DEBUG: Excluyendo del balance a ${p.name} (marcado como AFK)`);
+                return false;
+            }
+            
+            return true;
+        });
 
         // Mezclar aleatoriamente los candidatos
         for (let i = candidatos.length - 1; i > 0; i--) {
@@ -2696,6 +2709,10 @@ function mezclarEquiposAleatoriamenteFinPartido() {
                 setTimeout(() => {
                     console.log(`🚀 DEBUG fin partido: Llamando a verificarAutoStart después de espera...`);
                     mezclaProcesandose = false; // Desactivar control ANTES de verificar auto start
+                    
+                    // IMPORTANTE: Detectar cambio de mapa necesario (ej. biggerx5 -> biggerx7 con 12+ jugadores)
+                    console.log(`🔄 DEBUG fin partido: Verificando cambio de mapa tras mezcla...`);
+                    detectarCambioMapa();
                     
                     // CORRECCIÓN: Llamar múltiples veces a verificarAutoStart para asegurar que se ejecute
                     verificarAutoStart();
@@ -3192,7 +3209,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
         // MODIFICADO: NO detener partido en x5, solo notificar que esperará al final
         if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
             console.log(`📈 DEBUG: Detectados ${jugadoresActivos} jugadores en x5, pero NO deteniendo partido`);
-            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados. El mapa cambiará a x7 al finalizar este partido.`);
+            // Mensaje removido - ya no notificar sobre cambio de mapa
             // NO detenemos el partido, solo notificamos
             return;
         }

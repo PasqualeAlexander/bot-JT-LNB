@@ -1468,8 +1468,8 @@ const roomConfig = {
     playerName: "",
     password: null,
     maxPlayers: 23,
-    public: false,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGiT3y6efe1zf0I72Q.F5eXUFS5iCY",
+    public: true,  // Cambiar a true para que la sala sea pública
+    token: "thr1.AAAAAGiVV9xIPgfkUNpdNA.8uaj9-qVsVo",
     geo: { code: 'AR', lat: -34.6118, lon: -58.3960 },
     noPlayer: true
 };

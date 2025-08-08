@@ -8100,10 +8100,10 @@ anunciarError("❌ Ya has votado en la votación actual", jugador);
         votacionLlamarAdmin.votos.add(jugador.id);
         
         // Mostrar el motivo nuevamente cuando alguien vota (en color amarillo como el de gol)
-        anunciarGeneral(`🚨 Motivo: "${votacionLlamarAdmin.mensaje}"`, COLORES.DORADO, "bold");
+        anunciarGeneral(`🚨 MOTIVO: "${votacionLlamarAdmin.mensaje.toUpperCase()}"`, COLORES.DORADO, "bold");
         
         // Mostrar votos actuales en color amarillo como el de gol
-        anunciarGeneral(`🗳️ ${jugador.name} votó para llamar admin. Votos: ${votacionLlamarAdmin.votos.size}/${votantesMinimos}`, COLORES.DORADO, "bold");
+        anunciarGeneral(`🗳️ ${jugador.name.toUpperCase()} VOTÓ PARA LLAMAR ADMIN. VOTOS: ${votacionLlamarAdmin.votos.size}/${votantesMinimos}`, COLORES.DORADO, "bold");
         
         // Verificar si se alcanzó el mínimo
         if (votacionLlamarAdmin.votos.size >= votantesMinimos) {
@@ -8126,15 +8126,15 @@ anunciarError("❌ Ya has votado en la votación actual", jugador);
     // Configurar timeout de 60 segundos
     votacionLlamarAdmin.timeout = setTimeout(() => {
         if (votacionLlamarAdmin.activa) {
-anunciarAdvertencia(`⏰ Tiempo agotado para la votación de llamar admin. Se obtuvieron ${votacionLlamarAdmin.votos.size}/${votantesMinimos} votos`, jugador);
+anunciarAdvertencia(`⏰ TIEMPO AGOTADO PARA LA VOTACIÓN DE LLAMAR ADMIN. SE OBTUVIERON ${votacionLlamarAdmin.votos.size}/${votantesMinimos} VOTOS`, jugador);
             limpiarVotacion();
         }
     }, 60000);
     
     // Anunciar votación
-anunciarAdvertencia(`🚨 ${jugador.name} quiere llamar a un admin: "${mensaje}"`, jugador);
-    anunciarInfo(`🗳️ Escriban !llamaradmin para votar. Se necesitan ${votantesMinimos} votos. Tiempo: 60 segundos`);
-    anunciarInfo(`📊 Votos actuales: 1/${votantesMinimos}`);
+anunciarAdvertencia(`🚨 ${jugador.name.toUpperCase()} QUIERE LLAMAR A UN ADMIN: "${mensaje.toUpperCase()}"`, jugador);
+    anunciarInfo(`🗳️ ESCRIBAN !LLAMARADMIN PARA VOTAR. SE NECESITAN ${votantesMinimos} VOTOS. TIEMPO: 60 SEGUNDOS`);
+    anunciarInfo(`📊 VOTOS ACTUALES: 1/${votantesMinimos}`);
 }
 
 // FUNCIÓN PARA ENVIAR SOLICITUD DE ADMIN
@@ -8166,9 +8166,9 @@ function enviarSolicitudAdmin(iniciador, mensaje, totalVotos) {
             if (response.ok) {
                 // Activar cooldown después del envío exitoso
                 cooldownLlamarAdmin.ultimoUso = Date.now();
-                anunciarExito(`🚨 ¡Solicitud de admin enviada con ${totalVotos} votos!`);
-                anunciarInfo("📱 Un admin será notificado en Discord y vendrá a ayudarte");
-                anunciarInfo("⏰ Cooldown de 30 minutos activado para próximas solicitudes");
+                anunciarExito(`🚨 ¡SOLICITUD DE ADMIN ENVIADA CON ${totalVotos} VOTOS!`);
+                anunciarInfo("📱 UN ADMIN SERÁ NOTIFICADO EN DISCORD Y VENDRÁ A AYUDARTE");
+                anunciarInfo("⏰ COOLDOWN DE 30 MINUTOS ACTIVADO PARA PRÓXIMAS SOLICITUDES");
             } else {
 anunciarError("❌ Error al enviar mensaje a los administradores", null);
             }

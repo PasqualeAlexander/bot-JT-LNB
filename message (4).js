@@ -549,7 +549,7 @@ const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGiVV9xIPgfkUNpdNA.8uaj9-qVsVo";
+const token = "thr1.AAAAAGiWYaFTSYDcJaI85Q.tKIe6eqw6GQ";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room

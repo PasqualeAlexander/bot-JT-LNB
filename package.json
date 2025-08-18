@@ -8,10 +8,12 @@
     "dev": "nodemon bot.js"
   },
   "dependencies": {
+    "dotenv": "^17.2.1",
     "form-data": "^4.0.0",
+    "mysql2": "^3.14.3",
     "node-fetch": "^2.6.7",
     "puppeteer": "^22.8.2",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

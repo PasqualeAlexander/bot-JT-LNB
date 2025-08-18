@@ -1,12 +1,12 @@
 # Bot LNB Puppeteer 🤖⚽
 
-Bot para Liga Nacional de Haxball desarrollado con Node.js, Puppeteer y SQLite.
+Bot para Liga Nacional de Haxball desarrollado con Node.js, Puppeteer y MySQL.
 
 ## 📋 Descripción
 
 Este bot está diseñado para gestionar y automatizar funcionalidades en salas de Haxball, incluyendo:
 
-- Sistema de estadísticas completo con base de datos SQLite
+- Sistema de estadísticas completo con base de datos MySQL
 - Control de jugadores y partidos
 - Sistema de niveles y experiencia (XP)
 - Records y achievements
@@ -20,8 +20,7 @@ Este bot está diseñado para gestionar y automatizar funcionalidades en salas d
 - **Git** (para clonar el repositorio)
 
 ### Dependencias Adicionales para Windows
-- Visual Studio Build Tools o Visual Studio Community
-- Python (para compilación de SQLite3)
+- MySQL Server (instalado localmente o acceso a un servidor)
 
 ## 📦 Instalación
 
@@ -50,9 +49,10 @@ Este bot está diseñado para gestionar y automatizar funcionalidades en salas d
 
 ### Producción
 - `puppeteer` ^22.8.2 - Control del navegador
-- `sqlite3` ^5.1.6 - Base de datos
+- `mysql2` ^3.14.3 - Base de datos
 - `node-fetch` ^2.6.7 - Peticiones HTTP
 - `form-data` ^4.0.0 - Manejo de formularios
+- `dotenv` ^17.2.1 - Variables de entorno
 
 ### Desarrollo
 - `nodemon` ^3.0.2 - Recarga automática en desarrollo
@@ -65,7 +65,7 @@ bot-JT-LNB/
 ├── check_db.js              # Utilidad para verificar la base de datos
 ├── consultar_db.js          # Utilidad para consultar la base de datos
 ├── debug_cargar_stats.js    # Depuración de estadísticas
-├── lnb_estadisticas.db      # Base de datos SQLite (se genera automáticamente)
+├── .env                     # Archivo de configuración de variables de entorno
 ├── message (4).js           # Archivo de mensajes
 ├── package.json             # Configuración del proyecto
 ├── package-lock.json        # Lock de dependencias
@@ -91,25 +91,28 @@ bot-JT-LNB/
 - Códigos de recuperación
 
 ### Base de Datos
-- SQLite para persistencia de datos
-- Tablas para jugadores, partidos y records
-- Respaldos automáticos
+- MySQL para persistencia de datos
+- Tablas para jugadores, partidos, records y sistema VIP
+- Pool de conexiones optimizado
+- Soporte para transacciones
 
 ## 🔧 Solución de Problemas
 
-### Error al instalar SQLite3
-Si encuentras errores al instalar `sqlite3`, necesitas herramientas de compilación:
+### Error de conexión a MySQL
+Si no puedes conectar a la base de datos MySQL:
 
-**Windows:**
-```bash
-npm install --global windows-build-tools
-```
+1. Verifica que el servicio MySQL esté ejecutándose
+2. Revisa las credenciales en el archivo `.env`
+3. Asegúrate de que el usuario tenga permisos en la base de datos
 
-**Linux/macOS:**
 ```bash
-sudo apt-get install build-essential  # Ubuntu/Debian
-# o
-xcode-select --install  # macOS
+# Ejemplo de creación de usuario y base de datos en MySQL
+mysql -u root -p
+
+CREATE DATABASE lnb_estadisticas CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'lnb_user'@'localhost' IDENTIFIED BY 'lnb_password';
+GRANT ALL PRIVILEGES ON lnb_estadisticas.* TO 'lnb_user'@'localhost';
+FLUSH PRIVILEGES;
 ```
 
 ### Error de Puppeteer

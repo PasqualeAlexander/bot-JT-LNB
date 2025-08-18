@@ -6,187 +6,276 @@
 * ██████╔╝╚██████╔╝   ██║      ███████╗██║ ╚████║██████╔╝   ╚█████╔╝   ██║   
 * ╚═════╝  ╚═════╝    ╚═╝      ╚══════╝╚═╝  ╚═══╝╚═════╝     ╚════╝    ╚═╝    
 
-BOT LIGA NACIONAL DE BIGGER LNB - VERSIÓN PUPPETEER CON NODE.JS + SQLITE
-   Compatible con Puppeteer y base de datos SQLite
+BOT LIGA NACIONAL DE BIGGER LNB - VERSIÓN PUPPETEER CON NODE.JS + MYSQL
+   Compatible con Puppeteer y base de datos MySQL
    ============================== */
 
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
 const fetch = require('node-fetch');
 const FormData = require('form-data');
 
-// Configuración del archivo de base de datos
-const dbPath = path.join(process.cwd(), 'lnb_estadisticas.db');
-const db = new sqlite3.Database(dbPath);
+// Cargar variables de entorno si existe archivo .env ANTES de importar configuraciones
+if (fs.existsSync('.env')) {
+    require('dotenv').config();
+}
+
+// Importar configuración de base de datos DESPUÉS de cargar las variables de entorno
+const { executeQuery, executeTransaction, testConnection, closePool } = require('./config/database');
+
+console.log('🔌 Inicializando conexión a MySQL...');
+
+// Probar conexión al inicializar
+testConnection().then(isConnected => {
+    if (!isConnected) {
+        console.error('❌ No se pudo conectar a MySQL. Verifica la configuración.');
+        process.exit(1);
+    }
+});
 
 // Crear tablas de base de datos
-const crearTablas = () => {
-    // Tabla principal de jugadores
-    db.run(`CREATE TABLE IF NOT EXISTS jugadores (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT UNIQUE NOT NULL,
-        partidos INTEGER DEFAULT 0,
-        victorias INTEGER DEFAULT 0,
-        derrotas INTEGER DEFAULT 0,
-        goles INTEGER DEFAULT 0,
-        asistencias INTEGER DEFAULT 0,
-        autogoles INTEGER DEFAULT 0,
-        mejorRachaGoles INTEGER DEFAULT 0,
-        mejorRachaAsistencias INTEGER DEFAULT 0,
-        hatTricks INTEGER DEFAULT 0,
-        vallasInvictas INTEGER DEFAULT 0,
-        tiempoJugado INTEGER DEFAULT 0,
-        promedioGoles REAL DEFAULT 0.0,
-        promedioAsistencias REAL DEFAULT 0.0,
-        fechaPrimerPartido TEXT,
-        fechaUltimoPartido TEXT,
-        xp INTEGER DEFAULT 40,
-        nivel INTEGER DEFAULT 1,
-        codigoRecuperacion TEXT,
-        fechaCodigoCreado TEXT,
-        esVIP INTEGER DEFAULT 0,
-        fechaVIP TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );`);
-    
-    // Agregar columnas VIP a tablas existentes si no existen
-    db.run(`ALTER TABLE jugadores ADD COLUMN esVIP INTEGER DEFAULT 0`, (err) => {
-        // Error esperado si la columna ya existe - ignorar
-    });
-    db.run(`ALTER TABLE jugadores ADD COLUMN fechaVIP TEXT`, (err) => {
-        // Error esperado si la columna ya existe - ignorar
-    });
-    
-    // Agregar columnas para sistema de baneos mejorado con manejo de errores mejorado
-    const columnasBaneo = [
-        { nombre: 'uid', definicion: 'TEXT UNIQUE' },
-        { nombre: 'baneado', definicion: 'INTEGER DEFAULT 0' },
-        { nombre: 'fecha_ban', definicion: 'TEXT' },
-        { nombre: 'razon_ban', definicion: 'TEXT' },
-        { nombre: 'admin_ban', definicion: 'TEXT' }
-    ];
-    
-    columnasBaneo.forEach(columna => {
-        db.run(`ALTER TABLE jugadores ADD COLUMN ${columna.nombre} ${columna.definicion}`, (err) => {
-            if (err) {
-                if (err.message.includes('duplicate column name')) {
-                    // Columna ya existe - no mostrar log
-                } else {
-                    console.error(`❌ Error agregando columna ${columna.nombre}:`, err.message);
-                    
-                    // Intentar verificar si la columna existe
-                    db.get(`PRAGMA table_info(jugadores)`, [], (pragmaErr, info) => {
-                        if (!pragmaErr) {
-                            console.log(`📊 Información de tabla jugadores:`);
-                            db.all(`PRAGMA table_info(jugadores)`, [], (allErr, rows) => {
-                                if (!allErr && rows) {
-                                    console.log('📋 Columnas existentes:');
-                                    rows.forEach(row => {
-                                        console.log(`   - ${row.name}: ${row.type}`);
-                                    });
-                                }
-                            });
+const crearTablas = async () => {
+    try {
+        console.log('🗃️ Creando tablas en MySQL si no existen...');
+        
+        // Tabla principal de jugadores
+        await executeQuery(`CREATE TABLE IF NOT EXISTS jugadores (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nombre VARCHAR(255) UNIQUE NOT NULL,
+            partidos INT DEFAULT 0,
+            victorias INT DEFAULT 0,
+            derrotas INT DEFAULT 0,
+            goles INT DEFAULT 0,
+            asistencias INT DEFAULT 0,
+            autogoles INT DEFAULT 0,
+            mejorRachaGoles INT DEFAULT 0,
+            mejorRachaAsistencias INT DEFAULT 0,
+            hatTricks INT DEFAULT 0,
+            vallasInvictas INT DEFAULT 0,
+            tiempoJugado INT DEFAULT 0,
+            promedioGoles FLOAT DEFAULT 0.0,
+            promedioAsistencias FLOAT DEFAULT 0.0,
+            fechaPrimerPartido VARCHAR(50),
+            fechaUltimoPartido VARCHAR(50),
+            xp INT DEFAULT 40,
+            nivel INT DEFAULT 1,
+            codigoRecuperacion VARCHAR(50),
+            fechaCodigoCreado VARCHAR(50),
+            esVIP TINYINT DEFAULT 0,
+            fechaVIP VARCHAR(50),
+            uid VARCHAR(255) UNIQUE,
+            baneado TINYINT DEFAULT 0,
+            fecha_ban VARCHAR(50),
+            razon_ban TEXT,
+            admin_ban VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )`);      
+        
+        // Verificar si ya existen las columnas VIP y baneos
+        // MySQL 9.4 no soporta IF NOT EXISTS en ALTER TABLE, necesitamos verificar manualmente
+        try {
+            // Verificar si las columnas ya existen antes de agregarlas
+            const checkColumnsQuery = `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                                      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'jugadores' 
+                                      AND COLUMN_NAME IN ('esVIP', 'fechaVIP', 'uid', 'baneado', 'fecha_ban', 'razon_ban', 'admin_ban')`;
+            
+            const existingColumns = await executeQuery(checkColumnsQuery, [process.env.DB_NAME || 'lnb_estadisticas']);
+            const existingColumnNames = existingColumns.map(row => row.COLUMN_NAME);
+            
+            console.log(`📊 Columnas existentes detectadas:`, existingColumnNames);
+            
+            // Agregar columnas VIP si no existen
+            if (!existingColumnNames.includes('esVIP')) {
+                await executeQuery(`ALTER TABLE jugadores ADD COLUMN esVIP TINYINT DEFAULT 0`);
+                console.log(`✅ Columna esVIP agregada`);
+            }
+            
+            if (!existingColumnNames.includes('fechaVIP')) {
+                await executeQuery(`ALTER TABLE jugadores ADD COLUMN fechaVIP VARCHAR(50)`);
+                console.log(`✅ Columna fechaVIP agregada`);
+            }
+            
+            // Agregar columnas para sistema de baneos
+            const columnasBaneo = [
+                { nombre: 'uid', definicion: 'VARCHAR(255) UNIQUE' },
+                { nombre: 'baneado', definicion: 'TINYINT DEFAULT 0' },
+                { nombre: 'fecha_ban', definicion: 'VARCHAR(50)' },
+                { nombre: 'razon_ban', definicion: 'TEXT' },
+                { nombre: 'admin_ban', definicion: 'VARCHAR(255)' }
+            ];
+            
+            for (const columna of columnasBaneo) {
+                if (!existingColumnNames.includes(columna.nombre)) {
+                    try {
+                        await executeQuery(`ALTER TABLE jugadores ADD COLUMN ${columna.nombre} ${columna.definicion}`);
+                        console.log(`✅ Columna ${columna.nombre} agregada`);
+                    } catch (colErr) {
+                        // Ignorar errores de columna ya existente o constraint duplicado
+                        if (!colErr.message.includes('Duplicate') && !colErr.message.includes('already exists')) {
+                            console.error(`❌ Error agregando columna ${columna.nombre}:`, colErr.message);
                         }
-                    });
+                    }
+                } else {
+                    console.log(`ℹ️ Columna ${columna.nombre} ya existe, saltando...`);
                 }
             }
-        });
-    });
-    
-    // Tabla de records históricos
-    db.run(`CREATE TABLE IF NOT EXISTS records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tipo TEXT NOT NULL,
-        jugador TEXT NOT NULL,
-        valor INTEGER NOT NULL,
-        fecha TEXT NOT NULL,
-        detalles TEXT
-    );`);
-    
-    // Tabla de partidos
-    db.run(`CREATE TABLE IF NOT EXISTS partidos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        fecha TEXT NOT NULL,
-        duracion INTEGER NOT NULL,
-        golesRed INTEGER NOT NULL,
-        golesBlue INTEGER NOT NULL,
-        mapa TEXT NOT NULL,
-        mejorJugador TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );`);
-    
-    // Tabla de conexiones activas para control de múltiples pestañas
-    db.run(`CREATE TABLE IF NOT EXISTS conexiones_activas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre_jugador TEXT NOT NULL,
-        auth_jugador TEXT,
-        ip_simulada TEXT NOT NULL,
-        identificador_conexion TEXT UNIQUE NOT NULL,
-        fecha_conexion DATETIME DEFAULT CURRENT_TIMESTAMP,
-        ultima_actividad DATETIME DEFAULT CURRENT_TIMESTAMP,
-        activa INTEGER DEFAULT 1
-    );`);
-    
-    // Tabla para el nuevo sistema de baneos con tabla dedicada
-    db.run(`CREATE TABLE IF NOT EXISTS baneos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        auth_id TEXT NOT NULL,
-        nombre TEXT NOT NULL,
-        razon TEXT DEFAULT 'Baneado por admin',
-        admin TEXT NOT NULL,
-        fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
-        duracion INTEGER DEFAULT 0, -- 0 = permanente, >0 = minutos
-        activo INTEGER DEFAULT 1
-    );`);
-    
+        } catch (alterErr) {
+            console.log(`ℹ️ Nota: Error verificando columnas existentes:`, alterErr.message);
+        }
+        
+        // Tabla de records históricos
+        await executeQuery(`CREATE TABLE IF NOT EXISTS records (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            tipo VARCHAR(50) NOT NULL,
+            jugador VARCHAR(255) NOT NULL,
+            valor INT NOT NULL,
+            fecha VARCHAR(50) NOT NULL,
+            detalles TEXT
+        )`);      
+        
+        // Tabla de partidos
+        await executeQuery(`CREATE TABLE IF NOT EXISTS partidos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            fecha VARCHAR(50) NOT NULL,
+            duracion INT NOT NULL,
+            golesRed INT NOT NULL,
+            golesBlue INT NOT NULL,
+            mapa VARCHAR(255) NOT NULL,
+            mejorJugador VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);      
+        
+        // Tabla de conexiones activas para control de múltiples pestañas
+        await executeQuery(`CREATE TABLE IF NOT EXISTS conexiones_activas (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nombre_jugador VARCHAR(255) NOT NULL,
+            auth_jugador VARCHAR(255),
+            ip_simulada VARCHAR(50) NOT NULL,
+            identificador_conexion VARCHAR(255) UNIQUE NOT NULL,
+            fecha_conexion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ultima_actividad TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            activa TINYINT DEFAULT 1
+        )`);      
+        
+        // Tabla para el nuevo sistema de baneos con tabla dedicada
+        // MySQL 9.4 no permite DEFAULT en columnas TEXT, usamos VARCHAR en su lugar
+        await executeQuery(`CREATE TABLE IF NOT EXISTS baneos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            auth_id VARCHAR(255) NOT NULL,
+            nombre VARCHAR(255) NOT NULL,
+            razon VARCHAR(500) DEFAULT 'Baneado por admin',
+            admin VARCHAR(255) NOT NULL,
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            duracion INT DEFAULT 0, -- 0 = permanente, >0 = minutos
+            activo TINYINT DEFAULT 1
+        )`);
+        
+        // Tabla para sistema VIP
+        await executeQuery(`CREATE TABLE IF NOT EXISTS vip_types (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            type_name VARCHAR(50) UNIQUE NOT NULL,
+            level INT NOT NULL,
+            color VARCHAR(20) NOT NULL,
+            benefits TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);      
+        
+        // Tabla de membresías VIP
+        await executeQuery(`CREATE TABLE IF NOT EXISTS vip_memberships (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            player_name VARCHAR(255) NOT NULL,
+            vip_type VARCHAR(50) NOT NULL,
+            granted_by VARCHAR(255) NOT NULL,
+            granted_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expiry_date TIMESTAMP NULL,
+            is_active TINYINT DEFAULT 1,
+            reason TEXT,
+            FOREIGN KEY (player_name) REFERENCES jugadores(nombre) ON DELETE CASCADE
+        )`);      
+        
+        // Tabla de beneficios VIP utilizados
+        await executeQuery(`CREATE TABLE IF NOT EXISTS vip_benefits_used (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            player_name VARCHAR(255) NOT NULL,
+            benefit_type VARCHAR(50) NOT NULL,
+            used_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            details TEXT
+        )`);      
+        
+        console.log('✅ Tablas creadas correctamente en MySQL');
+    } catch (err) {
+        console.error('❌ Error creando tablas en MySQL:', err);
+        throw err;
+    }
 };
 
 // Funciones de base de datos
 const dbFunctions = {
     // Guardar/actualizar jugador
-    guardarJugador: (nombre, stats) => {
-        return new Promise((resolve, reject) => {
-            const query = `INSERT OR REPLACE INTO jugadores 
+    guardarJugador: async (nombre, stats) => {
+        try {
+            // En MySQL usamos INSERT... ON DUPLICATE KEY UPDATE en vez de INSERT OR REPLACE
+            const query = `INSERT INTO jugadores 
                           (nombre, partidos, victorias, derrotas, goles, asistencias, autogoles, 
                            mejorRachaGoles, mejorRachaAsistencias, hatTricks, vallasInvictas, 
                            tiempoJugado, promedioGoles, promedioAsistencias, fechaPrimerPartido, 
-                           fechaUltimoPartido, xp, nivel, codigoRecuperacion, fechaCodigoCreado, updated_at)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+                           fechaUltimoPartido, xp, nivel, codigoRecuperacion, fechaCodigoCreado)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                          ON DUPLICATE KEY UPDATE 
+                          partidos = VALUES(partidos),
+                          victorias = VALUES(victorias),
+                          derrotas = VALUES(derrotas),
+                          goles = VALUES(goles),
+                          asistencias = VALUES(asistencias),
+                          autogoles = VALUES(autogoles),
+                          mejorRachaGoles = VALUES(mejorRachaGoles),
+                          mejorRachaAsistencias = VALUES(mejorRachaAsistencias),
+                          hatTricks = VALUES(hatTricks),
+                          vallasInvictas = VALUES(vallasInvictas),
+                          tiempoJugado = VALUES(tiempoJugado),
+                          promedioGoles = VALUES(promedioGoles),
+                          promedioAsistencias = VALUES(promedioAsistencias),
+                          fechaPrimerPartido = VALUES(fechaPrimerPartido),
+                          fechaUltimoPartido = VALUES(fechaUltimoPartido),
+                          xp = VALUES(xp),
+                          nivel = VALUES(nivel),
+                          codigoRecuperacion = VALUES(codigoRecuperacion),
+                          fechaCodigoCreado = VALUES(fechaCodigoCreado),
+                          updated_at = CURRENT_TIMESTAMP`;
             
-            db.run(query, [
+            const params = [
                 nombre, stats.partidos, stats.victorias, stats.derrotas, stats.goles, 
                 stats.asistencias, stats.autogoles, stats.mejorRachaGoles, stats.mejorRachaAsistencias, 
                 stats.hatTricks, stats.vallasInvictas, stats.tiempoJugado, stats.promedioGoles, 
                 stats.promedioAsistencias, stats.fechaPrimerPartido, stats.fechaUltimoPartido, 
                 stats.xp, stats.nivel, stats.codigoRecuperacion, stats.fechaCodigoCreado
-            ], function(err) {
-                if (err) reject(err);
-                else resolve(this.lastID);
-            });
-        });
+            ];
+            
+            const result = await executeQuery(query, params);
+            return result.insertId || 0;
+        } catch (err) {
+            console.error(`❌ Error al guardar jugador ${nombre}:`, err);
+            throw err;
+        }
     },
     
     // Obtener jugador
-    obtenerJugador: (nombre) => {
-        return new Promise((resolve, reject) => {
-            db.get('SELECT * FROM jugadores WHERE nombre = ?', [nombre], (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
+    obtenerJugador: async (nombre) => {
+        try {
+            const rows = await executeQuery('SELECT * FROM jugadores WHERE nombre = ?', [nombre]);
+            return rows[0] || null;
+        } catch (err) {
+            console.error(`❌ Error al obtener jugador ${nombre}:`, err);
+            throw err;
+        }
     },
 
     // Sistemas de carga y guardado consistentes
-    cargarEstadisticasGlobales: () => {
-        return new Promise((resolve, reject) => {
-            db.all('SELECT * FROM jugadores', [], (err, rows) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
+    cargarEstadisticasGlobales: async () => {
+        try {
+            const rows = await executeQuery('SELECT * FROM jugadores');
                 
                 // Formatear datos para coincidir con la estructura esperada
                 const estadisticasFormateadas = {
@@ -255,9 +344,11 @@ const dbFunctions = {
                 }
                 
                 console.log(`📊 [DB] Cargadas estadísticas de ${Object.keys(estadisticasFormateadas.jugadores).length} jugadores`);
-                resolve(estadisticasFormateadas);
-            });
-        });
+                return estadisticasFormateadas;
+        } catch (err) {
+            console.error('❌ Error al cargar estadísticas globales:', err);
+            throw err;
+        }
     },
 
     guardarEstadisticasGlobales: (datos) => {
@@ -295,246 +386,232 @@ const dbFunctions = {
     },
     
     // Obtener top jugadores
-    obtenerTopJugadores: (campo, limite = 10) => {
-        return new Promise((resolve, reject) => {
+    obtenerTopJugadores: async (campo, limite = 10) => {
+        try {
             const validCampos = ['goles', 'asistencias', 'partidos', 'victorias', 'hatTricks', 'vallasInvictas'];
             if (!validCampos.includes(campo)) {
-                reject(new Error('Campo inválido'));
-                return;
+                throw new Error('Campo inválido');
             }
             
-            db.all(`SELECT * FROM jugadores WHERE partidos > 0 ORDER BY ${campo} DESC LIMIT ?`, [limite], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
+            // MySQL usa la misma sintaxis para LIMIT
+            const rows = await executeQuery(`SELECT * FROM jugadores WHERE partidos > 0 ORDER BY ${campo} DESC LIMIT ?`, [limite]);
+            return rows;
+        } catch (err) {
+            console.error(`❌ Error al obtener top jugadores por ${campo}:`, err);
+            throw err;
+        }
     },
     
     // Guardar partido
-    guardarPartido: (partidoData) => {
-        return new Promise((resolve, reject) => {
+    guardarPartido: async (partidoData) => {
+        try {
             const query = `INSERT INTO partidos (fecha, duracion, golesRed, golesBlue, mapa, mejorJugador)
                           VALUES (?, ?, ?, ?, ?, ?)`;
             
-            db.run(query, [
+            const params = [
                 partidoData.fecha, partidoData.duracion, partidoData.golesRed, 
                 partidoData.golesBlue, partidoData.mapa, partidoData.mejorJugador
-            ], function(err) {
-                if (err) reject(err);
-                else resolve(this.lastID);
-            });
-        });
+            ];
+            
+            const result = await executeQuery(query, params);
+            return result.insertId || 0;
+        } catch (err) {
+            console.error('❌ Error al guardar partido:', err);
+            throw err;
+        }
     },
     
     // Eliminar cuentas inactivas por 90 días
-    eliminarCuentasInactivas: () => {
-        return new Promise((resolve, reject) => {
-            // Primero contar cuántas cuentas serán eliminadas
+    eliminarCuentasInactivas: async () => {
+        try {
+            // Primero contar cuántas cuentas serán eliminadas (con sintaxis MySQL)
             const countQuery = `SELECT COUNT(*) as count FROM jugadores 
-                               WHERE DATE('now') > DATE(fechaUltimoPartido, '+90 day')`;
+                               WHERE DATE_ADD(STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ'), INTERVAL 90 DAY) < NOW()`;
             
-            db.get(countQuery, [], (err, row) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                
-                const cuentasAEliminar = row.count;
-                console.log(`🧹 Se encontraron ${cuentasAEliminar} cuentas inactivas por más de 90 días`);
-                
-                if (cuentasAEliminar === 0) {
-                    resolve({ eliminadas: 0, mensaje: 'No hay cuentas inactivas para eliminar' });
-                    return;
-                }
-                
-                // Obtener nombres de las cuentas que serán eliminadas (para log)
-                const selectQuery = `SELECT nombre, fechaUltimoPartido FROM jugadores 
-                                    WHERE DATE('now') > DATE(fechaUltimoPartido, '+90 day')`;
-                
-                db.all(selectQuery, [], (err, rows) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-                    
-                    // Log de las cuentas que serán eliminadas
-                    console.log('📋 Cuentas que serán eliminadas:');
-                    rows.forEach(jugador => {
-                        const diasInactivo = Math.floor((new Date() - new Date(jugador.fechaUltimoPartido)) / (1000 * 60 * 60 * 24));
-                        console.log(`  - ${jugador.nombre} (${diasInactivo} días inactivo)`);
-                    });
-                    
-                    // Proceder con la eliminación
-                    const deleteQuery = `DELETE FROM jugadores 
-                                        WHERE DATE('now') > DATE(fechaUltimoPartido, '+90 day')`;
-                    
-                    db.run(deleteQuery, [], function(err) {
-                        if (err) {
-                            console.error('❌ Error al eliminar cuentas inactivas:', err);
-                            reject(err);
-                        } else {
-                            console.log(`✅ ${this.changes} cuentas inactivas eliminadas exitosamente`);
-                            resolve({ 
-                                eliminadas: this.changes, 
-                                mensaje: `Se eliminaron ${this.changes} cuentas inactivas por más de 90 días`,
-                                cuentas: rows.map(r => ({ nombre: r.nombre, fechaUltimoPartido: r.fechaUltimoPartido }))
-                            });
-                        }
-                    });
-                });
+            const countResult = await executeQuery(countQuery);
+            const cuentasAEliminar = countResult[0].count;
+            
+            console.log(`🧹 Se encontraron ${cuentasAEliminar} cuentas inactivas por más de 90 días`);
+            
+            if (cuentasAEliminar === 0) {
+                return { eliminadas: 0, mensaje: 'No hay cuentas inactivas para eliminar' };
+            }
+            
+            // Obtener nombres de las cuentas que serán eliminadas (para log)
+            const selectQuery = `SELECT nombre, fechaUltimoPartido FROM jugadores 
+                                WHERE DATE_ADD(STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ'), INTERVAL 90 DAY) < NOW()`;
+            
+            const jugadoresInactivos = await executeQuery(selectQuery);
+            
+            // Log de las cuentas que serán eliminadas
+            console.log('📋 Cuentas que serán eliminadas:');
+            jugadoresInactivos.forEach(jugador => {
+                const diasInactivo = Math.floor((new Date() - new Date(jugador.fechaUltimoPartido)) / (1000 * 60 * 60 * 24));
+                console.log(`  - ${jugador.nombre} (${diasInactivo} días inactivo)`);
             });
-        });
+            
+            // Proceder con la eliminación
+            const deleteQuery = `DELETE FROM jugadores 
+                                WHERE DATE_ADD(STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ'), INTERVAL 90 DAY) < NOW()`;
+            
+            const deleteResult = await executeQuery(deleteQuery);
+            
+            console.log(`✅ ${deleteResult.affectedRows} cuentas inactivas eliminadas exitosamente`);
+            return { 
+                eliminadas: deleteResult.affectedRows, 
+                mensaje: `Se eliminaron ${deleteResult.affectedRows} cuentas inactivas por más de 90 días`,
+                cuentas: jugadoresInactivos.map(r => ({ nombre: r.nombre, fechaUltimoPartido: r.fechaUltimoPartido }))
+            };
+        } catch (err) {
+            console.error('❌ Error al eliminar cuentas inactivas:', err);
+            throw err;
+        }
     },
     
     // ====================== FUNCIONES PARA SISTEMA VIP ======================
     
     // Activar VIP para un jugador
-    activarVIP: (nombreJugador) => {
-        return new Promise((resolve, reject) => {
+    activarVIP: async (nombreJugador) => {
+        try {
             const fechaVIP = new Date().toISOString();
             const query = `UPDATE jugadores SET esVIP = 1, fechaVIP = ? WHERE nombre = ?`;
             
-            db.run(query, [fechaVIP, nombreJugador], function(err) {
-                if (err) {
-                    reject(err);
-                } else if (this.changes === 0) {
-                    reject(new Error('Jugador no encontrado'));
-                } else {
-                    console.log(`✅ VIP activado para ${nombreJugador} en ${fechaVIP}`);
-                    resolve({ nombreJugador, fechaVIP, cambios: this.changes });
-                }
-            });
-        });
+            const result = await executeQuery(query, [fechaVIP, nombreJugador]);
+            
+            if (result.affectedRows === 0) {
+                throw new Error('Jugador no encontrado');
+            }
+            
+            console.log(`✅ VIP activado para ${nombreJugador} en ${fechaVIP}`);
+            return { nombreJugador, fechaVIP, cambios: result.affectedRows };
+        } catch (err) {
+            console.error(`❌ Error al activar VIP para ${nombreJugador}:`, err);
+            throw err;
+        }
     },
     
     // Desactivar VIP para un jugador
-    desactivarVIP: (nombreJugador) => {
-        return new Promise((resolve, reject) => {
+    desactivarVIP: async (nombreJugador) => {
+        try {
             const query = `UPDATE jugadores SET esVIP = 0, fechaVIP = NULL WHERE nombre = ?`;
             
-            db.run(query, [nombreJugador], function(err) {
-                if (err) {
-                    reject(err);
-                } else if (this.changes === 0) {
-                    reject(new Error('Jugador no encontrado'));
-                } else {
-                    console.log(`❌ VIP desactivado para ${nombreJugador}`);
-                    resolve({ nombreJugador, cambios: this.changes });
-                }
-            });
-        });
+            const result = await executeQuery(query, [nombreJugador]);
+            
+            if (result.affectedRows === 0) {
+                throw new Error('Jugador no encontrado');
+            }
+            
+            console.log(`❌ VIP desactivado para ${nombreJugador}`);
+            return { nombreJugador, cambios: result.affectedRows };
+        } catch (err) {
+            console.error(`❌ Error al desactivar VIP para ${nombreJugador}:`, err);
+            throw err;
+        }
     },
     
     // Verificar si un jugador es VIP
-    esJugadorVIP: (nombreJugador) => {
-        return new Promise((resolve, reject) => {
+    esJugadorVIP: async (nombreJugador) => {
+        try {
             const query = `SELECT esVIP, fechaVIP FROM jugadores WHERE nombre = ?`;
+            const rows = await executeQuery(query, [nombreJugador]);
             
-            db.get(query, [nombreJugador], (err, row) => {
-                if (err) {
-                    reject(err);
-                } else if (!row) {
-                    resolve({ esVIP: false, fechaVIP: null });
-                } else {
-                    const esVIP = row.esVIP === 1;
-                    const fechaVIP = row.fechaVIP;
-                    
-                    // Si es VIP, verificar que no haya expirado (30 días)
-                    if (esVIP && fechaVIP) {
-                        const fechaOtorgamiento = new Date(fechaVIP);
-                        const fechaExpiracion = new Date(fechaOtorgamiento.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 días
-                        const ahora = new Date();
-                        
-                        if (ahora > fechaExpiracion) {
-                            // VIP expirado - desactivar automáticamente
-                            dbFunctions.desactivarVIP(nombreJugador).then(() => {
-                                resolve({ esVIP: false, fechaVIP: null, expirado: true });
-                            }).catch((error) => {
-                                console.error(`Error al desactivar VIP expirado para ${nombreJugador}:`, error);
-                                resolve({ esVIP: false, fechaVIP: null, expirado: true });
-                            });
-                        } else {
-                            resolve({ esVIP: true, fechaVIP: fechaVIP, diasRestantes: Math.ceil((fechaExpiracion - ahora) / (24 * 60 * 60 * 1000)) });
-                        }
-                    } else {
-                        resolve({ esVIP: false, fechaVIP: null });
+            if (!rows || rows.length === 0) {
+                return { esVIP: false, fechaVIP: null };
+            }
+            
+            const row = rows[0];
+            const esVIP = row.esVIP === 1;
+            const fechaVIP = row.fechaVIP;
+            
+            // Si es VIP, verificar que no haya expirado (30 días)
+            if (esVIP && fechaVIP) {
+                const fechaOtorgamiento = new Date(fechaVIP);
+                const fechaExpiracion = new Date(fechaOtorgamiento.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 días
+                const ahora = new Date();
+                
+                if (ahora > fechaExpiracion) {
+                    // VIP expirado - desactivar automáticamente
+                    try {
+                        await dbFunctions.desactivarVIP(nombreJugador);
+                        return { esVIP: false, fechaVIP: null, expirado: true };
+                    } catch (error) {
+                        console.error(`Error al desactivar VIP expirado para ${nombreJugador}:`, error);
+                        return { esVIP: false, fechaVIP: null, expirado: true };
                     }
+                } else {
+                    return { esVIP: true, fechaVIP: fechaVIP, diasRestantes: Math.ceil((fechaExpiracion - ahora) / (24 * 60 * 60 * 1000)) };
                 }
-            });
-        });
+            } else {
+                return { esVIP: false, fechaVIP: null };
+            }
+        } catch (err) {
+            console.error(`❌ Error al verificar VIP para ${nombreJugador}:`, err);
+            throw err;
+        }
     },
     
     // Obtener lista de jugadores VIP activos
-    obtenerJugadoresVIP: () => {
-        return new Promise((resolve, reject) => {
+    obtenerJugadoresVIP: async () => {
+        try {
             const query = `SELECT nombre, fechaVIP FROM jugadores WHERE esVIP = 1 ORDER BY fechaVIP DESC`;
+            const rows = await executeQuery(query);
             
-            db.all(query, [], (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    const jugadoresVIP = rows.map(row => {
-                        const fechaOtorgamiento = new Date(row.fechaVIP);
-                        const fechaExpiracion = new Date(fechaOtorgamiento.getTime() + (30 * 24 * 60 * 60 * 1000));
-                        const ahora = new Date();
-                        const diasRestantes = Math.ceil((fechaExpiracion - ahora) / (24 * 60 * 60 * 1000));
-                        
-                        return {
-                            nombre: row.nombre,
-                            fechaVIP: row.fechaVIP,
-                            diasRestantes: diasRestantes,
-                            expirado: diasRestantes <= 0
-                        };
-                    });
-                    
-                    resolve(jugadoresVIP);
-                }
+            const jugadoresVIP = rows.map(row => {
+                const fechaOtorgamiento = new Date(row.fechaVIP);
+                const fechaExpiracion = new Date(fechaOtorgamiento.getTime() + (30 * 24 * 60 * 60 * 1000));
+                const ahora = new Date();
+                const diasRestantes = Math.ceil((fechaExpiracion - ahora) / (24 * 60 * 60 * 1000));
+                
+                return {
+                    nombre: row.nombre,
+                    fechaVIP: row.fechaVIP,
+                    diasRestantes: diasRestantes,
+                    expirado: diasRestantes <= 0
+                };
             });
-        });
+            
+            return jugadoresVIP;
+        } catch (err) {
+            console.error('❌ Error al obtener jugadores VIP:', err);
+            throw err;
+        }
     },
     
     // Limpiar VIPs expirados automáticamente
-    limpiarVIPsExpirados: () => {
-        return new Promise((resolve, reject) => {
-            // Primero obtener los VIPs que van a expirar
+    limpiarVIPsExpirados: async () => {
+        try {
+            // Primero obtener los VIPs que van a expirar (con sintaxis MySQL)
             const selectQuery = `SELECT nombre, fechaVIP FROM jugadores 
                                 WHERE esVIP = 1 
-                                AND DATE('now') > DATE(fechaVIP, '+30 day')`;
+                                AND DATE_ADD(STR_TO_DATE(fechaVIP, '%Y-%m-%dT%H:%i:%s.%fZ'), INTERVAL 30 DAY) < NOW()`;
             
-            db.all(selectQuery, [], (err, rows) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                
-                if (rows.length === 0) {
-                    resolve({ vipsExpirados: 0, jugadores: [] });
-                    return;
-                }
-                
-                // Desactivar VIPs expirados
-                const updateQuery = `UPDATE jugadores 
-                                    SET esVIP = 0, fechaVIP = NULL 
-                                    WHERE esVIP = 1 
-                                    AND DATE('now') > DATE(fechaVIP, '+30 day')`;
-                
-                db.run(updateQuery, [], function(err) {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        console.log(`🧹 ${this.changes} VIPs expirados limpiados automáticamente`);
-                        resolve({ 
-                            vipsExpirados: this.changes, 
-                            jugadores: rows.map(r => ({
-                                nombre: r.nombre,
-                                fechaVIP: r.fechaVIP,
-                                diasVencido: Math.floor((new Date() - new Date(r.fechaVIP)) / (1000 * 60 * 60 * 24)) - 30
-                            }))
-                        });
-                    }
-                });
-            });
-        });
+            const vipsExpirados = await executeQuery(selectQuery);
+            
+            if (vipsExpirados.length === 0) {
+                return { vipsExpirados: 0, jugadores: [] };
+            }
+            
+            // Desactivar VIPs expirados
+            const updateQuery = `UPDATE jugadores 
+                                SET esVIP = 0, fechaVIP = NULL 
+                                WHERE esVIP = 1 
+                                AND DATE_ADD(STR_TO_DATE(fechaVIP, '%Y-%m-%dT%H:%i:%s.%fZ'), INTERVAL 30 DAY) < NOW()`;
+            
+            const result = await executeQuery(updateQuery);
+            
+            console.log(`🧹 ${result.affectedRows} VIPs expirados limpiados automáticamente`);
+            return { 
+                vipsExpirados: result.affectedRows, 
+                jugadores: vipsExpirados.map(r => ({
+                    nombre: r.nombre,
+                    fechaVIP: r.fechaVIP,
+                    diasVencido: Math.floor((new Date() - new Date(r.fechaVIP)) / (1000 * 60 * 60 * 24)) - 30
+                }))
+            };
+        } catch (err) {
+            console.error('❌ Error al limpiar VIPs expirados:', err);
+            throw err;
+        }
     },
     
     // ====================== FUNCIONES PARA CONTROL DE CONEXIONES MÚLTIPLES ======================
@@ -1468,8 +1545,8 @@ const roomConfig = {
     playerName: "",
     password: null,
     maxPlayers: 23,
-    public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGiWYaFTSYDcJaI85Q.tKIe6eqw6GQ",
+    public: false,  // Cambiar a true para que la sala sea pública
+    token: "thr1.AAAAAGijf7vegR-UaFVtkQ.I-e1QwWsGvM",
     geo: { code: 'AR', lat: -34.6118, lon: -58.3960 },
     noPlayer: true
 };
@@ -1957,10 +2034,10 @@ console.log('   - Comando manual disponible en el bot');
         
         // Mantener el proceso vivo
         // Graceful shutdown
-        process.on('SIGINT', async () => {
+process.on('SIGINT', async () => {
             console.log('🛑 Cerrando bot y base de datos...');
             await browser.close();
-            db.close();
+            await closePool();
             process.exit(0);
         });
         

@@ -15,7 +15,7 @@
 ---
 
 ### ⭐ **ADMIN FULL (Administrador Limitado)**
-**❌ Limitaciones: MUCHAS**
+**❌ Limitaciones: ALGUNAS**
 - ❌ **NO puede otorgar ni remover rangos** (principal restricción)
 - ❌ **NO puede gestionar sistema VIP** (no puede dar/quitar VIP)
 - ❌ NO puede acceder a comandos especiales de OWNER
@@ -23,6 +23,7 @@
 - ❌ NO puede otorgar rango de OWNER/ADMIN/MOD a otros
 - ✅ Puede usar comandos administrativos básicos
 - ✅ Puede moderar jugadores (kick, ban, etc.)
+- ✅ **PUEDE usar comando !unban** (NUEVO)
 - ✅ Mensajes con prefijo: `⭐ ADMIN NombreJugador`
 - 🏆 Priority: 9
 
@@ -36,6 +37,7 @@
 - ❌ NO puede usar comandos especiales de OWNER/ADMIN
 - ✅ Puede usar comandos de moderación básicos
 - ✅ Funciones de moderación (kick, mute, advertencias)
+- ✅ **PUEDE usar comando !unban** (NUEVO)
 - ✅ Mensajes con prefijo: `🔧 ADMIN BÁSICO NombreJugador`
 - 🏆 Priority: 8
 

@@ -180,6 +180,12 @@ class ChatSystem {
         return ['OWNER', 'ADMIN', 'ADMIN_BASICO'].includes(rank);
     }
 
+    // Verificar si un usuario puede usar comandos de unban
+    async canUseUnbanCommands(playerName, playerAuth = null) {
+        const rank = await this.getUserRank(playerName, playerAuth);
+        return ['OWNER', 'ADMIN', 'ADMIN_BASICO'].includes(rank);
+    }
+
     // Obtener lista de usuarios online con sus rangos
     async getOnlineUsersWithRanks(playerList) {
         const usersWithRanks = [];

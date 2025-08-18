@@ -3,6 +3,51 @@
  * Sistema usando librariesMap.commands para el comando unban
  */
 
+// Función para verificar si un jugador puede usar el comando unban
+// Permite a OWNER, ADMIN y ADMIN_BASICO usar el comando
+function checkUnbanPermission(room, playerId) {
+    try {
+        const player = room.getPlayer(playerId);
+        if (!player) {
+            console.warn(`⚠️ UNBAN: Jugador con ID ${playerId} no encontrado`);
+            return false;
+        }
+
+        const playerName = player.name.toLowerCase();
+        
+        // Lista de usuarios autorizados para usar unban
+        const authorizedUsers = {
+            // Owners
+            'owner': true,
+            'tu_nombre_owner': true,
+            
+            // Admins Full
+            'admin1': true,
+            'admin2': true,
+            'admin_principal': true,
+            
+            // Admins Básicos
+            'admin_basico1': true,
+            'adminbasico1': true,
+            'staff1': true
+        };
+        
+        const isAuthorized = authorizedUsers[playerName] || false;
+        
+        if (isAuthorized) {
+            console.log(`✅ UNBAN: Jugador ${player.name} (ID: ${playerId}) autorizado para usar unban`);
+            return true;
+        } else {
+            console.log(`❌ UNBAN: Jugador ${player.name} (ID: ${playerId}) NO autorizado para usar unban`);
+            return false;
+        }
+        
+    } catch (error) {
+        console.error(`❌ UNBAN: Error verificando permisos para jugador ID ${playerId}:`, error);
+        return false;
+    }
+}
+
 function initializeCommandSystem(room, permissionCtx, permissionsIds) {
     // Verificar que el sistema de comandos esté disponible
     if (!room.librariesMap || !room.librariesMap.commands) {
@@ -36,9 +81,14 @@ function initializeCommandSystem(room, permissionCtx, permissionsIds) {
             callback: ({ playerId }, byId) => {
                 console.log(`🔧 UNBAN: Nuevo sistema - Admin ID ${byId} solicita desbanear playerId: ${playerId}`);
                 
-                // Verificar permisos
-                if (!permissionCtx?.checkPlayerPermission(byId, permissionsIds.unban)) {
-                    room.librariesMap.commands?.announcePermissionDenied(byId);
+                // Verificar permisos usando nuestra función personalizada
+                if (!checkUnbanPermission(room, byId)) {
+                    // Enviar mensaje de permisos denegados
+                    const player = room.getPlayer(byId);
+                    const playerName = player ? player.name : 'Desconocido';
+                    const mensaje = `❌ ${playerName}, no tienes permisos para usar el comando !unban`;
+                    room.sendAnnouncement(mensaje, byId, 0xFF6347, "bold", 0);
+                    console.log(`🔒 UNBAN: Acceso denegado para ${playerName} (ID: ${byId})`);
                     return;
                 }
 

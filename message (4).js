@@ -4413,17 +4413,51 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             break;
             
         case "mute":
-            if (!esSuperAdmin(jugador)) return;
+            // Verificar si el usuario es al menos admin básico
+            if (!esAdminBasico(jugador)) {
+                anunciarError("❌ No tienes permisos para mutear jugadores.", jugador);
+                return;
+            }
+            
             if (args[1]) {
                 const nombreJugador = args[1];
-                const tiempo = args[2] ? parseInt(args[2]) : null; // tiempo en minutos
-                const razon = args.slice(tiempo ? 3 : 2).join(" ") || "Muteado por superadmin";
+                let tiempo = args[2] ? parseInt(args[2]) : null; // tiempo en minutos
+                let razon = args.slice(tiempo ? 3 : 2).join(" ") || "Muteado por admin";
                 const jugadorObjetivo = obtenerJugadorPorNombre(nombreJugador);
                 
                 if (jugadorObjetivo) {
-                    if (esSuperAdmin(jugadorObjetivo)) {
-                        anunciarError("No puedes silenciar a otro superadmin", jugador);
+                    // Prevenir que los admins se muteen entre sí
+                    if (esAdminBasico(jugadorObjetivo)) {
+                        anunciarError("❌ No puedes mutear a otro administrador.", jugador);
                         return;
+                    }
+                    
+                    // Aplicar límites de tiempo según el rol
+                    if (esSuperAdmin(jugador)) {
+                        // Super Admin no tiene límite de tiempo y puede mutear permanentemente
+                        if (!razon.includes("superadmin")) {
+                            razon = razon || "Muteado por superadmin";
+                        }
+                    } else if (esAdmin(jugador)) { // Admin Full
+                        if (tiempo === null) {
+                            anunciarError("❌ Como Admin Full, debes especificar un tiempo de muteo.", jugador);
+                            return;
+                        }
+                        const maxTiempo = 600;
+                        if (tiempo > maxTiempo) {
+                            anunciarError(`❌ Tu límite de muteo es de ${maxTiempo} minutos.`, jugador);
+                            return;
+                        }
+                    } else { // Admin Básico
+                        if (tiempo === null) {
+                            anunciarError("❌ Como Admin Básico, debes especificar un tiempo de muteo.", jugador);
+                            return;
+                        }
+                        const maxTiempo = 60;
+                        if (tiempo > maxTiempo) {
+                            anunciarError(`❌ Tu límite de muteo es de ${maxTiempo} minutos.`, jugador);
+                            return;
+                        }
                     }
                     
                     // Verificar si ya está muteado y desmutear

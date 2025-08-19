@@ -4,11 +4,11 @@
 */
 
 const VIPSystem = require('./vip_system');
+const { executeQuery } = require('./config/database');
 
 class VIPCommands {
-    constructor(database) {
-        this.vipSystem = new VIPSystem(database);
-        this.db = database;
+    constructor() {
+        this.vipSystem = new VIPSystem();
         
         // Lista de administradores autorizados (puedes modificar esto)
         this.adminAuthorities = [
@@ -365,27 +365,29 @@ ${benefits.benefits.map(benefit => `• ${benefit}`).join('\n')}`;
             return "❌ Este comando es exclusivo para VIPs.";
         }
 
-        // Aquí integrarías con tu sistema de estadísticas existente
-        return new Promise((resolve) => {
-            this.db.get('SELECT * FROM jugadores WHERE nombre = ?', [playerName], (err, player) => {
-                if (err || !player) {
-                    resolve("❌ No se encontraron estadísticas.");
-                    return;
-                }
+        // Integrado con sistema de estadísticas MySQL
+        try {
+            const results = await executeQuery('SELECT * FROM jugadores WHERE nombre = ?', [playerName]);
+            const player = results[0];
+            
+            if (!player) {
+                return "❌ No se encontraron estadísticas.";
+            }
 
-                const winRate = player.partidos > 0 ? 
-                    ((player.victorias / player.partidos) * 100).toFixed(1) : 0;
+            const winRate = player.partidos > 0 ? 
+                ((player.victorias / player.partidos) * 100).toFixed(1) : 0;
 
-                resolve(`📊 Tus estadísticas VIP:
+            return `📊 Tus estadísticas VIP:
 🎮 Partidos: ${player.partidos}
 🏆 Victorias: ${player.victorias} (${winRate}%)
 ⚽ Goles: ${player.goles}
 🅰️ Asistencias: ${player.asistencias}
 ⭐ XP: ${player.xp} (Nivel ${player.nivel})
 🎯 Promedio goles: ${player.promedioGoles.toFixed(2)}
-🔥 Mejor racha: ${player.mejorRachaGoles} goles`);
-            });
-        });
+🔥 Mejor racha: ${player.mejorRachaGoles} goles`;
+        } catch (error) {
+            return "❌ Error obteniendo estadísticas.";
+        }
     }
 
     async handleMyRecord(args, playerName) {
@@ -404,19 +406,21 @@ ${benefits.benefits.map(benefit => `• ${benefit}`).join('\n')}`;
             return "❌ Este comando es exclusivo para VIPs.";
         }
 
-        return new Promise((resolve) => {
-            this.db.get('SELECT tiempoJugado FROM jugadores WHERE nombre = ?', [playerName], (err, player) => {
-                if (err || !player) {
-                    resolve("❌ No se encontró información de tiempo.");
-                    return;
-                }
+        try {
+            const results = await executeQuery('SELECT tiempoJugado FROM jugadores WHERE nombre = ?', [playerName]);
+            const player = results[0];
+            
+            if (!player) {
+                return "❌ No se encontró información de tiempo.";
+            }
 
-                const hours = Math.floor(player.tiempoJugado / 60);
-                const minutes = player.tiempoJugado % 60;
-                
-                resolve(`⏰ Tu tiempo de juego: ${hours}h ${minutes}m`);
-            });
-        });
+            const hours = Math.floor(player.tiempoJugado / 60);
+            const minutes = player.tiempoJugado % 60;
+            
+            return `⏰ Tu tiempo de juego: ${hours}h ${minutes}m`;
+        } catch (error) {
+            return "❌ Error obteniendo tiempo de juego.";
+        }
     }
 
     // === COMANDOS ULTRA VIP EXCLUSIVOS ===

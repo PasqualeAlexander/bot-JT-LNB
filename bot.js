@@ -24,6 +24,9 @@ if (fs.existsSync('.env')) {
 // Importar configuración de base de datos DESPUÉS de cargar las variables de entorno
 const { executeQuery, executeTransaction, testConnection, closePool } = require('./config/database');
 
+// Importar funciones de base de datos
+const dbFunctions = require('./database/db_functions');
+
 console.log('🔌 Inicializando conexión a MySQL...');
 
 // Probar conexión al inicializar
@@ -211,8 +214,11 @@ const crearTablas = async () => {
     }
 };
 
-// Funciones de base de datos
-const dbFunctions = {
+// IMPORTANTE: NO USAR ESTAS FUNCIONES - USAR LAS DE ./database/db_functions.js
+// Esta sección está obsoleta y se mantiene solo por compatibilidad histórica
+// Las funciones están comentadas para evitar colisiones con las importadas
+/*
+const dbFunctionsOld = {
     // Guardar/actualizar jugador
     guardarJugador: async (nombre, stats) => {
         try {
@@ -1538,6 +1544,7 @@ const dbFunctions = {
         });
     }
 };
+*/
 
 // Configuración del bot (igual que el original)
 const roomConfig = {
@@ -1545,8 +1552,8 @@ const roomConfig = {
     playerName: "",
     password: null,
     maxPlayers: 23,
-    public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGijf7vegR-UaFVtkQ.I-e1QwWsGvM",
+    public: false,  // Cambiar a true para que la sala sea pública
+    token: "thr1.AAAAAGij9PBkUzcO0xDXxQ.Eu6z3iaZ9JE",
     geo: { code: 'AR', lat: -34.6118, lon: -58.3960 },
     noPlayer: true
 };
@@ -1604,36 +1611,55 @@ const webhooks = {
         await page.exposeFunction('nodeObtenerJugadoresVIP', dbFunctions.obtenerJugadoresVIP);
         await page.exposeFunction('nodeLimpiarVIPsExpirados', dbFunctions.limpiarVIPsExpirados);
         
-        // Exponer funciones de control de conexiones múltiples
+        // Exponer funciones de control de conexiones múltiples (solo las que existen)
         await page.exposeFunction('nodeRegistrarConexion', dbFunctions.registrarConexion);
         await page.exposeFunction('nodeVerificarConexionesExistentes', dbFunctions.verificarConexionesExistentes);
-        await page.exposeFunction('nodeDesactivarConexion', dbFunctions.desactivarConexion);
-        await page.exposeFunction('nodeDesactivarConexionesJugador', dbFunctions.desactivarConexionesJugador);
-        await page.exposeFunction('nodeActualizarActividadConexion', dbFunctions.actualizarActividadConexion);
         await page.exposeFunction('nodeLimpiarConexionesInactivas', dbFunctions.limpiarConexionesInactivas);
-        await page.exposeFunction('nodeObtenerEstadisticasConexiones', dbFunctions.obtenerEstadisticasConexiones);
         
-        // Exponer funciones del sistema de baneos mejorado (tabla jugadores)
-        await page.exposeFunction('nodeActualizarUID', dbFunctions.actualizarUID);
-        await page.exposeFunction('nodeObtenerJugadorPorUID', dbFunctions.obtenerJugadorPorUID);
-        await page.exposeFunction('nodeBanearJugador', dbFunctions.banearJugador);
-        await page.exposeFunction('nodeDesbanearJugador', dbFunctions.desbanearJugador);
-        await page.exposeFunction('nodeVerificarBaneoJugador', dbFunctions.verificarBaneoJugador);
-        await page.exposeFunction('nodeVerificarJugadorPorUID', dbFunctions.verificarJugadorPorUID);
-        await page.exposeFunction('nodeObtenerJugadoresBaneados', dbFunctions.obtenerJugadoresBaneados);
-        await page.exposeFunction('nodeObtenerJugadoresBaneadosRecientes', dbFunctions.obtenerJugadoresBaneadosRecientes);
-        await page.exposeFunction('nodeObtenerJugadoresBaneados24h', dbFunctions.obtenerJugadoresBaneados24h);
-        
-        // Exponer funciones del nuevo sistema de baneos (tabla baneos)
+        // Exponer funciones del nuevo sistema de baneos (tabla baneos) - solo las que existen
         await page.exposeFunction('nodeCrearBaneo', dbFunctions.crearBaneo);
-        await page.exposeFunction('nodeEstaBaneado', dbFunctions.estaBaneado);
+        
+        // Exponer la nueva función basada en promesas
+        await page.exposeFunction('nodeEstaBaneadoPromise', async (authId) => {
+            try {
+                console.log('🔍 DEBUG: nodeEstaBaneadoPromise llamado con authId:', authId);
+                const resultado = await dbFunctions.estaBaneadoPromise(authId);
+                console.log('🔍 DEBUG: Resultado del baneo:', resultado ? 'BANEADO' : 'NO BANEADO');
+                return resultado;
+            } catch (error) {
+                console.error('❌ Error en nodeEstaBaneadoPromise:', error);
+                return false;
+            }
+        });
+        
+        // Mantener el wrapper de callback para compatibilidad (pero mejorado)
+        await page.exposeFunction('nodeEstaBaneado', (authId, callback) => {
+            try {
+                console.log('🔍 DEBUG: nodeEstaBaneado llamado con:', { authId, callbackType: typeof callback });
+                
+                // Validar que callback sea válido antes de pasarlo a la función real
+                if (typeof callback !== 'function') {
+                    console.error('❌ ERROR: nodeEstaBaneado - callback inválido:', callback);
+                    // Crear callback por defecto
+                    callback = (result) => {
+                        console.log('⚠️ Callback por defecto ejecutado, resultado:', result ? 'baneado' : 'no baneado');
+                    };
+                }
+                
+                // Llamar a la función real de la base de datos
+                return dbFunctions.estaBaneado(authId, callback);
+            } catch (error) {
+                console.error('❌ Error en wrapper nodeEstaBaneado:', error);
+                // Fallback para evitar que la aplicación se cuelgue
+                if (typeof callback === 'function') {
+                    callback(false);
+                }
+            }
+        });
+        
         await page.exposeFunction('nodeDesactivarBaneo', dbFunctions.desactivarBaneo);
         await page.exposeFunction('nodeDesbanearJugadorNuevo', dbFunctions.desbanearJugadorNuevo);
         await page.exposeFunction('nodeObtenerBaneosActivos', dbFunctions.obtenerBaneosActivos);
-        await page.exposeFunction('nodeObtenerHistorialBaneos', dbFunctions.obtenerHistorialBaneos);
-        await page.exposeFunction('nodeObtenerBaneosRecientes', dbFunctions.obtenerBaneosRecientes);
-        await page.exposeFunction('nodeBuscarJugadorEnBaneos', dbFunctions.buscarJugadorEnBaneos);
-        await page.exposeFunction('nodeObtenerEstadisticasBaneos', dbFunctions.obtenerEstadisticasBaneos);
 
         // Integrar sistemas compartidos
         await page.exposeFunction('cargarEstadisticasGlobales', dbFunctions.cargarEstadisticasGlobales);
@@ -1776,7 +1802,6 @@ const webhooks = {
         // Leer el código completo del bot desde el archivo separado
         const botCompleto = fs.readFileSync(path.join(__dirname, 'message (4).js'), 'utf8');
         
-        
         // Inyectar el código completo del bot con manejo de errores
         try {
             await page.evaluate((codigo) => {
@@ -1880,7 +1905,8 @@ const webhooks = {
                     if (typeof room !== 'undefined' && room && room.getPlayerList) {
                         try {
                             // El enlace debería estar disponible en este punto
-                            console.log('👥 DEBUG: Jugadores en sala:', jugadores.length);
+                            const playerList = room.getPlayerList ? room.getPlayerList() : [];
+                            console.log('👥 DEBUG: Jugadores en sala:', playerList.length);
                             return 'SALA_ACTIVA_SIN_ENLACE_DISPONIBLE';
                         } catch (e) {
                             console.log('❌ DEBUG: Error al verificar sala:', e.message);

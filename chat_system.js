@@ -6,9 +6,8 @@
 const VIPSystem = require('./vip_system');
 
 class ChatSystem {
-    constructor(database) {
-        this.db = database;
-        this.vipSystem = new VIPSystem(database);
+    constructor() {
+        this.vipSystem = new VIPSystem();
         
         // Configuración de rangos y sus prefijos/colores
         this.userRanks = {

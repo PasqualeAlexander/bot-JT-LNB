@@ -6,16 +6,14 @@
 *  ╚████╔╝ ██║██║         ███████║   ██║   ███████║   ██║   ███████╗██║ ╚═╝ ██║
 *   ╚═══╝  ╚═╝╚═╝         ╚══════╝   ╚═╝   ╚══════╝   ╚═╝   ╚══════╝╚═╝     ╚═╝
 *
-* SISTEMA VIP Y ULTRA VIP PARA BOT LNB
+* SISTEMA VIP Y ULTRA VIP PARA BOT LNB - VERSION MYSQL
 * Incluye ventajas diferenciadas, comandos de administración y gestión completa
 */
 
 const { executeQuery, executeTransaction } = require('./config/database');
-const path = require('path');
 
 class VIPSystem {
-    constructor(database) {
-        this.db = database;
+    constructor() {
         this.initializeVIPTables();
         
         // Configuración de ventajas VIP
@@ -62,283 +60,269 @@ class VIPSystem {
         };
     }
 
-    // Inicializar tablas del sistema VIP
-    initializeVIPTables() {
-        // Crear tabla de tipos VIP
-        this.db.run(`CREATE TABLE IF NOT EXISTS vip_types (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type_name TEXT UNIQUE NOT NULL,
-            level INTEGER NOT NULL,
-            color TEXT NOT NULL,
-            benefits TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`);
+    // Inicializar tablas del sistema VIP en MySQL
+    async initializeVIPTables() {
+        try {
+            // Crear tabla de tipos VIP
+            await executeQuery(`CREATE TABLE IF NOT EXISTS vip_types (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                type_name VARCHAR(50) UNIQUE NOT NULL,
+                level INT NOT NULL,
+                color VARCHAR(10) NOT NULL,
+                benefits TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`);
 
-        // Crear tabla de membresías VIP
-        this.db.run(`CREATE TABLE IF NOT EXISTS vip_memberships (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            player_name TEXT NOT NULL,
-            vip_type TEXT NOT NULL,
-            granted_by TEXT NOT NULL,
-            granted_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-            expiry_date DATETIME,
-            is_active INTEGER DEFAULT 1,
-            reason TEXT,
-            FOREIGN KEY (player_name) REFERENCES jugadores(nombre)
-        )`);
+            // Crear tabla de membresías VIP
+            await executeQuery(`CREATE TABLE IF NOT EXISTS vip_memberships (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                player_name VARCHAR(100) NOT NULL,
+                vip_type VARCHAR(50) NOT NULL,
+                granted_by VARCHAR(100) NOT NULL,
+                granted_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expiry_date TIMESTAMP NULL,
+                is_active BOOLEAN DEFAULT TRUE,
+                reason TEXT,
+                INDEX idx_player_active (player_name, is_active),
+                INDEX idx_expiry (expiry_date)
+            )`);
 
-        // Crear tabla de beneficios utilizados
-        this.db.run(`CREATE TABLE IF NOT EXISTS vip_benefits_used (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            player_name TEXT NOT NULL,
-            benefit_type TEXT NOT NULL,
-            used_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-            details TEXT
-        )`);
+            // Crear tabla de beneficios utilizados
+            await executeQuery(`CREATE TABLE IF NOT EXISTS vip_benefits_used (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                player_name VARCHAR(100) NOT NULL,
+                benefit_type VARCHAR(50) NOT NULL,
+                used_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                details TEXT,
+                INDEX idx_player_date (player_name, used_date)
+            )`);
 
-        // Insertar tipos VIP por defecto
-        this.insertDefaultVIPTypes();
+            // Insertar tipos VIP por defecto
+            await this.insertDefaultVIPTypes();
+            console.log('✅ Tablas VIP MySQL inicializadas correctamente');
+        } catch (error) {
+            console.error('❌ Error inicializando tablas VIP:', error);
+            throw error;
+        }
     }
 
     // Insertar tipos VIP por defecto
-    insertDefaultVIPTypes() {
-        const defaultTypes = [
-            {
-                type_name: 'VIP',
-                level: 1,
-                color: '💎',
-                benefits: JSON.stringify(this.vipBenefits.VIP.benefits)
-            },
-            {
-                type_name: 'ULTRA_VIP',
-                level: 2,
-                color: '👑',
-                benefits: JSON.stringify(this.vipBenefits.ULTRA_VIP.benefits)
-            }
-        ];
+    async insertDefaultVIPTypes() {
+        try {
+            const defaultTypes = [
+                {
+                    type_name: 'VIP',
+                    level: 1,
+                    color: '💎',
+                    benefits: JSON.stringify(this.vipBenefits.VIP.benefits)
+                },
+                {
+                    type_name: 'ULTRA_VIP',
+                    level: 2,
+                    color: '👑',
+                    benefits: JSON.stringify(this.vipBenefits.ULTRA_VIP.benefits)
+                }
+            ];
 
-        defaultTypes.forEach(type => {
-            this.db.run(`INSERT OR IGNORE INTO vip_types (type_name, level, color, benefits) 
-                        VALUES (?, ?, ?, ?)`, 
-                        [type.type_name, type.level, type.color, type.benefits]);
-        });
+            for (const type of defaultTypes) {
+                await executeQuery(
+                    `INSERT IGNORE INTO vip_types (type_name, level, color, benefits) 
+                     VALUES (?, ?, ?, ?)`,
+                    [type.type_name, type.level, type.color, type.benefits]
+                );
+            }
+        } catch (error) {
+            console.error('❌ Error insertando tipos VIP por defecto:', error);
+        }
     }
 
     // Otorgar VIP a un jugador
-    grantVIP(playerName, vipType, grantedBy, durationDays = null, reason = "Otorgado por admin") {
-        return new Promise((resolve, reject) => {
+    async grantVIP(playerName, vipType, grantedBy, durationDays = null, reason = "Otorgado por admin") {
+        try {
             // Verificar si el jugador existe
-            this.db.get('SELECT nombre FROM jugadores WHERE nombre = ?', [playerName], (err, player) => {
-                if (err) {
-                    reject(err);
-                    return;
+            const player = await executeQuery('SELECT nombre FROM jugadores WHERE nombre = ?', [playerName]);
+            if (player.length === 0) {
+                throw new Error(`Jugador ${playerName} no encontrado en la base de datos`);
+            }
+
+            // Verificar si el tipo VIP existe
+            const vipTypeData = await executeQuery('SELECT * FROM vip_types WHERE type_name = ?', [vipType]);
+            if (vipTypeData.length === 0) {
+                throw new Error(`Tipo VIP ${vipType} no válido`);
+            }
+
+            // Calcular fecha de expiración
+            let expiryDate = null;
+            if (durationDays) {
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + durationDays);
+                expiryDate = expiry.toISOString().slice(0, 19).replace('T', ' ');
+            }
+
+            // Usar transacción para garantizar consistencia
+            const queries = [
+                {
+                    query: 'UPDATE vip_memberships SET is_active = FALSE WHERE player_name = ?',
+                    params: [playerName]
+                },
+                {
+                    query: `INSERT INTO vip_memberships 
+                           (player_name, vip_type, granted_by, expiry_date, reason) 
+                           VALUES (?, ?, ?, ?, ?)`,
+                    params: [playerName, vipType, grantedBy, expiryDate, reason]
+                },
+                {
+                    query: 'UPDATE jugadores SET esVIP = ?, fechaVIP = CURRENT_TIMESTAMP WHERE nombre = ?',
+                    params: [vipType === 'ULTRA_VIP' ? 2 : 1, playerName]
                 }
+            ];
 
-                if (!player) {
-                    reject(new Error(`Jugador ${playerName} no encontrado en la base de datos`));
-                    return;
-                }
+            await executeTransaction(queries);
 
-                // Verificar si el tipo VIP existe
-                this.db.get('SELECT * FROM vip_types WHERE type_name = ?', [vipType], (err, vipTypeData) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-
-                    if (!vipTypeData) {
-                        reject(new Error(`Tipo VIP ${vipType} no válido`));
-                        return;
-                    }
-
-                    // Desactivar membresías VIP anteriores
-                    this.db.run('UPDATE vip_memberships SET is_active = 0 WHERE player_name = ?', [playerName], (err) => {
-                        if (err) {
-                            reject(err);
-                            return;
-                        }
-
-                        // Calcular fecha de expiración
-                        let expiryDate = null;
-                        if (durationDays) {
-                            const expiry = new Date();
-                            expiry.setDate(expiry.getDate() + durationDays);
-                            expiryDate = expiry.toISOString();
-                        }
-
-                        // Insertar nueva membresía VIP
-                        this.db.run(`INSERT INTO vip_memberships 
-                                    (player_name, vip_type, granted_by, expiry_date, reason) 
-                                    VALUES (?, ?, ?, ?, ?)`,
-                                    [playerName, vipType, grantedBy, expiryDate, reason], function(err) {
-                            if (err) {
-                                reject(err);
-                                return;
-                            }
-
-                            // Actualizar tabla de jugadores
-                            const vipLevel = vipType === 'ULTRA_VIP' ? 2 : 1;
-                            this.db.run('UPDATE jugadores SET esVIP = ?, fechaVIP = CURRENT_TIMESTAMP WHERE nombre = ?',
-                                       [vipLevel, playerName], (err) => {
-                                if (err) {
-                                    reject(err);
-                                    return;
-                                }
-
-                                resolve({
-                                    success: true,
-                                    message: `${vipTypeData.color} ${playerName} ahora es ${vipType}`,
-                                    membershipId: this.lastID,
-                                    vipLevel: vipLevel,
-                                    expiryDate: expiryDate
-                                });
-                            });
-                        });
-                    });
-                });
-            });
-        });
+            return {
+                success: true,
+                message: `${vipTypeData[0].color} ${playerName} ahora es ${vipType}`,
+                vipLevel: vipType === 'ULTRA_VIP' ? 2 : 1,
+                expiryDate: expiryDate
+            };
+        } catch (error) {
+            console.error('❌ Error otorgando VIP:', error);
+            throw error;
+        }
     }
 
     // Remover VIP de un jugador
-    removeVIP(playerName, removedBy, reason = "Removido por admin") {
-        return new Promise((resolve, reject) => {
-            // Desactivar membresías VIP
-            this.db.run('UPDATE vip_memberships SET is_active = 0 WHERE player_name = ? AND is_active = 1',
-                       [playerName], function(err) {
-                if (err) {
-                    reject(err);
-                    return;
+    async removeVIP(playerName, removedBy, reason = "Removido por admin") {
+        try {
+            // Verificar si el jugador tiene VIP activo
+            const activeMembership = await executeQuery(
+                'SELECT * FROM vip_memberships WHERE player_name = ? AND is_active = TRUE',
+                [playerName]
+            );
+
+            if (activeMembership.length === 0) {
+                throw new Error(`${playerName} no tiene VIP activo`);
+            }
+
+            // Usar transacción para desactivar VIP
+            const queries = [
+                {
+                    query: 'UPDATE vip_memberships SET is_active = FALSE WHERE player_name = ? AND is_active = TRUE',
+                    params: [playerName]
+                },
+                {
+                    query: 'UPDATE jugadores SET esVIP = 0, fechaVIP = NULL WHERE nombre = ?',
+                    params: [playerName]
                 }
+            ];
 
-                if (this.changes === 0) {
-                    reject(new Error(`${playerName} no tiene VIP activo`));
-                    return;
-                }
+            await executeTransaction(queries);
 
-                // Actualizar tabla de jugadores
-                this.db.run('UPDATE jugadores SET esVIP = 0, fechaVIP = NULL WHERE nombre = ?',
-                           [playerName], (err) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-
-                    resolve({
-                        success: true,
-                        message: `VIP removido de ${playerName}`,
-                        removedBy: removedBy,
-                        reason: reason
-                    });
-                });
-            });
-        });
+            return {
+                success: true,
+                message: `VIP removido de ${playerName}`,
+                removedBy: removedBy,
+                reason: reason
+            };
+        } catch (error) {
+            console.error('❌ Error removiendo VIP:', error);
+            throw error;
+        }
     }
 
     // Verificar estado VIP de un jugador
-    checkVIPStatus(playerName) {
-        return new Promise((resolve, reject) => {
+    async checkVIPStatus(playerName) {
+        try {
             const query = `
                 SELECT vm.*, vt.level, vt.color, vt.benefits 
                 FROM vip_memberships vm
                 JOIN vip_types vt ON vm.vip_type = vt.type_name
-                WHERE vm.player_name = ? AND vm.is_active = 1
-                AND (vm.expiry_date IS NULL OR vm.expiry_date > CURRENT_TIMESTAMP)
+                WHERE vm.player_name = ? AND vm.is_active = TRUE
+                AND (vm.expiry_date IS NULL OR vm.expiry_date > NOW())
                 ORDER BY vt.level DESC
                 LIMIT 1
             `;
 
-            this.db.get(query, [playerName], (err, membership) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-
-                resolve(membership || null);
-            });
-        });
+            const result = await executeQuery(query, [playerName]);
+            return result.length > 0 ? result[0] : null;
+        } catch (error) {
+            console.error('❌ Error verificando estado VIP:', error);
+            throw error;
+        }
     }
 
     // Listar todos los VIPs activos
-    listActiveVIPs() {
-        return new Promise((resolve, reject) => {
+    async listActiveVIPs() {
+        try {
             const query = `
                 SELECT vm.player_name, vm.vip_type, vm.granted_date, vm.expiry_date, 
                        vm.granted_by, vt.color, vt.level
                 FROM vip_memberships vm
                 JOIN vip_types vt ON vm.vip_type = vt.type_name
-                WHERE vm.is_active = 1
-                AND (vm.expiry_date IS NULL OR vm.expiry_date > CURRENT_TIMESTAMP)
+                WHERE vm.is_active = TRUE
+                AND (vm.expiry_date IS NULL OR vm.expiry_date > NOW())
                 ORDER BY vt.level DESC, vm.granted_date ASC
             `;
 
-            this.db.all(query, [], (err, rows) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-
-                resolve(rows || []);
-            });
-        });
+            return await executeQuery(query);
+        } catch (error) {
+            console.error('❌ Error listando VIPs activos:', error);
+            throw error;
+        }
     }
 
     // Aplicar multiplicador de XP basado en VIP
-    applyVIPXPMultiplier(playerName, baseXP) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const vipStatus = await this.checkVIPStatus(playerName);
-                
-                if (!vipStatus) {
-                    resolve(baseXP); // Sin VIP, XP normal
-                    return;
-                }
-
-                let multiplier = 1.0;
-                switch (vipStatus.vip_type) {
-                    case 'VIP':
-                        multiplier = 1.5;
-                        break;
-                    case 'ULTRA_VIP':
-                        multiplier = 2.0;
-                        break;
-                    default:
-                        multiplier = 1.0;
-                }
-
-                const bonusXP = Math.floor(baseXP * multiplier);
-                
-                // Registrar uso del beneficio
-                this.db.run(`INSERT INTO vip_benefits_used 
-                            (player_name, benefit_type, details) 
-                            VALUES (?, ?, ?)`,
-                            [playerName, 'XP_MULTIPLIER', 
-                             `XP: ${baseXP} → ${bonusXP} (x${multiplier})`]);
-
-                resolve(bonusXP);
-            } catch (error) {
-                reject(error);
+    async applyVIPXPMultiplier(playerName, baseXP) {
+        try {
+            const vipStatus = await this.checkVIPStatus(playerName);
+            
+            if (!vipStatus) {
+                return baseXP; // Sin VIP, XP normal
             }
-        });
+
+            let multiplier = 1.0;
+            switch (vipStatus.vip_type) {
+                case 'VIP':
+                    multiplier = 1.5;
+                    break;
+                case 'ULTRA_VIP':
+                    multiplier = 2.0;
+                    break;
+                default:
+                    multiplier = 1.0;
+            }
+
+            const bonusXP = Math.floor(baseXP * multiplier);
+            
+            // Registrar uso del beneficio
+            await executeQuery(
+                `INSERT INTO vip_benefits_used (player_name, benefit_type, details) 
+                 VALUES (?, ?, ?)`,
+                [playerName, 'XP_MULTIPLIER', `XP: ${baseXP} → ${bonusXP} (x${multiplier})`]
+            );
+
+            return bonusXP;
+        } catch (error) {
+            console.error('❌ Error aplicando multiplicador XP:', error);
+            return baseXP; // Fallback a XP normal en caso de error
+        }
     }
 
     // Verificar si un jugador puede usar un comando VIP
-    canUseVIPCommand(playerName, command) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const vipStatus = await this.checkVIPStatus(playerName);
-                
-                if (!vipStatus) {
-                    resolve(false);
-                    return;
-                }
-
-                const availableCommands = this.vipCommands[vipStatus.vip_type] || [];
-                resolve(availableCommands.includes(command));
-            } catch (error) {
-                reject(error);
+    async canUseVIPCommand(playerName, command) {
+        try {
+            const vipStatus = await this.checkVIPStatus(playerName);
+            
+            if (!vipStatus) {
+                return false;
             }
-        });
+
+            const availableCommands = this.vipCommands[vipStatus.vip_type] || [];
+            return availableCommands.includes(command);
+        } catch (error) {
+            console.error('❌ Error verificando comando VIP:', error);
+            return false;
+        }
     }
 
     // Obtener información de beneficios VIP
@@ -347,92 +331,99 @@ class VIPSystem {
     }
 
     // Limpiar VIPs expirados
-    cleanupExpiredVIPs() {
-        return new Promise((resolve, reject) => {
-            this.db.run(`UPDATE vip_memberships 
-                        SET is_active = 0 
-                        WHERE expiry_date IS NOT NULL 
-                        AND expiry_date <= CURRENT_TIMESTAMP 
-                        AND is_active = 1`, function(err) {
-                if (err) {
-                    reject(err);
-                    return;
+    async cleanupExpiredVIPs() {
+        try {
+            // Obtener VIPs expirados antes de limpiar
+            const expiredVIPs = await executeQuery(
+                `SELECT player_name, vip_type FROM vip_memberships 
+                 WHERE expiry_date IS NOT NULL 
+                 AND expiry_date <= NOW() 
+                 AND is_active = TRUE`
+            );
+
+            if (expiredVIPs.length === 0) {
+                return { expiredCount: 0, message: 'No hay VIPs expirados para limpiar' };
+            }
+
+            // Usar transacción para limpiar VIPs expirados
+            const queries = [
+                {
+                    query: `UPDATE vip_memberships 
+                           SET is_active = FALSE 
+                           WHERE expiry_date IS NOT NULL 
+                           AND expiry_date <= NOW() 
+                           AND is_active = TRUE`,
+                    params: []
+                },
+                {
+                    query: `UPDATE jugadores 
+                           SET esVIP = 0, fechaVIP = NULL 
+                           WHERE nombre IN (
+                               SELECT player_name FROM vip_memberships 
+                               WHERE expiry_date IS NOT NULL 
+                               AND expiry_date <= NOW() 
+                               AND is_active = FALSE
+                           )`,
+                    params: []
                 }
+            ];
 
-                // Actualizar tabla de jugadores para VIPs expirados
-                this.db.run(`UPDATE jugadores 
-                            SET esVIP = 0, fechaVIP = NULL 
-                            WHERE nombre IN (
-                                SELECT player_name FROM vip_memberships 
-                                WHERE expiry_date IS NOT NULL 
-                                AND expiry_date <= CURRENT_TIMESTAMP 
-                                AND is_active = 0
-                            )`, (updateErr) => {
-                    if (updateErr) {
-                        reject(updateErr);
-                        return;
-                    }
+            await executeTransaction(queries);
 
-                    resolve({
-                        expiredCount: this.changes,
-                        message: `${this.changes} VIPs expirados limpiados`
-                    });
-                });
-            });
-        });
+            console.log(`🧹 ${expiredVIPs.length} VIPs expirados limpiados automáticamente`);
+            return {
+                expiredCount: expiredVIPs.length,
+                expiredVIPs: expiredVIPs,
+                message: `${expiredVIPs.length} VIPs expirados limpiados`
+            };
+        } catch (error) {
+            console.error('❌ Error limpiando VIPs expirados:', error);
+            throw error;
+        }
     }
 
     // Generar reporte de actividad VIP
-    generateVIPReport() {
-        return new Promise((resolve, reject) => {
-            const queries = {
-                activeVIPs: `SELECT COUNT(*) as count FROM vip_memberships 
-                           WHERE is_active = 1 
-                           AND (expiry_date IS NULL OR expiry_date > CURRENT_TIMESTAMP)`,
+    async generateVIPReport() {
+        try {
+            const queries = [
+                // Total VIPs activos
+                `SELECT COUNT(*) as count FROM vip_memberships 
+                 WHERE is_active = TRUE 
+                 AND (expiry_date IS NULL OR expiry_date > NOW())`,
                 
-                vipsByType: `SELECT vm.vip_type, COUNT(*) as count, vt.color
-                           FROM vip_memberships vm
-                           JOIN vip_types vt ON vm.vip_type = vt.type_name
-                           WHERE vm.is_active = 1 
-                           AND (vm.expiry_date IS NULL OR vm.expiry_date > CURRENT_TIMESTAMP)
-                           GROUP BY vm.vip_type`,
+                // VIPs por tipo
+                `SELECT vm.vip_type, COUNT(*) as count, vt.color
+                 FROM vip_memberships vm
+                 JOIN vip_types vt ON vm.vip_type = vt.type_name
+                 WHERE vm.is_active = TRUE 
+                 AND (vm.expiry_date IS NULL OR vm.expiry_date > NOW())
+                 GROUP BY vm.vip_type`,
                 
-                recentGrants: `SELECT player_name, vip_type, granted_by, granted_date, vt.color
-                             FROM vip_memberships vm
-                             JOIN vip_types vt ON vm.vip_type = vt.type_name
-                             WHERE vm.granted_date >= datetime('now', '-7 days')
-                             ORDER BY vm.granted_date DESC
-                             LIMIT 10`
-            };
+                // Concesiones recientes (últimos 7 días)
+                `SELECT player_name, vip_type, granted_by, granted_date, vt.color
+                 FROM vip_memberships vm
+                 JOIN vip_types vt ON vm.vip_type = vt.type_name
+                 WHERE vm.granted_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                 ORDER BY vm.granted_date DESC
+                 LIMIT 10`
+            ];
 
-            Promise.all([
-                new Promise((res, rej) => {
-                    this.db.get(queries.activeVIPs, [], (err, row) => {
-                        if (err) rej(err);
-                        else res(row);
-                    });
-                }),
-                new Promise((res, rej) => {
-                    this.db.all(queries.vipsByType, [], (err, rows) => {
-                        if (err) rej(err);
-                        else res(rows);
-                    });
-                }),
-                new Promise((res, rej) => {
-                    this.db.all(queries.recentGrants, [], (err, rows) => {
-                        if (err) rej(err);
-                        else res(rows);
-                    });
-                })
-            ]).then(([activeCount, vipsByType, recentGrants]) => {
-                resolve({
-                    totalActiveVIPs: activeCount.count,
-                    vipsByType: vipsByType,
-                    recentGrants: recentGrants,
-                    generatedAt: new Date().toISOString()
-                });
-            }).catch(reject);
-        });
+            const [activeCount, vipsByType, recentGrants] = await Promise.all([
+                executeQuery(queries[0]),
+                executeQuery(queries[1]),
+                executeQuery(queries[2])
+            ]);
+
+            return {
+                totalActiveVIPs: activeCount[0].count,
+                vipsByType: vipsByType,
+                recentGrants: recentGrants,
+                generatedAt: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error('❌ Error generando reporte VIP:', error);
+            throw error;
+        }
     }
 }
 

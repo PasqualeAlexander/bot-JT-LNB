@@ -7,10 +7,9 @@ const VIPSystem = require('./vip_system');
 const VIPCommands = require('./vip_commands');
 
 class BotVIPIntegration {
-    constructor(database) {
-        this.db = database;
-        this.vipSystem = new VIPSystem(database);
-        this.vipCommands = new VIPCommands(database);
+    constructor() {
+        this.vipSystem = new VIPSystem();
+        this.vipCommands = new VIPCommands();
         
         // Configurar limpieza automática de VIPs expirados cada hora
         setInterval(() => {
@@ -39,25 +38,24 @@ class BotVIPIntegration {
             // Aplicar multiplicador VIP
             const finalXP = await this.vipSystem.applyVIPXPMultiplier(playerName, baseXP);
             
-            // Actualizar XP en la base de datos (integrar con tu lógica existente)
-            return new Promise((resolve, reject) => {
-                this.db.run('UPDATE jugadores SET xp = xp + ? WHERE nombre = ?', 
-                           [finalXP, playerName], function(err) {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-
-                    // Si el jugador tiene VIP, mostrar mensaje especial
-                    resolve({
-                        xpGiven: finalXP,
-                        wasMultiplied: finalXP > baseXP,
-                        message: finalXP > baseXP ? 
-                            `🎉 ${playerName} recibió ${finalXP} XP (VIP bonus aplicado!)` :
-                            `${playerName} recibió ${finalXP} XP`
-                    });
-                });
-            });
+            // Usar el sistema de database existente para actualizar XP
+            const { executeQuery } = require('./config/database');
+            
+            try {
+                await executeQuery('UPDATE jugadores SET xp = xp + ? WHERE nombre = ?', [finalXP, playerName]);
+                
+                // Si el jugador tiene VIP, mostrar mensaje especial
+                return {
+                    xpGiven: finalXP,
+                    wasMultiplied: finalXP > baseXP,
+                    message: finalXP > baseXP ? 
+                        `🎉 ${playerName} recibió ${finalXP} XP (VIP bonus aplicado!)` :
+                        `${playerName} recibió ${finalXP} XP`
+                };
+            } catch (dbError) {
+                console.error('Error actualizando XP en base de datos:', dbError);
+                throw dbError;
+            }
         } catch (error) {
             console.error('Error aplicando XP con bonus VIP:', error);
             // Fallback a XP normal si hay error
@@ -168,14 +166,15 @@ class BotVIPIntegration {
     }
 
     async giveNormalXP(playerName, xp) {
-        // Lógica de XP normal sin bonus VIP
-        return new Promise((resolve, reject) => {
-            this.db.run('UPDATE jugadores SET xp = xp + ? WHERE nombre = ?', 
-                       [xp, playerName], function(err) {
-                if (err) reject(err);
-                else resolve({ xpGiven: xp, wasMultiplied: false });
-            });
-        });
+        // Lógica de XP normal sin bonus VIP usando MySQL
+        try {
+            const { executeQuery } = require('./config/database');
+            await executeQuery('UPDATE jugadores SET xp = xp + ? WHERE nombre = ?', [xp, playerName]);
+            return { xpGiven: xp, wasMultiplied: false };
+        } catch (error) {
+            console.error('Error dando XP normal:', error);
+            throw error;
+        }
     }
 
     // === COMANDO ESPECIAL PARA OWNERS ===
@@ -233,29 +232,24 @@ class BotVIPIntegration {
 
     async migrateExistingVIPs() {
         try {
-            // Migrar VIPs existentes de la tabla jugadores
-            return new Promise((resolve, reject) => {
-                this.db.all('SELECT nombre, esVIP, fechaVIP FROM jugadores WHERE esVIP > 0', [], async (err, rows) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
+            // Migrar VIPs existentes de la tabla jugadores usando MySQL
+            const { executeQuery } = require('./config/database');
+            const rows = await executeQuery('SELECT nombre, esVIP, fechaVIP FROM jugadores WHERE esVIP > 0');
 
-                    let migrated = 0;
-                    for (const row of rows) {
-                        try {
-                            const vipType = row.esVIP === 2 ? 'ULTRA_VIP' : 'VIP';
-                            await this.vipSystem.grantVIP(row.nombre, vipType, 'MIGRATION', null, 'Migrado del sistema anterior');
-                            migrated++;
-                        } catch (error) {
-                            console.error(`Error migrando ${row.nombre}:`, error);
-                        }
-                    }
+            let migrated = 0;
+            for (const row of rows) {
+                try {
+                    const vipType = row.esVIP === 2 ? 'ULTRA_VIP' : 'VIP';
+                    await this.vipSystem.grantVIP(row.nombre, vipType, 'MIGRATION', null, 'Migrado del sistema anterior');
+                    migrated++;
+                } catch (error) {
+                    console.error(`Error migrando ${row.nombre}:`, error);
+                }
+            }
 
-                    resolve(`✅ Migrados ${migrated} VIPs al nuevo sistema.`);
-                });
-            });
+            return `✅ Migrados ${migrated} VIPs al nuevo sistema.`;
         } catch (error) {
+            console.error('Error en migración:', error);
             return `❌ Error en migración: ${error.message}`;
         }
     }

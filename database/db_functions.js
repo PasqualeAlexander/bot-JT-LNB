@@ -36,7 +36,7 @@ const dbFunctions = {
                 stats.asistencias, stats.autogoles, stats.mejorRachaGoles, stats.mejorRachaAsistencias, 
                 stats.hatTricks, stats.vallasInvictas, stats.tiempoJugado, stats.promedioGoles, 
                 stats.promedioAsistencias, stats.fechaPrimerPartido, stats.fechaUltimoPartido, 
-                stats.xp, stats.nivel, stats.codigoRecuperacion, stats.fechaCodigoCreado
+                stats.xp ?? 40, stats.nivel ?? 1, stats.codigoRecuperacion ?? null, stats.fechaCodigoCreado ?? null
             ]);
             return result.insertId || result.affectedRows;
         } catch (error) {
@@ -437,12 +437,16 @@ const dbFunctions = {
     // ====================== FUNCIONES DE BANEOS ======================
     
     // Crear baneo en la nueva tabla baneos
+        // PARCHE ZONA HORARIA UTC - Asegurar que se use UTC
     crearBaneo: async (authId, nombre, razon, admin, duracion = 0) => {
         // Si no se proporciona razón, usar valor por defecto
         const razonFinal = razon || 'Baneado por admin';
         
+        // PARCHE: Establecer zona horaria UTC para esta operación
+        await executeQuery("SET SESSION time_zone = '+00:00'");
+        
         const query = `INSERT INTO baneos (auth_id, nombre, razon, admin, fecha, duracion, activo)
-                      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 1)`;
+                      VALUES (?, ?, ?, ?, UTC_TIMESTAMP(), ?, 1)`;
         
         try {
             const result = await executeQuery(query, [authId, nombre, razonFinal, admin, duracion]);
@@ -461,49 +465,76 @@ const dbFunctions = {
         }
     },
     
-    // Verificar si un jugador está baneado (nueva tabla)
-    estaBaneado: (authId, callback) => {
-        // Esta función mantiene la interfaz callback para compatibilidad
-        (async () => {
-            try {
-                const query = `SELECT * FROM baneos 
-                              WHERE auth_id = ? AND activo = 1 
-                              ORDER BY fecha DESC LIMIT 1`;
+    // PARCHE ZONA HORARIA UTC - Verificar si un jugador está baneado (nueva tabla) - versión que devuelve promesa
+    estaBaneadoPromise: async (authId) => {
+        try {
+            // PARCHE: Establecer zona horaria UTC para esta operación
+            await executeQuery("SET SESSION time_zone = '+00:00'");
+            
+            const query = `SELECT * FROM baneos 
+                          WHERE auth_id = ? AND activo = 1 
+                          ORDER BY fecha DESC LIMIT 1`;
+            
+            const results = await executeQuery(query, [authId]);
+            const row = results[0];
+            
+            if (!row) {
+                return false;
+            }
+            
+            // Verificar si el baneo temporal ha expirado
+            if (row.duracion > 0) {
+                // PARCHE: Usar la fecha directamente de MySQL (ya está en UTC por UTC_TIMESTAMP())
+                const fechaBan = new Date(row.fecha); // MySQL ya devuelve fecha UTC correcta
+                const ahora = new Date(); // UTC
+                const tiempoTranscurrido = ahora.getTime() - fechaBan.getTime();
+                const tiempoLimite = row.duracion * 60 * 1000; // duracion en minutos a milisegundos
                 
-                const results = await executeQuery(query, [authId]);
-                const row = results[0];
-                
-                if (!row) {
-                    callback(false);
-                    return;
-                }
-                
-                // Verificar si el baneo temporal ha expirado
-                if (row.duracion > 0) {
-                    const fechaBan = new Date(row.fecha);
-                    const ahora = new Date();
-                    const tiempoTranscurrido = ahora.getTime() - fechaBan.getTime();
-                    const tiempoLimite = row.duracion * 60 * 1000; // duracion en minutos a milisegundos
-                    
-                    if (tiempoTranscurrido >= tiempoLimite) {
-                        // Baneo temporal expirado, desactivar automáticamente
-                        try {
-                            await dbFunctions.desactivarBaneo(row.id);
-                            console.log(`⏰ Baneo temporal expirado automáticamente: ${row.nombre}`);
-                            callback(false);
-                        } catch (error) {
-                            callback(false);
-                        }
-                        return;
+                if (tiempoTranscurrido >= tiempoLimite) {
+                    // Baneo temporal expirado, desactivar automáticamente
+                    try {
+                        await dbFunctions.desactivarBaneo(row.id);
+                        console.log(`⏰ Baneo temporal expirado automáticamente: ${row.nombre}`);
+                        return false;
+                    } catch (error) {
+                        return false;
                     }
                 }
-                
-                callback(row);
-            } catch (error) {
-                console.error('❌ Error verificando baneo:', error);
-                callback(false);
             }
-        })();
+            
+            return row;
+        } catch (error) {
+            console.error('❌ Error verificando baneo:', error);
+            return false;
+        }
+    },
+    
+    // Verificar si un jugador está baneado (nueva tabla) - versión callback mejorada
+    estaBaneado: (authId, callback) => {
+        // Validar que callback sea una función y crear un callback por defecto si no es válido
+        if (typeof callback !== 'function') {
+            console.error('❌ ERROR: estaBaneado requiere un callback válido como segundo parámetro');
+            console.error('❌ Tipo de callback recibido:', typeof callback);
+            console.error('❌ Valor de callback:', callback);
+            // Usar un callback por defecto en lugar de fallar
+            callback = (result) => {
+                console.log('⚠️ Usando callback por defecto para estaBaneado, resultado:', result ? 'baneado' : 'no baneado');
+            };
+        }
+        
+        // Usar la versión de promesa internamente
+        dbFunctions.estaBaneadoPromise(authId)
+            .then(result => {
+                if (typeof callback === 'function') {
+                    callback(result);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error en estaBaneado callback:', error);
+                if (typeof callback === 'function') {
+                    callback(false);
+                }
+            });
     },
     
     // Desactivar baneo
@@ -555,12 +586,16 @@ const dbFunctions = {
     },
     
     // Obtener baneos activos
+        // PARCHE ZONA HORARIA UTC - Obtener baneos activos
     obtenerBaneosActivos: async () => {
         try {
+            // PARCHE: Establecer zona horaria UTC para esta operación
+            await executeQuery("SET SESSION time_zone = '+00:00'");
+            
             const query = `SELECT * FROM baneos WHERE activo = 1 ORDER BY fecha DESC`;
             const rows = await executeQuery(query);
             
-            const ahora = new Date();
+            const ahora = new Date(); // UTC
             const baneosRealmenteActivos = [];
             const baneosExpiradosALimpiar = [];
             
@@ -568,7 +603,8 @@ const dbFunctions = {
             for (const row of rows) {
                 // Verificar si es baneo temporal
                 if (row.duracion > 0) {
-                    const fechaBan = new Date(row.fecha);
+                    // PARCHE: Usar la fecha directamente de MySQL (ya está en UTC por UTC_TIMESTAMP())
+                    const fechaBan = new Date(row.fecha); // MySQL ya devuelve fecha UTC correcta
                     const tiempoTranscurrido = ahora.getTime() - fechaBan.getTime();
                     const tiempoLimite = row.duracion * 60 * 1000; // duración en minutos a milisegundos
                     
@@ -611,6 +647,108 @@ const dbFunctions = {
             return baneosRealmenteActivos;
         } catch (error) {
             console.error('❌ Error obteniendo baneos activos:', error);
+            throw error;
+        }
+    },
+    
+    // ====================== FUNCIONES DE UID Y BANEOS ======================
+    
+    // Registrar/actualizar UID de un jugador
+    actualizarUID: async (nombreJugador, uid) => {
+        try {
+            // Primero verificar si el jugador existe
+            const selectQuery = 'SELECT id FROM jugadores WHERE nombre = ?';
+            const existingPlayer = await executeQuery(selectQuery, [nombreJugador]);
+            
+            if (existingPlayer.length > 0) {
+                // Jugador existe, actualizar UID
+                const updateQuery = 'UPDATE jugadores SET uid = ? WHERE nombre = ?';
+                const result = await executeQuery(updateQuery, [uid, nombreJugador]);
+                console.log(`✅ UID actualizado para ${nombreJugador}: ${uid}`);
+                return { jugadorId: existingPlayer[0].id, uid: uid, actualizado: true };
+            } else {
+                // Jugador no existe, crear con UID
+                const fechaActual = new Date().toISOString();
+                const insertQuery = `INSERT INTO jugadores (nombre, uid, partidos, victorias, derrotas, 
+                                    goles, asistencias, autogoles, xp, nivel, fechaPrimerPartido, fechaUltimoPartido)
+                                    VALUES (?, ?, 0, 0, 0, 0, 0, 0, 40, 1, ?, ?)`;
+                
+                const result = await executeQuery(insertQuery, [nombreJugador, uid, fechaActual, fechaActual]);
+                console.log(`✅ Jugador creado con UID ${nombreJugador}: ${uid}`);
+                return { jugadorId: result.insertId, uid: uid, actualizado: false };
+            }
+        } catch (error) {
+            console.error('❌ Error actualizando UID:', error);
+            throw error;
+        }
+    },
+    
+    // Banear jugador en base de datos
+    banearJugador: async (nombreJugador, uid, adminNombre, razon = 'Baneado por admin', tiempoMinutos = null) => {
+        try {
+            const fechaBan = new Date().toISOString();
+            
+            console.log(`📊 [DB] Iniciando proceso de baneo para: ${nombreJugador} con UID: ${uid}`);
+            console.log(`📊 [DB] Parámetros - Admin: ${adminNombre}, Razón: ${razon}, Tiempo: ${tiempoMinutos}`);
+            
+            // Primero asegurar que el jugador tenga UID
+            await dbFunctions.actualizarUID(nombreJugador, uid);
+            console.log(`✅ [DB] UID actualizado correctamente para ${nombreJugador}`);
+            
+            // Usar una consulta más específica para evitar problemas
+            const query = `UPDATE jugadores 
+                          SET baneado = 1, fecha_ban = ?, razon_ban = ?, admin_ban = ? 
+                          WHERE uid = ?`;
+            
+            console.log(`📊 [DB] Ejecutando consulta de baneo con parámetros:`, [fechaBan, razon, adminNombre, uid]);
+            
+            const result = await executeQuery(query, [fechaBan, razon, adminNombre, uid]);
+            
+            if (result.affectedRows === 0) {
+                console.warn(`⚠️ [DB] No se encontró jugador con UID ${uid} para banear`);
+                
+                // Intentar con una búsqueda por nombre como respaldo
+                const fallbackQuery = `UPDATE jugadores 
+                                      SET baneado = 1, fecha_ban = ?, razon_ban = ?, admin_ban = ? 
+                                      WHERE nombre = ?`;
+                
+                console.log(`🔄 [DB] Intentando baneo por nombre: ${nombreJugador}`);
+                
+                const fallbackResult = await executeQuery(fallbackQuery, [fechaBan, razon, adminNombre, nombreJugador]);
+                
+                if (fallbackResult.affectedRows === 0) {
+                    const error = new Error(`Jugador no encontrado para banear: ${nombreJugador} (UID: ${uid})`);
+                    console.error(`❌ [DB] ${error.message}`);
+                    throw error;
+                } else {
+                    console.log(`✅ [DB] Jugador baneado por nombre: ${nombreJugador} (${fallbackResult.affectedRows} cambios)`);
+                    return {
+                        nombreJugador,
+                        uid,
+                        adminNombre,
+                        razon,
+                        fechaBan,
+                        tiempoMinutos,
+                        cambios: fallbackResult.affectedRows,
+                        metodo: 'por_nombre'
+                    };
+                }
+            } else {
+                console.log(`✅ [DB] Jugador baneado exitosamente: ${nombreJugador} (UID: ${uid}) por ${adminNombre}`);
+                console.log(`📊 [DB] Cambios realizados: ${result.affectedRows}`);
+                return {
+                    nombreJugador,
+                    uid,
+                    adminNombre,
+                    razon,
+                    fechaBan,
+                    tiempoMinutos,
+                    cambios: result.affectedRows,
+                    metodo: 'por_uid'
+                };
+            }
+        } catch (error) {
+            console.error('❌ Error en banearJugador:', error);
             throw error;
         }
     },

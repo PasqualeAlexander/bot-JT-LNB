@@ -36,8 +36,8 @@ build/
 # Coverage reports
 coverage/
 
-# Base de datos (comentar la siguiente línea si quieres incluir la BD)
-# lnb_estadisticas.db
+# Base de datos MySQL - configuración en .env
+# (no hay archivos de BD locales con MySQL)
 
 # Archivos específicos del proyecto que no se deben versionar
 *.backup

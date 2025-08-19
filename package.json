@@ -5,15 +5,17 @@
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
-    "dev": "nodemon bot.js"
+    "dev": "nodemon bot.js",
+    "test": "node run_test.js",
+    "test-admin": "node test_admin_ban_unban.js"
   },
   "dependencies": {
     "dotenv": "^17.2.1",
     "form-data": "^4.0.0",
+    "luxon": "^3.7.1",
     "mysql2": "^3.14.3",
     "node-fetch": "^2.6.7",
-    "puppeteer": "^22.8.2",
-    "sqlite3": "^5.1.7"
+    "puppeteer": "^22.8.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

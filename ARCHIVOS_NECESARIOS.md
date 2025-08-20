@@ -13,7 +13,7 @@ README.md                      # ✅ Documentación del proyecto
 ### 🤖 **Archivos Principales del Bot**
 ```
 bot.js                         # ✅ ARCHIVO PRINCIPAL - OBLIGATORIO
-message (4).js                 # ✅ Sistema de comandos y mensajes - OBLIGATORIO
+BOTLNBCODE.js                 # ✅ Sistema de comandos y mensajes - OBLIGATORIO
 ```
 
 ### 🏗️ **Sistema de Configuración y Base de Datos**
@@ -128,7 +128,7 @@ npm run dev
 lnb-bot-puppeteer/
 ├── 📄 package.json
 ├── 🤖 bot.js
-├── 💬 message (4).js
+├── 💬 BOTLNBCODE.js
 ├── 🔧 new_commands_system.js
 ├── 💻 chat_system.js
 ├── 🆔 uid_system_mejorado.js

@@ -66,7 +66,7 @@ bot-JT-LNB/
 ├── consultar_db.js          # Utilidad para consultar la base de datos
 ├── debug_cargar_stats.js    # Depuración de estadísticas
 ├── .env                     # Archivo de configuración de variables de entorno
-├── message (4).js           # Archivo de mensajes
+├── BOTLNBCODE.js           # Archivo de mensajes
 ├── package.json             # Configuración del proyecto
 ├── package-lock.json        # Lock de dependencias
 └── README.md               # Este archivo

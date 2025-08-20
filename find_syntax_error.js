@@ -1,9 +1,9 @@
 const fs = require('fs');
 
-console.log('Finding syntax error in message (4).js...');
+console.log('Finding syntax error in BOTLNBCODE.js...');
 
 try {
-    const code = fs.readFileSync('./message (4).js', 'utf8');
+    const code = fs.readFileSync('./BOTLNBCODE.js', 'utf8');
     const lines = code.split('\n');
     
     // Try to find the problematic area by testing chunks

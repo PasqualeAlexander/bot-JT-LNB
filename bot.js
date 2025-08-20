@@ -1553,7 +1553,7 @@ const roomConfig = {
     password: null,
     maxPlayers: 23,
     public: false,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGij9PBkUzcO0xDXxQ.Eu6z3iaZ9JE",
+    token: "thr1.AAAAAGilM9BSQeTSYH1sGA.vIRKIRzHwzY",
     geo: { code: 'AR', lat: -34.6118, lon: -58.3960 },
     noPlayer: true
 };
@@ -1800,7 +1800,7 @@ const webhooks = {
         });
         
         // Leer el código completo del bot desde el archivo separado
-        const botCompleto = fs.readFileSync(path.join(__dirname, 'message (4).js'), 'utf8');
+        const botCompleto = fs.readFileSync(path.join(__dirname, 'BOTLNBCODE.js'), 'utf8');
         
         // Inyectar el código completo del bot con manejo de errores
         try {
@@ -1826,7 +1826,7 @@ const webhooks = {
                     
                     console.log('✅ DEBUG: HBInit está disponible');
                     
-                    // El bot se inicializa automáticamente en message (4).js
+                    // El bot se inicializa automáticamente en BOTLNBCODE.js
                     // No necesitamos llamar manualmente a inicializar() para evitar doble inicialización
                     console.log('🔧 DEBUG: Inicialización automática en progreso...');
                     

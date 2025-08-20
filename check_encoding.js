@@ -3,7 +3,7 @@ const fs = require('fs');
 console.log('Checking encoding and invisible characters...');
 
 try {
-    const buffer = fs.readFileSync('./message (4).js');
+    const buffer = fs.readFileSync('./BOTLNBCODE.js');
     const code = buffer.toString('utf8');
     const lines = code.split('\n');
     

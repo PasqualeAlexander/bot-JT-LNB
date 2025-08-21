@@ -558,7 +558,7 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = true;
+const roomPublic = false;
 const roomPassword = null;
 const token = "thr1.AAAAAGinQldRcMtzvPCZLQ.TTLum8leeAA";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
@@ -3140,81 +3140,8 @@ function obtenerInfoSala() {
     };
 }
 
-// FUNCIÓN PARA ENVIAR REPORTE DE SALA
-function enviarReporteSala(razon = "Reporte automático", forzarEnvio = false) {
-    if (!webhookReportesSala || webhookReportesSala.length === 0) {
-        return;
-    }
-    
-    const info = obtenerInfoSala();
-    const estadoSala = info.esPublica ? "pública" : "privada";
-    const iconoEstado = info.esPublica ? "🟢" : "🔴";
-    
-    // Emojis específicos para contraseña
-    const iconoContraseña = info.contraseña ? "🔒" : "🔓";
-    const contraseñaTexto = info.contraseña ? `"${info.contraseña}"` : "Sin contraseña";
-    
-    // Emoji para estado del partido
-    let estadoEmoji = "⏳"; // Por defecto esperando jugadores
-    let estadoTexto = "Esperando jugadores";
-    
-    if (info.jugadoresEnJuego >= 2 && !partidoEnCurso) {
-        estadoEmoji = "🧍🧍‍♂️";
-        estadoTexto = "Jugadores presentes, pero sin juego aún";
-    } else if (partidoEnCurso) {
-        estadoEmoji = "🕹️";
-        estadoTexto = "Partido en juego";
-    }
-    
-    // Formatear el mensaje según la sintaxis solicitada
-    const mensaje = `:white_check_mark: La sala ${estadoSala} de LNB Bigger (Juegan Todos) X7 está abierta.
-
-🏷️ Sala: "${info.nombre}"
-🔗 Link: "${info.enlace}"
-👥 Jugadores: ${info.jugadoresEnJuego}/${info.maxJugadores}
-${iconoContraseña} Contraseña: ${contraseñaTexto}
-${estadoEmoji} Estado: ${estadoTexto} » ["${info.tiempoPartido}"] 🔴 "${info.resultadoActual}" 🔵`;
-    
-    const embed = {
-        title: `${iconoEstado} Reporte de Sala LNB`,
-        description: mensaje,
-        color: info.esPublica ? parseInt("00FF00", 16) : parseInt("FF6B6B", 16),
-        fields: [
-            {
-                name: "📊 Detalles",
-value: `**Mapa:** ${mapas[mapaActual] ? mapas[mapaActual].nombre : 'Desconocido'}\\n**Razón:** ${razon}`,
-                inline: false
-            }
-        ],
-        footer: {
-            text: "Liga Nacional de Bigger LNB • " + new Date().toLocaleString() + " • Script by ИФT"
-        },
-        timestamp: new Date().toISOString()
-    };
-    
-    const payload = {
-        content: forzarEnvio ? "🔐 **CAMBIO AUTOMÁTICO DE CONTRASEÑA MENSUAL**" : "📊 **Reporte de Estado de Sala**",
-        embeds: [embed]
-    };
-    
-    fetch(webhookReportesSala, {
-        method: "POST",
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => {
-        if (response.ok) {
-            if (forzarEnvio) {
-                anunciarExito("📤 Reporte de cambio de contraseña enviado a Discord");
-            }
-        }
-    })
-    .catch(error => {
-        // Error de conexión al enviar reporte de sala
-    });
-}
+// FUNCIÓN ELIMINADA: enviarReporteSala (generaba spam de mensajes nuevos)
+// Se usa enviarOEditarReporteSala en su lugar para editar mensajes existentes
 
 // FUNCIÓN PARA DETECTAR CAMBIOS EN EL ESTADO DE LA SALA
 function verificarCambioEstadoSala() {
@@ -11645,6 +11572,9 @@ function enviarOEditarReporteSala(razon = "Reporte automático", forzarEnvio = f
             return;
         }
         
+        // Siempre editar en lugar de enviar nuevo mensaje
+        const ALWAYS_EDIT = true;
+        
         console.log('📊 DEBUG: Iniciando envío/edición de reporte de sala');
         console.log('🆔 DEBUG: ID de mensaje actual:', MENSAJE_IDS_DISCORD.reportesSala);
         console.log('🔄 DEBUG: Forzar envío:', forzarEnvio);
@@ -11675,13 +11605,13 @@ function enviarOEditarReporteSala(razon = "Reporte automático", forzarEnvio = f
         
         // Crear mensaje con formato ASCII
         let mensaje = `╭━━━ 🏟️ Sala ${tipoSala} de Haxball ━━━╮\n`;
-        mensaje += `┃ 🏷️ Nombre: \`${info.nombre}\`\n`;
-        mensaje += `┃ 🔗 Enlace: ${enlaceTexto}\n`;
-        mensaje += `┃ 👥 Jugadores: \`${info.jugadoresEnJuego} / ${info.maxJugadores}\`\n`;
-        mensaje += `┃ ${iconoContraseña} Contraseña: \`${contraseñaTexto}\`\n`;
-        mensaje += `┃ ${estadoEmoji} Estado: ${estadoTexto}\n`;
+mensaje += `┃ 🏷️ Nombre: \`${info.nombre}\`\n`;
+mensaje += `┃ 🔗 Enlace: ${enlaceTexto}\n`;
+mensaje += `┃ 👥 Jugadores: \`${info.jugadoresEnJuego} / ${info.maxJugadores}\`\n`;
+mensaje += `┃ ${iconoContraseña} Contraseña: \`${contraseñaTexto}\`\n`;
+mensaje += `┃ ${estadoEmoji} Estado: ${estadoTexto}\n`;
+
         
-        // Agregar información del partido si está en curso
         if (partidoEnCurso) {
             mensaje += `┃ ⏱️ Tiempo: ${info.tiempoPartido}\n`;
             mensaje += `┃ ⚽ Resultado: 🔴 ${info.resultadoActual} 🔵\n`;
@@ -11700,8 +11630,8 @@ function enviarOEditarReporteSala(razon = "Reporte automático", forzarEnvio = f
             content: contenidoFinal
         };
         
-        // Intentar editar si tenemos ID de mensaje previo de reportes de sala
-        if (MENSAJE_IDS_DISCORD.reportesSala && !forzarEnvio) {
+        // Intentar editar si tenemos ID de mensaje previo de reportes de sala o si ALWAYS_EDIT está activado
+        if (MENSAJE_IDS_DISCORD.reportesSala && (ALWAYS_EDIT || !forzarEnvio)) {
             editarMensajeDiscordReportes(payload);
         } else {
             enviarNuevoMensajeDiscordReportes(payload);
@@ -11748,7 +11678,23 @@ function editarMensajeDiscordReportes(payload) {
 
 // Función auxiliar para usar fetch en la edición
 function usarFetchParaEdicion(webhookEditUrl, payload) {
-    fetch(webhookEditUrl, {
+    // Construir URL correcta para editar mensaje de webhook
+    // Extraer webhook ID y token de la URL original del webhook
+    const webhookMatch = webhookReportesSala.match(/\/webhooks\/(\d+)\/([a-zA-Z0-9_-]+)/);
+    if (!webhookMatch) {
+        console.error('❌ DEBUG: No se pudo extraer webhook ID y token de la URL');
+        return;
+    }
+    
+    const webhookId = webhookMatch[1];
+    const webhookToken = webhookMatch[2];
+    const correctEditUrl = `https://discord.com/api/webhooks/${webhookId}/${webhookToken}/messages/${MENSAJE_IDS_DISCORD.reportesSala}`;
+    
+    console.log('🔧 DEBUG: URL de webhook original:', webhookReportesSala);
+    console.log('🔧 DEBUG: URL de edición corregida:', correctEditUrl);
+    console.log('🔧 DEBUG: ID del mensaje a editar:', MENSAJE_IDS_DISCORD.reportesSala);
+    
+    fetch(correctEditUrl, {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
@@ -11804,12 +11750,17 @@ function enviarNuevoMensajeDiscordReportes(payload) {
         console.log('📡 DEBUG: Usando nodeEnviarWebhook para envío...');
         
         nodeEnviarWebhook(webhookReportesSala, payload)
-            .then(success => {
-                if (success) {
+            .then(result => {
+                if (result.success) {
                     console.log('✅ DEBUG: Mensaje enviado exitosamente via nodeEnviarWebhook');
-                    // Nota: nodeEnviarWebhook no devuelve el ID del mensaje
-                    // Por eso no podemos guardarlo para futuras ediciones
-                    console.log('⚠️ DEBUG: No se puede obtener ID del mensaje con nodeEnviarWebhook');
+                    
+                    // Guardar ID del mensaje si está disponible
+                    if (result.messageId) {
+                        MENSAJE_IDS_DISCORD.reportesSala = result.messageId;
+                        console.log('🆔 DEBUG: ID del mensaje guardado:', result.messageId);
+                    } else {
+                        console.log('⚠️ DEBUG: No se recibió ID del mensaje con nodeEnviarWebhook');
+                    }
                 } else {
                     throw new Error('nodeEnviarWebhook falló');
                 }
@@ -11827,7 +11778,10 @@ function enviarNuevoMensajeDiscordReportes(payload) {
 
 // Función auxiliar para usar fetch en el envío
 function usarFetchParaEnvio(payload) {
-    fetch(webhookReportesSala, {
+    // Agregar wait=true para obtener el ID real del mensaje
+    const webhookUrlConWait = webhookReportesSala + '?wait=true';
+    
+    fetch(webhookUrlConWait, {
         method: "POST",
         headers: {
             'Content-Type': 'application/json'

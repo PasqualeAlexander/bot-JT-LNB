@@ -1552,7 +1552,7 @@ const roomConfig = {
     playerName: "",
     password: null,
     maxPlayers: 23,
-    public: true,  // Cambiar a true para que la sala sea pública
+    public: false,  // Cambiar a true para que la sala sea pública
     token: "thr1.AAAAAGinQldRcMtzvPCZLQ.TTLum8leeAA",
     geo: { code: 'AR', lat: -34.6118, lon: -58.3960 },
     noPlayer: true
@@ -1667,10 +1667,15 @@ const webhooks = {
 
         await page.exposeFunction('nodeEnviarWebhook', async (webhookUrl, payload) => {
             try {
-                console.log('📤 DEBUG: Enviando webhook a:', webhookUrl);
+                // Agregar wait=true para obtener el ID del mensaje en la respuesta
+                const webhookUrlConWait = webhookUrl.includes('?') 
+                    ? `${webhookUrl}&wait=true`
+                    : `${webhookUrl}?wait=true`;
+                
+                console.log('📤 DEBUG: Enviando webhook a:', webhookUrlConWait);
                 console.log('📦 DEBUG: Payload:', JSON.stringify(payload, null, 2));
                 
-                const response = await fetch(webhookUrl, {
+                const response = await fetch(webhookUrlConWait, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -1678,10 +1683,12 @@ const webhooks = {
                 
                 console.log('📡 DEBUG: Respuesta status:', response.status);
                 console.log('📡 DEBUG: Respuesta headers:', Object.fromEntries(response.headers.entries()));
+                console.log('📡 DEBUG: Respuesta URL completa:', response.url);
                 
                 if (response.ok) {
                     const responseText = await response.text();
-                    console.log('📋 DEBUG: Respuesta texto:', responseText);
+                    console.log('📍 DEBUG: Respuesta texto:', responseText);
+                    console.log('📍 DEBUG: Longitud respuesta:', responseText ? responseText.length : 0);
                     
                     // Verificar si la respuesta está vacía o no es JSON válido
                     if (!responseText || responseText.trim() === '') {

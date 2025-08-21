@@ -1553,8 +1553,8 @@ const roomConfig = {
     password: null,
     maxPlayers: 23,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGinQldRcMtzvPCZLQ.TTLum8leeAA",
-    geo: { code: 'AR', lat: -34.6118, lon: -58.3960 },
+    token: "thr1.AAAAAGingXxAJwLs78SjAA.ivxj7La9SzU",
+    geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };
 

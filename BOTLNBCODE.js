@@ -4643,6 +4643,49 @@ const INTERVALO_LOG_THROTTLE = 60000; // Solo loguear cambios cada 60 segundos
 let ultimoLogCambioEnProceso = 0;
 const INTERVALO_LOG_CAMBIO_PROCESO = 120000; // Solo loguear "cambio en proceso" cada 2 minutos
 
+// FUNCIÓN PARA VERIFICAR CAMBIO DE MAPA DESPUÉS DEL PARTIDO
+function verificarCambioMapaPostPartido() {
+    // Contar jugadores activos (en equipos 1 y 2, no espectadores)
+    const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+    
+    console.log(`🏁 DEBUG: Verificando cambio de mapa post-partido con ${jugadoresActivos} jugadores activos`);
+    
+    // CAMBIO ESPECÍFICO: De biggerx5 (x4) a biggerx7 si hay 12 o más jugadores
+    if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
+        console.log(`📈 DEBUG: Cambiando de x5 a x7 después del partido (${jugadoresActivos} >= 12 jugadores)`);
+        
+        if (cambiarMapa("biggerx7")) {
+            anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x4 a x7`);
+            anunciarInfo("⚡ El bot ha detectado suficientes jugadores para una experiencia x7 más emocionante!");
+        } else {
+            console.error(`❌ Error al cambiar de x5 a x7 con ${jugadoresActivos} jugadores`);
+        }
+        return;
+    }
+    
+    // CAMBIO ADICIONAL: De biggerx3 a biggerx5 si hay 8-11 jugadores
+    if (mapaActual === "biggerx3" && jugadoresActivos >= 8 && jugadoresActivos < 12) {
+        console.log(`📈 DEBUG: Cambiando de x3 a x5 después del partido (${jugadoresActivos} jugadores)`);
+        
+        if (cambiarMapa("biggerx5")) {
+            anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando a x4`);
+        }
+        return;
+    }
+    
+    // CAMBIO ADICIONAL: De biggerx1 a biggerx3 si hay 5-7 jugadores
+    if (mapaActual === "biggerx1" && jugadoresActivos >= 5 && jugadoresActivos < 8) {
+        console.log(`📈 DEBUG: Cambiando de x1 a x3 después del partido (${jugadoresActivos} jugadores)`);
+        
+        if (cambiarMapa("biggerx3")) {
+            anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando a x3`);
+        }
+        return;
+    }
+    
+    console.log(`✅ DEBUG: No se necesita cambio de mapa post-partido (${jugadoresActivos} jugadores en ${mapaActual})`);
+}
+
 // FUNCIÓN PARA DETECTAR CAMBIO DE MAPA
 function detectarCambioMapa() {
     // Si ya hay un cambio de mapa en proceso, no ejecutar otro
@@ -11145,6 +11188,11 @@ room.onTeamGoal = function(equipo) {
             
             // Reset estadísticas
             estadisticasPartido.iniciado = false;
+            
+            // VERIFICAR CAMBIO DE MAPA POST-PARTIDO
+            setTimeout(() => {
+                verificarCambioMapaPostPartido();
+            }, 1000); // Verificar cambio de mapa antes de mezclar equipos
             
             // MEZCLAR EQUIPOS AUTOMÁTICAMENTE - CON DELAY PARA PERMITIR ENVÍO DE REPLAY
             setTimeout(() => {

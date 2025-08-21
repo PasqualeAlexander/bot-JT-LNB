@@ -558,7 +558,7 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = false;
+const roomPublic = true;
 const roomPassword = null;
 const token = "thr1.AAAAAGinQldRcMtzvPCZLQ.TTLum8leeAA";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
@@ -3339,7 +3339,7 @@ let jugadoresBaneadosUID = new Map(); // {auth: {nombre: string, razon: string, 
 let jugadoresUID = new Map(); // {playerID: auth} - Mapeo temporal de IDs a UIDs
 
 // SISTEMA DE PROTECCIÓN CONTRA MÚLTIPLES CONEXIONES DEL MISMO NAVEGADOR
-const MAX_JUGADORES_POR_IP = 200; // Máximo 10 jugadores por navegador/IP
+const MAX_JUGADORES_POR_IP = 1; // Máximo 1 jugador por navegador/IP
 let conexionesPorAuth = new Map(); // {auth: {jugadores: Set(playerIDs), timestamp: number}}
 let jugadoresPorAuth = new Map(); // {playerID: auth} - Mapeo temporal de IDs a UIDs
 let conexionesPorIP = new Map(); // {ip: {jugadores: Set(playerIDs), timestamp: number}}
@@ -10624,7 +10624,6 @@ procesarComando(jugador, mensaje);
             }
             
             // Sistema de memoria como respaldo (mantenido para compatibilidad)
-            /*
             // Verificar si la IP está bloqueada
             const ipBloqueada = ipsBloqueadas.get(ipJugador);
             if (ipBloqueada) {
@@ -10639,7 +10638,6 @@ procesarComando(jugador, mensaje);
                     console.log(`🔓 DEBUG IP: Bloqueo expirado para IP ${ipJugador}`);
                 }
             }
-            */
             
             // Verificar conexiones actuales de esta IP (sistema de memoria)
             const conexionIP = conexionesPorIP.get(ipJugador);

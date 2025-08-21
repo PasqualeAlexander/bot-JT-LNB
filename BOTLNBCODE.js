@@ -1682,7 +1682,9 @@ const mapas = {
 {"d0":4,"d1":6,"length":5,"color":"transparent"},
 {"d0":5,"d1":6,"length":5,"color":"transparent"}],
 
-	"canBeStored" : false
+	"canBeStored" : false,
+
+	"cameraFollow" : "player"
 }
 `
     },
@@ -2855,7 +2857,7 @@ const mapas = {
 {"d0":4,"d1":6,"length":5,"color":"transparent"},
 {"d0":5,"d1":6,"length":5,"color":"transparent"}],
 
-	"canBeStored" : true
+	"canBeStored" : false
 }`
     },
     biggerx1: {
@@ -4015,6 +4017,18 @@ function anunciarInfo(mensaje) {
 }
 
 function agregarJugadorAEquipo(jugador) {
+    // CORRECCIÓN: Verificar si el jugador está marcado como AFK antes de agregarlo a un equipo
+    if (jugadoresAFK.has(jugador.id)) {
+        console.log(`🚫 DEBUG: No agregando ${jugador.name} a equipo (marcado como AFK)`);
+        return;
+    }
+    
+    // Excluir bot del sistema automático
+    if (esBot(jugador)) {
+        console.log(`🚫 DEBUG: No agregando bot ${jugador.name} a equipo automáticamente`);
+        return;
+    }
+    
     // Agregar jugador al equipo con menos jugadores
     const jugadoresRed = room.getPlayerList().filter(j => j.team === 1).length;
     const jugadoresBlue = room.getPlayerList().filter(j => j.team === 2).length;
@@ -4318,9 +4332,18 @@ function mezclarEquiposAleatoriamenteFinPartido() {
                     console.log(`🚀 DEBUG fin partido: Llamando a verificarAutoStart después de espera...`);
                     mezclaProcesandose = false; // Desactivar control ANTES de verificar auto start
                     
-                    // IMPORTANTE: Detectar cambio de mapa necesario (ej. biggerx5 -> biggerx7 con 12+ jugadores)
+// IMPORTANTE: Detectar cambio de mapa necesario (ej. biggerx5 -> biggerx7 con 12+ jugadores)
                     console.log(`🔄 DEBUG fin partido: Verificando cambio de mapa tras mezcla...`);
-                    detectarCambioMapa();
+                    // Verificación explícita para biggerx5 -> biggerx7
+                    const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                    console.log(`🔍 DEBUG: Verificación específica post-mezcla - Jugadores activos: ${jugadoresActivos}, Mapa actual: ${mapaActual}`);
+                    if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
+                        console.log(`⚠️ DEBUG: Detectado umbral crítico de 12+ jugadores (${jugadoresActivos}) en mapa x5 - Forzando cambio a x7`);
+                        cambiarMapa("biggerx7");
+                        anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x4 a x7`);
+                    } else {
+                        detectarCambioMapa();
+                    }
                     
                     // CORRECCIÓN: Llamar múltiples veces a verificarAutoStart para asegurar que se ejecute
                     verificarAutoStart();
@@ -4657,15 +4680,24 @@ function verificarCambioMapaPostPartido() {
     
     console.log(`🏁 DEBUG: Verificando cambio de mapa post-partido con ${jugadoresActivos} jugadores activos`);
     
-    // CAMBIO ESPECÍFICO: De biggerx5 (x4) a biggerx7 si hay 12 o más jugadores
+// CAMBIO ESPECÍFICO: De biggerx5 (x4) a biggerx7 si hay 12 o más jugadores
     if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
         console.log(`📈 DEBUG: Cambiando de x5 a x7 después del partido (${jugadoresActivos} >= 12 jugadores)`);
         
+        cambioMapaEnProceso = true;
         if (cambiarMapa("biggerx7")) {
             anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x4 a x7`);
             anunciarInfo("⚡ El bot ha detectado suficientes jugadores para una experiencia x7 más emocionante!");
+            
+            // Asegurar que el cambio se complete correctamente
+            setTimeout(() => {
+                autoBalanceEquipos();
+                verificarAutoStart();
+                cambioMapaEnProceso = false;
+            }, 1000);
         } else {
             console.error(`❌ Error al cambiar de x5 a x7 con ${jugadoresActivos} jugadores`);
+            cambioMapaEnProceso = false;
         }
         return;
     }
@@ -4864,11 +4896,23 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
         }
         
         // Cambiar de biggerx5 a biggerx7 si hay 12 o más jugadores
-        // MODIFICADO: NO detener partido en x5, solo notificar que esperará al final
         if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
-            console.log(`📈 DEBUG: Detectados ${jugadoresActivos} jugadores en x5, pero NO deteniendo partido`);
-            // Mensaje removido - ya no notificar sobre cambio de mapa
-            // NO detenemos el partido, solo notificamos
+            cambioMapaEnProceso = true;
+            terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
+            console.log(`📈 DEBUG: Cambiando de x5 a x7 durante partido (${jugadoresActivos} >= 12)`);
+            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa a x7...");
+            room.stopGame();
+            cambiarMapa("biggerx7");
+            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x5 a x7...`);
+            
+            setTimeout(() => {
+                autoBalanceEquipos();
+                verificarAutoStart();
+                setTimeout(() => { 
+                    cambioMapaEnProceso = false;
+                    terminoPorCambioMapa = false; // Resetear la bandera
+                }, 5000);
+            }, 1000);
             return;
         }
         

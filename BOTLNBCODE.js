@@ -4611,11 +4611,18 @@ function verificarInactividad() {
                     jugadoresAFK.delete(jugador.id);
                     advertenciasAFK.delete(jugador.id);
 
-                    setTimeout(() => {
-                        autoBalanceEquipos();
-                        verificarAutoStart();
-                        verificarAutoStop(null);
-                    }, 1000);
+                setTimeout(() => {
+                    autoBalanceEquipos();
+                    verificarAutoStart();
+                    verificarAutoStop(jugador);
+                }, 500);
+                
+                // CORRECCIÓN ADICIONAL: Segunda llamada para asegurar el balance correcto
+                setTimeout(() => {
+                    console.log(`🔄 DEBUG: Segunda llamada de balance/autostart después de desconectar ${jugador.name}`);
+                    autoBalanceEquipos();
+                    verificarAutoStart();
+                }, 1000);
                 }
             } else {
                 jugadoresAFK.set(jugador.id, { ultimaActividad: ahora, posicionAnterior: { ...jugador.position } });
@@ -8810,6 +8817,15 @@ function corregirPosicionesSpawn() {
                     posicionSeguraAzul: { x: 200, y: 0 }
                 };
                 break;
+            case 'biggerx4':
+                configuracionMapa = {
+                    limiteArcoIzquierdo: -580,
+                    limiteArcoDerecho: 580,
+                    spawnDistanceCorrecta: 350,
+                    posicionSeguraRoja: { x: -250, y: 0 },
+                    posicionSeguraAzul: { x: 250, y: 0 }
+                };
+                break;
             case 'biggerx1':
                 configuracionMapa = {
                     limiteArcoIzquierdo: -320,
@@ -11122,6 +11138,16 @@ room.onTeamGoal = function(equipo) {
     // Fin del juego
     room.onGameStop = function(jugadorByAdmin) {
         partidoEnCurso = false;
+        
+        // CORRECCIÓN INMEDIATA: Corregir posiciones de spawn al finalizar el partido
+        setTimeout(() => {
+            try {
+                console.log('🔧 DEBUG: Corrigiendo posiciones de spawn al finalizar partido');
+                corregirPosicionesSpawn();
+            } catch (error) {
+                console.error('❌ Error corrigiendo posiciones al finalizar partido:', error);
+            }
+        }, 200); // Muy poco tiempo para aplicar la corrección rápidamente
         
         if (estadisticasPartido.iniciado) {
             estadisticasPartido.duracion = Math.floor((Date.now() - tiempoInicioPartido) / 1000) - estadisticasPartido.tiempoEsperaSaque; // Restar el tiempo de espera para saque

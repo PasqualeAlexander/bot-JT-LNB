@@ -558,9 +558,9 @@ async function registrarJugador(nombre) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
 const maxPlayers = 23;
-const roomPublic = true;
+const roomPublic = false;
 const roomPassword = null;
-const token = "thr1.AAAAAGimVJK5eQv6qf2IVw.BoSj6kqO4QE";
+const token = "thr1.AAAAAGinQldRcMtzvPCZLQ.TTLum8leeAA";
 const geo = { code: 'AR', lat: -34.6118, lon: -58.3960 };
 
 // Variable para almacenar el objeto room
@@ -1258,72 +1258,242 @@ const mapas = {
 	"bg" : { "width" : 1150, "height" : 600, "kickOffRadius" : 180, "color" : "444444" },
 
 	"vertexes" : [
-		{ "x" : 0, "y" : 600, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
+		 { "x" : 0, "y" : 600, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
 		{ "x" : 0, "y" : 180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
-		{ "x" : 0, "y" : -180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
-		{ "x" : 0, "y" : -600, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
+		 { "x" : 0, "y" : -180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
+		 { "x" : 0, "y" : -600, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
 		{ "x" : 1150, "y" : 320, "cMask" : [ ] },
 		{ "x" : 840, "y" : 320, "cMask" : [ ] },
 		{ "x" : 1150, "y" : -320, "cMask" : [ ] },
 		{ "x" : 840, "y" : -320, "cMask" : [ ] },
 		{ "x" : 1150, "y" : 180, "cMask" : [ ] },
 		{ "x" : 1030, "y" : 180, "cMask" : [ ] },
-		{ "x" : 1150, "y" : -180, "cMask" : [ ] },
-		{ "x" : 1030, "y" : -180, "cMask" : [ ] },
-		{ "x" : 840, "y" : -130, "cMask" : [ ] },
-		{ "x" : 840, "y" : 130, "cMask" : [ ] },
-		{ "x" : -1150, "y" : -320, "cMask" : [ ] },
-		{ "x" : -840, "y" : -320, "cMask" : [ ] },
+		 { "x" : 1150, "y" : -180, "cMask" : [ ] },
+		 { "x" : 1030, "y" : -180, "cMask" : [ ] },
+		 { "x" : 840, "y" : -130, "cMask" : [ ] },
+		 { "x" : 840, "y" : 130, "cMask" : [ ] },
+		 { "x" : -1150, "y" : -320, "cMask" : [ ] },
+		 { "x" : -840, "y" : -320, "cMask" : [ ] },
 		{ "x" : -1150, "y" : 320, "cMask" : [ ] },
 		{ "x" : -840, "y" : 320, "cMask" : [ ] },
 		{ "x" : -1150, "y" : -180, "cMask" : [ ] },
 		{ "x" : -1030, "y" : -180, "cMask" : [ ] },
 		{ "x" : -1150, "y" : 180, "cMask" : [ ] },
-		{ "x" : -1030, "y" : 180, "cMask" : [ ] },
+		 { "x" : -1030, "y" : 180, "cMask" : [ ] },
 		{ "x" : -840, "y" : 130, "cMask" : [ ] },
-		{ "x" : -840, "y" : -130, "cMask" : [ ] },
-		{ "x" : 935, "y" : 3, "cMask" : [ ] },
-		{ "x" : 935, "y" : -3, "cMask" : [ ] },
-		{ "x" : -935, "y" : 3, "cMask" : [ ] },
-		{ "x" : -935, "y" : -3, "cMask" : [ ] },
-		{ "x" : 0, "y" : 180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["blueKO" ] },
+		 { "x" : -840, "y" : -130, "cMask" : [ ] },
+		 { "x" : 935, "y" : 3, "cMask" : [ ] },
+		 { "x" : 935, "y" : -3, "cMask" : [ ] },
+		 { "x" : -935, "y" : 3, "cMask" : [ ] },
+		 { "x" : -935, "y" : -3, "cMask" : [ ] },
+		 { "x" : 0, "y" : 180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["blueKO" ] },
 		{ "x" : 0, "y" : -180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["blueKO" ] },
-		{ "x" : 0, "y" : 180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["blueKO" ] },
-		{ "x" : -1150, "y" : -130, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
+		 { "x" : 0, "y" : 180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["blueKO" ] },
+		 { "x" : -1150, "y" : -130, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
 		{ "x" : -1215, "y" : -80, "bCoef" : 0, "cMask" : ["ball" ] },
-		{ "x" : -1150, "y" : 130, "bCoef" : 0, "cMask" : ["red","blue","ball" ] },
-		{ "x" : -1215, "y" : 80, "bCoef" : 0, "cMask" : ["ball" ] },
-		{ "x" : 1150, "y" : 130, "bCoef" : 0, "cMask" : ["red","blue","ball" ] },
-		{ "x" : 1215, "y" : 80, "bCoef" : 0, "cMask" : ["ball" ] },
-		{ "x" : 1150, "y" : -130, "bCoef" : 0, "cMask" : ["red","blue","ball" ] },
+		 { "x" : -1150, "y" : 130, "bCoef" : 0, "cMask" : ["red","blue","ball" ] },
+		 { "x" : -1215, "y" : 80, "bCoef" : 0, "cMask" : ["ball" ] },
+		 { "x" : 1150, "y" : 130, "bCoef" : 0, "cMask" : ["red","blue","ball" ] },
+		 { "x" : 1215, "y" : 80, "bCoef" : 0, "cMask" : ["ball" ] },
+		 { "x" : 1150, "y" : -130, "bCoef" : 0, "cMask" : ["red","blue","ball" ] },
 		{ "x" : 1215, "y" : -80, "bCoef" : 0, "cMask" : ["ball" ] },
-		{ "x" : -1150, "y" : 600, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
-		{ "x" : 1150, "y" : 600, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
+		 { "x" : -1150, "y" : 600, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
+		 { "x" : 1150, "y" : 600, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
 		{ "x" : -1150, "y" : 130, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
-		{ "x" : -1150, "y" : -600, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
+	 { "x" : -1150, "y" : -600, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
 		{ "x" : 1150, "y" : -600, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
-		{ "x" : 1150, "y" : -130, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
-		{ "x" : 1150, "y" : 130, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
+		 { "x" : 1150, "y" : -130, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
+		 { "x" : 1150, "y" : 130, "cMask" : ["ball" ], "cGroup" : ["red","blue","wall" ] },
 		{ "x" : 1160, "y" : 130, "cMask" : ["ball" ], "cGroup" : ["ball" ] },
-		{ "x" : -1160, "y" : 130, "cMask" : ["ball" ], "cGroup" : ["ball" ] },
-		{ "x" : -1160, "y" : -130, "cMask" : ["ball" ], "cGroup" : ["ball" ] },
+		 { "x" : -1160, "y" : 130, "cMask" : ["ball" ], "cGroup" : ["ball" ] },
+		 { "x" : -1160, "y" : -130, "cMask" : ["ball" ], "cGroup" : ["ball" ] },
 		{ "x" : 1160, "y" : -130, "cMask" : ["ball" ], "cGroup" : ["ball" ] },
-		{ "x" : -1215, "y" : -3, "bCoef" : 0, "cMask" : ["ball" ] },
-		{ "x" : -1215, "y" : 10, "bCoef" : 0, "cMask" : ["ball" ] },
-		{ "x" : 1215, "y" : 10, "bCoef" : 0, "cMask" : ["ball" ] },
-		{ "x" : 1215, "y" : -10, "bCoef" : 0, "cMask" : ["ball" ] },
-		{ "x" : -1150, "y" : -130, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["blueKO" ] },
-		{ "x" : 1150, "y" : 130 },
-		{ "x" : 1150, "y" : -130 },
-		{ "x" : 1150, "y" : 130, "cMask" : [ ] },
-		{ "x" : 1150, "y" : -130, "cMask" : [ ] },
-		{ "x" : 0, "y" : 180, "cMask" : [ ] },
-		{ "x" : 0, "y" : -180, "cMask" : [ ] },
-		{ "x" : 0, "y" : -670, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
-		{ "x" : 0, "y" : 670, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
-		{ "x" : 0, "y" : -180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
-		{ "x" : 0, "y" : 180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
+		 { "x" : -1215, "y" : -3, "bCoef" : 0, "cMask" : ["ball" ] },
+		 { "x" : -1215, "y" : 10, "bCoef" : 0, "cMask" : ["ball" ] },
+		 { "x" : 1215, "y" : 10, "bCoef" : 0, "cMask" : ["ball" ] },
+		 { "x" : 1215, "y" : -10, "bCoef" : 0, "cMask" : ["ball" ] },
+		 { "x" : -1150, "y" : -130, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["blueKO" ] },
+		 { "x" : 1150, "y" : 130 },
+		 { "x" : 1150, "y" : -130 },
+		 { "x" : 1150, "y" : 130, "cMask" : [ ] },
+		 { "x" : 1150, "y" : -130, "cMask" : [ ] },
+		 { "x" : 0, "y" : 180, "cMask" : [ ] },
+		 { "x" : 0, "y" : -180, "cMask" : [ ] },
+		 { "x" : 0, "y" : -670, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
+		 { "x" : 0, "y" : 670, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
+		 { "x" : 0, "y" : -180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
+		 { "x" : 0, "y" : 180, "bCoef" : 0.1, "cMask" : ["red","blue" ], "cGroup" : ["redKO","blueKO" ] },
 		
+		 { "x" : -0.16091272635117526, "y" : 106.34640929026283, "trait" : "line", "color" : "ffffff" },
+		 { "x" : 97.77015892869004, "y" : 54.94996033655326, "trait" : "line", "color" : "ffffff" },
+		{ "x" : 97.07561232120747, "y" : -73.54116204772068, "trait" : "line", "color" : "ffffff" },
+		 { "x" : 74.85012088176549, "y" : -72.84661544023811, "trait" : "line", "color" : "ffffff" },
+		 { "x" : 0.5336338811313858, "y" : -108.96303902933133, "trait" : "line", "color" : "ffffff" },
+		{ "x" : -73.08830651202017, "y" : -73.54116204772068, "trait" : "line", "color" : "ffffff" },
+		 { "x" : -96.70289116642726, "y" : -73.54116204772068, "trait" : "line", "color" : "ffffff" },
+		 { "x" : -96.00834455894471, "y" : 55.644506944035825, "trait" : "line", "color" : "ffffff" },
+		 { "x" : -0.16091272635117526, "y" : 98.70639660795466, "trait" : "line", "color" : "ffffff" },
+		{ "x" : 90.13014624638186, "y" : 51.47722729914045, "trait" : "line", "color" : "ffffff" },
+		 { "x" : 90.13014624638186, "y" : -66.59569597289506, "trait" : "line", "color" : "ffffff" },
+		 { "x" : 73.46102766680038, "y" : -66.59569597289506, "trait" : "line", "color" : "ffffff" },
+		 { "x" : 0.5336338811313858, "y" : -102.01757295450571, "trait" : "line", "color" : "ffffff" },
+		 { "x" : -72.3937599045376, "y" : -66.59569597289506, "trait" : "line", "color" : "ffffff" },
+		 { "x" : -89.75742509160165, "y" : -66.59569597289506, "trait" : "line", "color" : "ffffff" },
+		 { "x" : -89.0628784841191, "y" : 50.78268069165789, "trait" : "line", "color" : "ffffff" },
+		 { "x" : -76.56103954943298, "y" : -50.62112400079613, "trait" : "line", "color" : "0070d1" },
+		 { "x" : -65.44829382971199, "y" : -56.177496860656625, "trait" : "line", "color" : "0070d1" },
+		 { "x" : -65.44829382971199, "y" : 34.11356211207641, "trait" : "line", "color" : "0070d1" },
+		 { "x" : -46.00098882020025, "y" : 43.14266800934972, "trait" : "line", "color" : "0070d1" },
+		 { "x" : -45.3064422127177, "y" : 16.0553503175298, "trait" : "line", "color" : "0070d1" },
+		 { "x" : -33.49914988551415, "y" : 16.749896925012365, "trait" : "line", "color" : "0070d1" },
+		 { "x" : -33.49914988551415, "y" : 63.28451962634401, "trait" : "line", "color" : "0070d1" },
+		{ "x" : -77.25558615691554, "y" : 41.059028186902026, "trait" : "line", "color" : "0070d1" },
+		 { "x" : -25.859137203205965, "y" : -73.54116204772068, "trait" : "line", "color" : "0070d1" },
+		{ "x" : -7.106378801176793, "y" : -81.87572133751141, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 10.25728638588725, "y" : -17.977433449115725, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 10.25728638588725, "y" : -81.87572133751141, "trait" : "line", "color" : "0070d1" },
+		{ "x" : 24.148218535538486, "y" : -74.23570865520324, "trait" : "line", "color" : "0070d1" },
+		{ "x" : 23.453671928055925, "y" : 68.8408924862045, "trait" : "line", "color" : "0070d1" },
+		{ "x" : 10.25728638588725, "y" : 75.78635856103011, "trait" : "line", "color" : "0070d1" },
+		{ "x" : 10.25728638588725, "y" : 30.6408290746636, "trait" : "line", "color" : "0070d1" },
+		{ "x" : -11.968205053554724, "y" : -40.2029248885577, "trait" : "line", "color" : "0070d1" },
+		{ "x" : -11.968205053554724, "y" : 75.78635856103011, "trait" : "line", "color" : "0070d1" },
+		{ "x" : -25.859137203205965, "y" : 67.45179927123938, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 32.48277782532923, "y" : -72.15206883275555, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 72.76648105931781, "y" : -51.315670608278694, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 78.3228539191783, "y" : -39.508378281075146, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 77.62830731169574, "y" : -21.450166486528534, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 67.21010819945731, "y" : -8.25378094435986, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 78.3228539191783, "y" : 4.94260459780881, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 77.62830731169574, "y" : 35.50265532704152, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 71.37738784435268, "y" : 43.83721461683227, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 32.48277782532923, "y" : 64.67361284130912, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 47.06825658246302, "y" : -15.199247019185478, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 56.79190908721889, "y" : -15.199247019185478, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 65.8210149844922, "y" : -24.922899523941346, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 65.8210149844922, "y" : -36.730191851144895, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 60.95918873211426, "y" : -44.37020453345308, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 47.06825658246302, "y" : -51.315670608278694, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 45.6791633674979, "y" : 0.08077834543087903, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 58.18100230218401, "y" : 0.08077834543087903, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 65.8210149844922, "y" : 8.415337635221618, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 65.8210149844922, "y" : 28.557189252215913, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 61.65373533959682, "y" : 36.1972019345241, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 46.373709974980464, "y" : 43.14266800934972, "trait" : "line", "color" : "0070d1" },
+		 { "x" : -73.20019266386399, "y" : 39.853967259395404, "trait" : "line" },
+		 { "x" : -73.72607742958498, "y" : -51.198438208844244, "trait" : "line" },
+		 { "x" : -68.88464583469232, "y" : 42.29567142246687, "trait" : "line" },
+		 { "x" : -68.21066688450273, "y" : -54.11744615954227, "trait" : "line" },
+		 { "x" : -71.3749309758582, "y" : 41.018458490899896, "trait" : "line" },
+		 { "x" : -71.22023254454545, "y" : -51.9143938902841, "trait" : "line" },
+		 { "x" : -74.88278878915264, "y" : 40.2185493469595, "trait" : "line" },
+		 { "x" : -36.10935929876115, "y" : 59.40198468274805, "trait" : "line" },
+		 { "x" : -67.44495459987579, "y" : 41.60070410665214, "trait" : "line" },
+		 { "x" : -36.19801526163238, "y" : 54.56715733469955, "trait" : "line" },
+		 { "x" : -35.65774637713042, "y" : 16.208066535059274, "trait" : "line" },
+		 { "x" : -39.439628568644224, "y" : 54.02688845019758, "trait" : "line" },
+		 { "x" : -37.27855303063632, "y" : 16.748335419561258, "trait" : "line" },
+		 { "x" : -42.140972991154115, "y" : 55.64769510370351, "trait" : "line" },
+		 { "x" : -39.43962856864425, "y" : 16.748335419561243, "trait" : "line" },
+		 { "x" : -47.0033929516719, "y" : 54.02688845019759, "trait" : "line" },
+		 { "x" : -43.221510760158054, "y" : 16.208066535059277, "trait" : "line" },
+		 { "x" : -43.76177964466005, "y" : 54.02688845019759, "trait" : "line" },
+		 { "x" : -68.61414833175093, "y" : 31.875864185616578, "trait" : "line" },
+		 { "x" : -44.30204852916202, "y" : 48.08393072067585, "trait" : "line" },
+		 { "x" : -72.39603052326476, "y" : 35.65774637713041, "trait" : "line" },
+		 { "x" : -61.050383948723265, "y" : 40.52016633764819, "trait" : "line" },
+		 { "x" : -68.61414833175093, "y" : 34.577208608126455, "trait" : "line" },
+		 { "x" : -22.417324094397376, "y" : 68.4248837565368, "trait" : "line" },
+		 { "x" : -22.656099083073315, "y" : -73.67793350740735, "trait" : "line" },
+		 { "x" : -19.898640000257473, "y" : 70.65528244853897, "trait" : "line" },
+		 { "x" : -20.218838782852174, "y" : -75.92043283933401, "trait" : "line" },
+		 { "x" : -17.417365679654893, "y" : 71.46623970217384, "trait" : "line" },
+		 { "x" : -18.013749224462828, "y" : -77.03838038187526, "trait" : "line" },
+		 { "x" : -15.46975599671012, "y" : 72.64140975878486, "trait" : "line" },
+		 { "x" : -16.304914530193997, "y" : -77.07579015541256, "trait" : "line" },
+		 { "x" : -13.346090232239533, "y" : 73.86059383577734, "trait" : "line" },
+		 { "x" : -16.537085272025763, "y" : -77.82952489497765, "trait" : "line" },
+		 { "x" : 18.278898324776634, "y" : 37.25435175078734, "trait" : "line" },
+		 { "x" : 21.307045776725353, "y" : -74.91471461740466, "trait" : "line" },
+		 { "x" : 21.527115878632642, "y" : 69.72659948121185, "trait" : "line" },
+		 { "x" : 19.836986071132443, "y" : -76.71818159928057, "trait" : "line" },
+		 { "x" : 18.869785476504234, "y" : 70.38570193316988, "trait" : "line" },
+		 { "x" : 18.909410957569165, "y" : -77.79871936828451, "trait" : "line" },
+		 { "x" : 16.208066535059288, "y" : 70.77522386975882, "trait" : "line" },
+		 { "x" : 17.288604304063256, "y" : -76.71818159928056, "trait" : "line" },
+		 { "x" : 14.046990997051353, "y" : 73.47656829226871, "trait" : "line" },
+		 { "x" : 16.20806653505926, "y" : -78.87925713728848, "trait" : "line" },
+		 { "x" : 12.426184343545458, "y" : 74.55710606127266, "trait" : "line" },
+		 { "x" : 14.587259881553337, "y" : -79.95979490629244, "trait" : "line" },
+		 { "x" : 14.104907821469993, "y" : 20.167156920689756, "trait" : "line" },
+		 { "x" : 12.032004165412815, "y" : -79.49300259008272, "trait" : "line" },
+		 { "x" : 14.281251585371422, "y" : 20.976263602119914, "trait" : "line" },
+		 { "x" : -7.683055752725693, "y" : -79.4869515785763, "trait" : "line" },
+		 { "x" : 14.191350842990289, "y" : -0.6249830455918861, "trait" : "line" },
+		 { "x" : -10.562472799567402, "y" : -80.20442865719492, "trait" : "line" },
+		 { "x" : 14.64171898511114, "y" : 22.244382727822945, "trait" : "line" },
+		 { "x" : -14.882895015152812, "y" : -78.49112797066226, "trait" : "line" },
+		 { "x" : 14.28557373644746, "y" : 22.60830784842348, "trait" : "line" },
+		 { "x" : -12.067445804236115, "y" : -78.42024469301559, "trait" : "line" },
+		 { "x" : 14.531071917565129, "y" : 4.144078451683955, "trait" : "line" },
+		 { "x" : -17.43123528957176, "y" : -68.97893788256667, "trait" : "line" },
+		 { "x" : 11.918763807221154, "y" : 22.41381105000277, "trait" : "line" },
+		 { "x" : -18.2420708314323, "y" : -54.666566809447914, "trait" : "line" },
+		 { "x" : 3.8138661094763506, "y" : -12.077818966818565, "trait" : "line" },
+		 { "x" : -23.201306976052834, "y" : -67.45235412251789, "trait" : "line" },
+		 { "x" : 33.84244292520377, "y" : -71.76931861724246, "trait" : "line" },
+		 { "x" : 35.00942371572802, "y" : 61.849981897786186, "trait" : "line" },
+		 { "x" : 36.75989490151443, "y" : -68.26837624566966, "trait" : "line" },
+		 { "x" : 37.343385296776574, "y" : 60.099510711999784, "trait" : "line" },
+		 { "x" : 39.6773468778251, "y" : -67.1013954551454, "trait" : "line" },
+		 { "x" : 40.260837273087226, "y" : 58.93252992147552, "trait" : "line" },
+		 { "x" : 42.59479885413576, "y" : -65.35092426935898, "trait" : "line" },
+		 { "x" : 43.178289249397906, "y" : 58.34903952621338, "trait" : "line" },
+		 { "x" : 75.27026098881524, "y" : 38.51036608730084, "trait" : "line" },
+		 { "x" : 76.43724177933952, "y" : 3.5009423715728047, "trait" : "line" },
+		 { "x" : 71.76931861724248, "y" : 40.844327668349365, "trait" : "line" },
+		 { "x" : 76.43724177933952, "y" : -7.105427357601002e-15, "trait" : "line" },
+		 { "x" : 67.68488585040754, "y" : 44.34527003992217, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 73.51978980302889, "y" : -4.667923162097071, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 42.594798854135774, "y" : 0.5834903952621335, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 77.60422256986382, "y" : -29.758010158368823, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 68.85186664093179, "y" : -50.76366438780563, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 44.928760435184316, "y" : -1.1669807905242635, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 72.93629940776674, "y" : -49.59668359728137, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 43.76177964466004, "y" : -5.834903952621346, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 62.43347229304829, "y" : 45.51225083044645, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 42.01130845887366, "y" : 54.264606759378445, "trait" : "line", "color" : "0070d1" },
+		 { "x" : 67.6848858504075, "y" : 40.844327668349365, "trait" : "line", "color" : "0070d1", "curve" : 0 },
+		 { "x" : 60.099510711999784, "y" : -8.752355928932008, "trait" : "line", "curve" : 0 },
+		 { "x" : 63.01696268831046, "y" : 44.9287604351843, "trait" : "line", "curve" : 0 },
+		 { "x" : 61.84998189778618, "y" : -7.001884743145606, "trait" : "line", "curve" : 0 },
+		 { "x" : 47.26272201623286, "y" : -53.68111636411631, "trait" : "line", "curve" : 0 },
+		 { "x" : 41.42781806361151, "y" : -64.18394347883472, "trait" : "line", "curve" : 0 },
+		 { "x" : 76.43724177933952, "y" : -37.926875692038706, "trait" : "line", "curve" : 0 },
+		 { "x" : 43.76177964466004, "y" : -65.35092426935898, "trait" : "line", "curve" : 0 },
+		 { "x" : 77.60422256986381, "y" : -37.926875692038706, "trait" : "line", "curve" : 0 },
+		 { "x" : 42.594798854135774, "y" : -53.68111636411631, "trait" : "line", "curve" : 0 },
+		 { "x" : 47.26272201623283, "y" : -60.09951071199979, "trait" : "line" },
+		 { "x" : 71.76931861724248, "y" : -48.429702806757106, "trait" : "line" },
+		 { "x" : 40.26083727308723, "y" : -10.50282711471841, "trait" : "line" },
+		 { "x" : 39.093856482562956, "y" : -15.754240672077618, "trait" : "line" },
+		 { "x" : 77.02073217460166, "y" : 2.9174519763106694, "trait" : "line", "curve" : 0 },
+		 { "x" : 42.59479885413576, "y" : -16.921221462601878, "trait" : "line", "curve" : 0 },
+		 { "x" : 40.26083727308726, "y" : 51.93064517832991, "trait" : "line", "curve" : 0 },
+		 { "x" : 70.01884743145607, "y" : 32.09197173941736, "trait" : "line", "curve" : 0 },
+		 { "x" : 37.926875692038706, "y" : 46.6792316209707, "trait" : "line", "curve" : 0 },
+		{ "x" : 70.01884743145607, "y" : 27.424048577320285, "trait" : "line", "curve" : 0 },
+		 { "x" : 36.17640450625228, "y" : 61.84998189778619, "trait" : "line", "curve" : 0 },
+		 { "x" : 65.93441466462112, "y" : 39.09385648256297, "trait" : "line", "curve" : 0 },
+		 { "x" : 65.35092426935898, "y" : -11.086317509980542, "trait" : "line" },
+		 { "x" : 75.85375138407741, "y" : -49.59668359728136, "trait" : "line" },
+		 { "x" : 42.594798854135774, "y" : -58.34903952621338, "trait" : "line" },
+		 { "x" : 45.51225083044645, "y" : -12.253298300504802, "trait" : "line" },
+		 { "x" : 66.9057260566766, "y" : -45.461583089793066, "trait" : "line" },
+		{ "x" : 44.60381737111774, "y" : -61.33024888528688, "trait" : "line" },
+		{ "x" : 44.17493451178008, "y" : -4.7177114527143775, "trait" : "line" },
+		 { "x" : 70.76567179071563, "y" : -3.8599457340390346, "trait" : "line" },
+		 { "x" : 49.321528823832125, "y" : -14.153134358143127, "trait" : "line" }
 
 	],
 
@@ -1682,9 +1852,7 @@ const mapas = {
 {"d0":4,"d1":6,"length":5,"color":"transparent"},
 {"d0":5,"d1":6,"length":5,"color":"transparent"}],
 
-	"canBeStored" : false,
-
-	"cameraFollow" : "player"
+	"canBeStored" : false
 }
 `
     },
@@ -3171,7 +3339,7 @@ let jugadoresBaneadosUID = new Map(); // {auth: {nombre: string, razon: string, 
 let jugadoresUID = new Map(); // {playerID: auth} - Mapeo temporal de IDs a UIDs
 
 // SISTEMA DE PROTECCIÓN CONTRA MÚLTIPLES CONEXIONES DEL MISMO NAVEGADOR
-const MAX_JUGADORES_POR_IP = 1; // Máximo 1 jugador por navegador/IP
+const MAX_JUGADORES_POR_IP = 200; // Máximo 10 jugadores por navegador/IP
 let conexionesPorAuth = new Map(); // {auth: {jugadores: Set(playerIDs), timestamp: number}}
 let jugadoresPorAuth = new Map(); // {playerID: auth} - Mapeo temporal de IDs a UIDs
 let conexionesPorIP = new Map(); // {ip: {jugadores: Set(playerIDs), timestamp: number}}
@@ -3255,6 +3423,7 @@ function detectarMultiplesConexiones(jugador) {
         }
         
         // MÉTODO 2: Verificar por IP simulada como respaldo
+        /*
         const ipJugador = obtenerIdentificadorConexion(jugador);
         if (ipJugador) {
             const jugadoresConMismaIP = jugadoresConectados.filter(j => {
@@ -3270,6 +3439,7 @@ function detectarMultiplesConexiones(jugador) {
                 return true;
             }
         }
+        */
         
         console.log(`✅ DEBUG: No se detectaron múltiples conexiones para ${jugador.name}`);
         return false;
@@ -4017,17 +4187,45 @@ function anunciarInfo(mensaje) {
 }
 
 function agregarJugadorAEquipo(jugador) {
-    // CORRECCIÓN: Verificar si el jugador está marcado como AFK antes de agregarlo a un equipo
+    // CORRECCIÓN MEJORADA: Verificar múltiples condiciones antes de agregar a un equipo
+    
+    // 1. Verificar si el jugador está marcado como AFK
     if (jugadoresAFK.has(jugador.id)) {
         console.log(`🚫 DEBUG: No agregando ${jugador.name} a equipo (marcado como AFK)`);
         return;
     }
     
-    // Excluir bot del sistema automático
+    // 1.5. NUEVA VERIFICACIÓN: Verificar si el jugador fue movido recientemente a espectadores por inactividad
+    // Esto previene que jugadores recién marcados como AFK sean inmediatamente movidos de vuelta
+    const jugadorActual = room.getPlayerList().find(j => j.id === jugador.id);
+    if (jugadorActual && jugadorActual.team === 0) {
+        // Verificar si hay advertencias AFK recientes (últimos 30 segundos)
+        const advertenciaAFK = advertenciasAFK.get(jugador.id);
+        if (advertenciaAFK && Date.now() - advertenciaAFK.timestamp < 30000) {
+            console.log(`🚫 DEBUG: No agregando ${jugador.name} - tiene advertencias AFK recientes`);
+            return;
+        }
+    }
+    
+    // 2. Verificar si el jugador ya está en un equipo
+    if (jugador.team !== 0) {
+        console.log(`🚫 DEBUG: No agregando ${jugador.name} - ya está en equipo ${jugador.team}`);
+        return;
+    }
+    
+    // 3. Excluir bot del sistema automático
     if (esBot(jugador)) {
         console.log(`🚫 DEBUG: No agregando bot ${jugador.name} a equipo automáticamente`);
         return;
     }
+    
+    // 4. NUEVA VERIFICACIÓN: Asegurar que no está en proceso de ser movido a espectadores
+    if (movimientoIniciadorPorBot.has(jugador.id)) {
+        console.log(`🚫 DEBUG: No agregando ${jugador.name} - movimiento del bot en proceso`);
+        return;
+    }
+    
+    console.log(`✅ DEBUG: Agregando ${jugador.name} a un equipo automáticamente`);
     
     // Agregar jugador al equipo con menos jugadores
     const jugadoresRed = room.getPlayerList().filter(j => j.team === 1).length;
@@ -4585,8 +4783,10 @@ function verificarInactividad() {
                         room.kickPlayer(jugador.id, motivo, false);
                         anunciarAdvertencia(`🚫 ${jugador.name} fue expulsado. Motivo: ${motivo}`, null);
                     } else if (accion === 'mover') {
+                        // CORRECCIÓN: Marcar el movimiento como iniciado por el bot para evitar conflictos
+                        movimientoIniciadorPorBot.add(jugador.id);
                         room.setPlayerTeam(jugador.id, 0);
-                        anunciarAdvertencia(`${jugador.name} ha sido movido a espectadores por inactividad`, null);
+                        anunciarAdvertencia(`💤 ${jugador.name} ha sido movido a espectadores por inactividad`, null);
                         
                         // Enviar mensaje privado al jugador explicando cómo volver
                         setTimeout(() => {
@@ -10424,6 +10624,7 @@ procesarComando(jugador, mensaje);
             }
             
             // Sistema de memoria como respaldo (mantenido para compatibilidad)
+            /*
             // Verificar si la IP está bloqueada
             const ipBloqueada = ipsBloqueadas.get(ipJugador);
             if (ipBloqueada) {
@@ -10438,6 +10639,7 @@ procesarComando(jugador, mensaje);
                     console.log(`🔓 DEBUG IP: Bloqueo expirado para IP ${ipJugador}`);
                 }
             }
+            */
             
             // Verificar conexiones actuales de esta IP (sistema de memoria)
             const conexionIP = conexionesPorIP.get(ipJugador);
@@ -10816,10 +11018,24 @@ setTimeout(() => {
         }, 500);
         
         // MOVER AUTOMÁTICAMENTE A EQUIPO - con delay para asegurar que el jugador esté completamente conectado
+        // CORRECCIÓN: Agregar verificaciones adicionales antes de mover al jugador
         setTimeout(() => {
             try {
+                // Verificar que el jugador aún esté conectado y no esté marcado como AFK
+                const jugadorActual = room.getPlayerList().find(j => j.id === jugador.id);
+                if (!jugadorActual) {
+                    console.log(`⚠️ DEBUG: ${jugador.name} ya no está conectado, cancelando movimiento automático`);
+                    return;
+                }
+                
+                // Verificar que no tenga advertencias AFK recientes
+                if (jugadoresAFK.has(jugador.id) || advertenciasAFK.has(jugador.id)) {
+                    console.log(`🚫 DEBUG: ${jugador.name} tiene estado AFK, no moviendo automáticamente`);
+                    return;
+                }
+                
                 console.log(`🔄 DEBUG: Intentando mover ${jugador.name} a un equipo...`);
-                agregarJugadorAEquipo(jugador);
+                agregarJugadorAEquipo(jugadorActual);
             } catch (error) {
                 console.error('❌ Error moviendo jugador a equipo:', error);
             }
@@ -11128,9 +11344,23 @@ room.onTeamGoal = function(equipo) {
             }
         }
         
-        // Limpiar datos AFK cuando cambia de equipo
-        jugadoresAFK.delete(jugador.id);
-        advertenciasAFK.delete(jugador.id);
+        // CORRECCIÓN CRÍTICA: Solo limpiar datos AFK si el jugador se UNIÓ VOLUNTARIAMENTE a un equipo
+        // NO limpiar AFK si:
+        // 1. Fue movido a espectadores (team = 0)
+        // 2. Está siendo movido automáticamente por el sistema
+        // 3. Está marcado como AFK y debería permanecer en espectadores
+        if (jugador.team !== 0 && !jugadoresAFK.has(jugador.id)) {
+            // Solo limpiar advertencias AFK si se unió voluntariamente a un equipo
+            advertenciasAFK.delete(jugador.id);
+            console.log(`✅ DEBUG: Limpiando advertencias AFK de ${jugador.name} - se unió al equipo ${jugador.team}`);
+        } else if (jugador.team === 0) {
+            // Si fue movido a espectadores, mantener completamente el estado AFK
+            console.log(`🚫 DEBUG: Manteniendo estado AFK completo de ${jugador.name} - movido a espectadores`);
+        } else if (jugadoresAFK.has(jugador.id) && jugador.team !== 0) {
+            // Si un jugador AFK fue movido a un equipo (posiblemente por admin), mantener su estado AFK
+            // hasta que demuestre actividad
+            console.log(`⚠️ DEBUG: Jugador AFK ${jugador.name} fue movido al equipo ${jugador.team} - manteniendo estado AFK`);
+        }
         
         // Verificar auto start/stop después del cambio de equipo
         setTimeout(() => {

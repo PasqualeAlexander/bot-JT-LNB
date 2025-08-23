@@ -7411,6 +7411,17 @@ function asignarColor(equipo, codigo, jugador) {
         return;
     }
     
+    // Verificar si el otro equipo ya está usando la misma camiseta (excepto para administradores)
+    if (!esAdminBasico(jugador)) {
+        const camisetaEquipoContrario = team === 1 ? camisetaActualBlue : camisetaActualRed;
+        const equipoContrarioNombre = team === 1 ? "Azul" : "Rojo";
+        
+        if (camisetaEquipoContrario && camisetaEquipoContrario.toLowerCase() === codigo.toLowerCase()) {
+            anunciarError(`❌ El equipo ${equipoContrarioNombre} ya está usando la camiseta "${codigo.toUpperCase()}". Elige otra camiseta.`, jugador);
+            return;
+        }
+    }
+    
     // Verificar si ya se alcanzó el máximo de cambios para este equipo (excepto para administradores)
     const cambiosEquipo = team === 1 ? cambiosCamisetaRed : cambiosCamisetaBlue;
     if (cambiosEquipo >= maxCambiosCamiseta && !esAdminBasico(jugador)) {
@@ -7774,6 +7785,13 @@ function asignarColor(equipo, codigo, jugador) {
         const hexTextColor = parseInt(color.textColor, 16);
         
         room.setTeamColors(team, color.angle || 0, hexTextColor, hexColors);
+        
+        // Actualizar la camiseta actual del equipo
+        if (team === 1) {
+            camisetaActualRed = codigo;
+        } else {
+            camisetaActualBlue = codigo;
+        }
         
         // NOTA: setPlayerTeamColors removido para evitar problemas de expulsión
         // Los colores se aplicarán automáticamente cuando los jugadores cambien de equipo

@@ -560,7 +560,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGip0coCO1cQY9x8mw.mxII52528ds";
+const token = "thr1.AAAAAGip7Cc3N3wMEbnYpQ.6cMDD1eHR6k";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -4178,7 +4178,35 @@ function autoBalanceEquipos() {
     const jugadores = room.getPlayerList();
     const jugadoresRed = jugadores.filter(j => j.team === 1);
     const jugadoresBlue = jugadores.filter(j => j.team === 2);
+    const totalJugadoresEnEquipos = jugadoresRed.length + jugadoresBlue.length;
     const diferencia = Math.abs(jugadoresRed.length - jugadoresBlue.length);
+
+    console.log(`⚖️ DEBUG autoBalanceEquipos: Rojo=${jugadoresRed.length}, Azul=${jugadoresBlue.length}, Total=${totalJugadoresEnEquipos}, Diferencia=${diferencia}`);
+    
+    // CORRECCIÓN DEL BUG 2vs1: Detectar caso crítico donde un equipo queda vacío o muy desbalanceado
+    const equipoVacio = jugadoresRed.length === 0 || jugadoresBlue.length === 0;
+    const desbalanceCritico = diferencia >= 2 && totalJugadoresEnEquipos >= 2;
+    const necesitaMezclaCompleta = (equipoVacio || desbalanceCritico) && !partidoEnCurso;
+    
+    // NUEVA LÓGICA: También verificar si hay jugadores AFK que están causando el desbalance
+    const jugadoresNoAFK = jugadores.filter(j => j.team === 1 || j.team === 2).filter(j => !jugadoresAFK.has(j.id) && !esBot(j));
+    const necesitaReorganizacionAFK = jugadoresNoAFK.length >= 2 && (equipoVacio || diferencia >= 2) && !partidoEnCurso;
+    
+    if (necesitaMezclaCompleta || necesitaReorganizacionAFK) {
+        const motivo = equipoVacio ? "equipo vacío" : 
+                      necesitaReorganizacionAFK ? "jugadores AFK causando desbalance" :
+                      "desbalance crítico";
+        
+        console.log(`🔥 DEBUG: Caso crítico detectado - ${motivo} con ${totalJugadoresEnEquipos} jugadores (${jugadoresNoAFK.length} no AFK). Activando mezcla completa...`);
+        anunciarGeneral(`🔄 ⚡ REORGANIZANDO EQUIPOS POR ${motivo.toUpperCase()}... ⚡ 🔄`, "FFD700", "bold");
+        
+        // Usar la función de mezcla completa para redistribuir correctamente
+        setTimeout(() => {
+            mezclarEquiposAleatoriamente();
+        }, 300); // Reducido el tiempo para respuesta más rápida
+        
+        return; // Salir temprano, la mezcla se encargará del resto
+    }
 
     // Durante partidos, solo balancear si hay una diferencia muy grande (2 o más)
     // Fuera de partidos, balancear con diferencia de 2 o más
@@ -4205,11 +4233,22 @@ function autoBalanceEquipos() {
             return true;
         });
 
+        // Si no hay candidatos válidos para mover, forzar mezcla completa
+        if (candidatos.length === 0 && totalJugadoresEnEquipos >= 2) {
+            console.log(`🔥 DEBUG: No hay candidatos para balance simple, forzando mezcla completa...`);
+            setTimeout(() => {
+                mezclarEquiposAleatoriamente();
+            }, 300);
+            return;
+        }
+
         // Mezclar aleatoriamente los candidatos
         for (let i = candidatos.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [candidatos[i], candidatos[j]] = [candidatos[j], candidatos[i]];
         }
+        
+        console.log(`⚖️ DEBUG: Moviendo ${jugadoresAMover} jugador(es) de equipo mayor a menor`);
         
         // Mover el número necesario de jugadores
         for (let i = 0; i < jugadoresAMover; i++) {
@@ -11275,9 +11314,10 @@ room.onTeamGoal = function(equipo) {
         
         const esMovimientoDelBot = esBot(jugador) || movimientoIniciadorPorBot.has(jugador.id);
         const esMovimientoDeAdmin = equipoByAdmin !== null && equipoByAdmin !== undefined;
+        const esMezclaProcesandose = mezclaProcesandose; // Permitir movimientos durante mezcla automática
         
-        // BLOQUEAR TODOS LOS MOVIMIENTOS MANUALES DE JUGADORES
-        if (!esMovimientoDelBot && !esMovimientoDeAdmin) {
+        // BLOQUEAR TODOS LOS MOVIMIENTOS MANUALES DE JUGADORES (EXCEPTO DURANTE MEZCLA)
+        if (!esMovimientoDelBot && !esMovimientoDeAdmin && !esMezclaProcesandose) {
             // Obtener el equipo anterior del jugador
             const equipoAnterior = equiposJugadoresAntesMovimiento.get(jugador.id) || 0;
             

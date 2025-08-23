@@ -556,11 +556,11 @@ async function registrarJugador(nombre) {
 
 // ==================== CONFIGURACIÓN DE LA SALA ====================
 // Variables de configuración (estas deben coincidir con bot.js)
-const roomName = "⚡🔵 LNB JUEGAN TODOS BIGGER X7 🔵⚡";
+const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGingXxAJwLs78SjAA.ivxj7La9SzU";
+const token = "thr1.AAAAAGipVKKHkS9XPb8kEg.MHsfM-GZ8_A";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -11208,34 +11208,46 @@ room.onTeamGoal = function(equipo) {
         }
     };
     
-    // Jugador entra/sale del juego
+    // Jugador entra/sale del juego - MOVIMIENTOS BLOQUEADOS COMPLETAMENTE
     room.onPlayerTeamChange = function(jugador, equipoByAdmin) {
-        // NUEVO SISTEMA: Verificar si el movimiento está permitido
-        // Los movimientos están SIEMPRE bloqueados excepto por:
+        // SISTEMA SIMPLIFICADO: BLOQUEAR TODOS LOS MOVIMIENTOS MANUALES
+        // Solo permitir movimientos iniciados por:
         // 1. El bot/sistema (cuando esBot(jugador) es true)
-        // 2. Comandos específicos (!afk, !back) que añaden temporalmente el ID del jugador al Set
-        // 3. Procesos internos del bot (mezcla, balance, etc.)
-        // 4. Movimientos iniciados por el bot (tracked in movimientoIniciadorPorBot Set)
+        // 2. Movimientos programados por el bot (tracked in movimientoIniciadorPorBot Set)
+        // 3. El equipoByAdmin cuando es explícitamente un admin quien lo mueve
         
-        const esMovimientoPermitido = esBot(jugador) || 
-                                    movimientoPermitidoPorComando.has(jugador.id) || 
-                                    movimientoIniciadorPorBot.has(jugador.id) ||
-                                    mezclaProcesandose ||
-                                    (equipoByAdmin !== null && equipoByAdmin !== undefined);
+        const esMovimientoDelBot = esBot(jugador) || movimientoIniciadorPorBot.has(jugador.id);
+        const esMovimientoDeAdmin = equipoByAdmin !== null && equipoByAdmin !== undefined;
         
-        if (!esMovimientoPermitido) {
-            // Movimiento NO permitido - revertir
+        // BLOQUEAR TODOS LOS MOVIMIENTOS MANUALES DE JUGADORES
+        if (!esMovimientoDelBot && !esMovimientoDeAdmin) {
+            // Obtener el equipo anterior del jugador
             const equipoAnterior = equiposJugadoresAntesMovimiento.get(jugador.id) || 0;
             
-            console.log(`🚫 DEBUG: Bloqueando movimiento manual de ${jugador.name} (ID: ${jugador.id}) - revirtiendo a equipo ${equipoAnterior}`);
+            console.log(`🚫 MOVIMIENTO BLOQUEADO: ${jugador.name} intentó cambiar de equipo manualmente`);
+            console.log(`🔄 Revirtiendo: Equipo ${jugador.team} -> Equipo ${equipoAnterior}`);
             
-            // Revertir el movimiento
-            movimientoIniciadorPorBot.add(jugador.id); // Add to bot tracking to prevent reversal loop
+            // Marcar como movimiento del bot para evitar loops
+            movimientoIniciadorPorBot.add(jugador.id);
+            
+            // Revertir el movimiento inmediatamente
             setTimeout(() => {
-                room.setPlayerTeam(jugador.id, equipoAnterior);
-                anunciarAdvertencia(`🚫 ${jugador.name}, no puedes cambiar de equipo manualmente. Usa !afk para salir o !back para volver`, jugador);
-            }, 100);
-            return;
+                try {
+                    room.setPlayerTeam(jugador.id, equipoAnterior);
+                    // Mensaje informativo al jugador
+                    room.sendAnnouncement(
+                        "🚫 Los cambios de equipo están deshabilitados. Solo los admins pueden mover jugadores.",
+                        jugador.id,
+                        0xFF6B6B,
+                        "bold",
+                        2
+                    );
+                } catch (error) {
+                    console.error(`❌ Error revirtiendo movimiento de ${jugador.name}:`, error);
+                }
+            }, 50);
+            
+            return false; // Bloquear el evento
         }
         
         // El movimiento está permitido - limpiar permisos temporales y actualizar registro
@@ -12105,37 +12117,46 @@ function inicializar() {
             console.error('❌ DEBUG: Propiedades disponibles en room:', Object.keys(room || {}));
         }
         
-        // CONFIGURAR MANUALMENTE onRoomLink SI NO ESTÁ DISPONIBLE
-        if (room && typeof room.onRoomLink === 'undefined') {
-            console.log('🔧 DEBUG: Configurando onRoomLink manualmente...');
+    // CONFIGURAR MANUALMENTE onRoomLink SI NO ESTÁ DISPONIBLE
+    if (room && typeof room.onRoomLink === 'undefined') {
+        console.log('🔧 DEBUG: Configurando onRoomLink manualmente...');
+        
+        // Configurar el evento onRoomLink manualmente
+        room.onRoomLink = function(link) {
+            console.log('\n' + '🎆'.repeat(40));
+            console.log('🔗 ¡¡¡ENLACE DE LA SALA CAPTURADO MANUALMENTE!!!');
+            console.log('📋 URL RECIBIDA: ' + link);
+            console.log('📍 Tipo de URL: ' + typeof link);
+            console.log('📐 Longitud de URL: ' + (link ? link.length : 'null'));
+            console.log('🕐 Timestamp: ' + new Date().toISOString());
+            console.log('🎆'.repeat(40) + '\n');
             
-            // Configurar el evento onRoomLink manualmente
-            room.onRoomLink = function(link) {
-                console.log('\n' + '🎆'.repeat(40));
-                console.log('🔗 ¡¡¡ENLACE DE LA SALA CAPTURADO MANUALMENTE!!!');
-                console.log('📋 URL RECIBIDA: ' + link);
-                console.log('📍 Tipo de URL: ' + typeof link);
-                console.log('📐 Longitud de URL: ' + (link ? link.length : 'null'));
-                console.log('🕐 Timestamp: ' + new Date().toISOString());
-                console.log('🎆'.repeat(40) + '\n');
+            if (link && typeof link === 'string' && link.length > 0) {
+                enlaceRealSala = link;
+                console.log('✅ enlaceRealSala actualizado manualmente: ' + enlaceRealSala);
                 
-                if (link && typeof link === 'string' && link.length > 0) {
-                    enlaceRealSala = link;
-                    console.log('✅ enlaceRealSala actualizado manualmente: ' + enlaceRealSala);
-                    
-                    // Enviar reporte inmediato con el enlace
-                    setTimeout(() => {
-                        try {
-                            enviarOEditarReporteSala("Enlace capturado manualmente", false);
-                            console.log('📤 Reporte enviado con enlace capturado manualmente');
-                        } catch (error) {
-                            console.error('❌ Error al enviar reporte:', error);
-                        }
-                    }, 2000);
-                } else {
-                    console.error('❌ ERROR: URL inválida recibida en onRoomLink manual');
+                // Deshabilitar los botones de cambio de equipo al inicializar la sala
+                try {
+                    room.setTeamsLock(true);
+                    console.log('🔒 Botones de cambio de equipo deshabilitados exitosamente');
+                    anunciarInfo("🔒 Sistema de control de equipos activado. Solo los admins pueden mover jugadores.");
+                } catch (error) {
+                    console.error('❌ Error al deshabilitar botones de cambio de equipo:', error);
                 }
-            };
+                
+                // Enviar reporte inmediato con el enlace
+                setTimeout(() => {
+                    try {
+                        enviarOEditarReporteSala("Enlace capturado manualmente", false);
+                        console.log('📤 Reporte enviado con enlace capturado manualmente');
+                    } catch (error) {
+                        console.error('❌ Error al enviar reporte:', error);
+                    }
+                }, 2000);
+            } else {
+                console.error('❌ ERROR: URL inválida recibida en onRoomLink manual');
+            }
+        };
             
             console.log('✅ DEBUG: onRoomLink configurado manualmente');
         }
@@ -12190,6 +12211,15 @@ function inicializar() {
     
     // Configurar eventos
     configurarEventos();
+    
+    // Deshabilitar los botones de cambio de equipo desde el inicio
+    try {
+        room.setTeamsLock(true);
+        console.log('🔒 Botones de cambio de equipo deshabilitados exitosamente');
+        anunciarInfo("🔒 Sistema de control de equipos activado. Solo los admins pueden mover jugadores.");
+    } catch (error) {
+        console.error('❌ Error al deshabilitar botones de cambio de equipo:', error);
+    }
 
     // Restaurar baneos persistentes
     restaurarBaneos();
@@ -12447,11 +12477,20 @@ function inicializarBot() {
         
         console.log('✅ Sala creada exitosamente');
         
-        // Configurar eventos
-        configurarEventos();
-        
-        // Inicializar sistemas
-        inicializarSistemas();
+    // Configurar eventos
+    configurarEventos();
+    
+    // Inicializar sistemas
+    inicializarSistemas();
+    
+    // Deshabilitar los botones de cambio de equipo desde el inicio
+    try {
+        room.setTeamsLock(true);
+        console.log('🔒 Botones de cambio de equipo deshabilitados exitosamente');
+        anunciarInfo("🔒 Sistema de control de equipos activado. Solo los admins pueden mover jugadores.");
+    } catch (error) {
+        console.error('❌ Error al deshabilitar botones de cambio de equipo:', error);
+    }
         
         // Establecer mapa inicial con delay para asegurar que la sala esté completamente lista
         setTimeout(() => {

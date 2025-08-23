@@ -4183,27 +4183,22 @@ function autoBalanceEquipos() {
 
     console.log(`⚖️ DEBUG autoBalanceEquipos: Rojo=${jugadoresRed.length}, Azul=${jugadoresBlue.length}, Total=${totalJugadoresEnEquipos}, Diferencia=${diferencia}`);
     
-    // CORRECCIÓN DEL BUG 2vs1: Detectar caso crítico donde un equipo queda vacío o muy desbalanceado
+    // CORRECCIÓN DEL BUG AFK: Detectar casos críticos SOLO cuando realmente sea necesario
     const equipoVacio = jugadoresRed.length === 0 || jugadoresBlue.length === 0;
-    const desbalanceCritico = diferencia >= 2 && totalJugadoresEnEquipos >= 2;
-    const necesitaMezclaCompleta = (equipoVacio || desbalanceCritico) && !partidoEnCurso;
+    const desbalanceCritico = diferencia >= 3; // CAMBIO: Aumentar umbral para evitar mezclas innecesarias
     
-    // NUEVA LÓGICA: También verificar si hay jugadores AFK que están causando el desbalance
-    const jugadoresNoAFK = jugadores.filter(j => j.team === 1 || j.team === 2).filter(j => !jugadoresAFK.has(j.id) && !esBot(j));
-    const necesitaReorganizacionAFK = jugadoresNoAFK.length >= 2 && (equipoVacio || diferencia >= 2) && !partidoEnCurso;
+    // CORRECCIÓN CRÍTICA: Solo usar mezcla completa en casos muy específicos
+    // NO para jugadores AFK - esos casos se manejan con balance individual
+    const necesitaMezclaCompleta = equipoVacio && totalJugadoresEnEquipos >= 4 && !partidoEnCurso;
     
-    if (necesitaMezclaCompleta || necesitaReorganizacionAFK) {
-        const motivo = equipoVacio ? "equipo vacío" : 
-                      necesitaReorganizacionAFK ? "jugadores AFK causando desbalance" :
-                      "desbalance crítico";
-        
-        console.log(`🔥 DEBUG: Caso crítico detectado - ${motivo} con ${totalJugadoresEnEquipos} jugadores (${jugadoresNoAFK.length} no AFK). Activando mezcla completa...`);
-        anunciarGeneral(`🔄 ⚡ REORGANIZANDO EQUIPOS POR ${motivo.toUpperCase()}... ⚡ 🔄`, "FFD700", "bold");
+    if (necesitaMezclaCompleta) {
+        console.log(`🔥 DEBUG: Caso crítico detectado - equipo completamente vacío con ${totalJugadoresEnEquipos} jugadores. Activando mezcla completa...`);
+        anunciarGeneral(`🔄 ⚡ REORGANIZANDO EQUIPOS POR EQUIPO VACÍO... ⚡ 🔄`, "FFD700", "bold");
         
         // Usar la función de mezcla completa para redistribuir correctamente
         setTimeout(() => {
             mezclarEquiposAleatoriamente();
-        }, 300); // Reducido el tiempo para respuesta más rápida
+        }, 300);
         
         return; // Salir temprano, la mezcla se encargará del resto
     }

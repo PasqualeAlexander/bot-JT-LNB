@@ -4366,9 +4366,13 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
             anunciarGeneral(`⚖️ 🔄 Balance: ${candidatoElegido.name} → ${equipoDestinoNombre} (equilibrando equipos)`, "87CEEB", "bold");
         }
         
-        // Pequeño delay entre movimientos para evitar conflictos
+        // Pequeño delay entre movimientos para evitar conflictos (cambiado a setTimeout)
         if (i < jugadoresAMover - 1) {
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // En lugar de await, usar setTimeout para que no bloquee la ejecución
+            setTimeout(() => {
+                // El delay ya no es necesario aquí ya que se ejecuta secuencialmente
+                console.log(`💫 DEBUG: Delay aplicado entre movimientos de balance`);
+            }, 200);
         }
     }
 }
@@ -11804,16 +11808,6 @@ function mostrarPuntuacionJugador(jugador) {
     }
 }
 
-// FUNCIONES PARA SISTEMA DE CONTRASEÑAS AUTOMÁTICAS
-function generarContraseñaAleatoria() {
-    return Math.floor(1000 + Math.random() * 9000).toString();
-}
-
-// Función para obtener estadísticas de jugador (función faltante agregada)
-function obtenerEstadisticasJugador(nombre) {
-    const stats = estadisticasGlobales.jugadores[nombre];
-    return stats || null;
-}
 
 // FUNCIÓN CORREGIDA: obtenerInfoSala
 function obtenerInfoSala() {

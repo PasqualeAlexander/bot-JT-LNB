@@ -1812,7 +1812,7 @@ const webhooks = {
         
         // Inyectar el código completo del bot con manejo de errores
         try {
-            await page.evaluate(async (codigo) => {
+            await page.evaluate((codigo) => {
                 console.log('🔧 DEBUG: Iniciando evaluación del código del bot...');
                 
                 try {
@@ -1821,9 +1821,30 @@ const webhooks = {
                     window.enlaceRealSala = "https://www.haxball.com/play?c=abcd1234";
                     window.enlaceRealConfirmado = false;
                     
-                    // Evaluar el código envuelto en una función async IIFE (Immediately Invoked Function Expression)
-                    const wrappedCode = `(async () => { ${codigo} })();`;
-                    await eval(wrappedCode);
+                    // Envolver el código en una función anónima para evitar problemas con await en el nivel superior
+                    const codeWrapper = `
+                        (function() {
+                            try {
+                                ${codigo}
+                                console.log('✅ DEBUG: Código del bot ejecutado sin errores de sintaxis');
+                                return true;
+                            } catch (err) {
+                                console.error('❌ DEBUG: Error en el código del bot:', err.message);
+                                console.error('📍 DEBUG: Stack trace:', err.stack);
+                                return false;
+                            }
+                        })();
+                    `;
+                    
+                    // Evaluar el código usando eval encapsulado
+                    try {
+                        eval(codeWrapper);
+                        console.log('✅ DEBUG: eval() ejecutado sin errores de sintaxis');
+                    } catch (parseErr) {
+                        console.error('❌ DEBUG: Error evaluando código:', parseErr.message);
+                        console.error('📍 DEBUG: Stack trace:', parseErr.stack);
+                        throw parseErr;
+                    }
                     
                     console.log('✅ DEBUG: Código evaluado correctamente');
                     

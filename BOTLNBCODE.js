@@ -4261,7 +4261,7 @@ function balanceInteligente(razon = "balance automático") {
 }
 
 // FUNCIÓN DE BALANCE INTELIGENTE ESPECÍFICA PARA CUANDO UN JUGADOR SALE
-// SISTEMA SIMPLIFICADO: Si diferencia >= 2, mover 1 jugador para equilibrar
+// SISTEMA MEJORADO: Balance automático 4v2 -> 3v3
 function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
     const jugadores = room.getPlayerList();
     const jugadoresRed = jugadores.filter(j => j.team === 1);
@@ -4277,11 +4277,21 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
         return;
     }
     
-    // SISTEMA SIMPLIFICADO: Si diferencia >= 2, mover 1 jugador
-    // Esto mantiene siempre máximo 1 jugador de diferencia entre equipos
+    // SISTEMA MEJORADO: Balance más agresivo para mantener equilibrio
+    // Casos específicos que requieren balance:
+    // - Diferencia >= 2 jugadores
+    // - Caso especial 4v2 -> 3v3 (diferencia = 2)
+    // - Caso especial 5v2 -> 4v3 (diferencia = 3)
     if (diferencia < 2) {
         console.log(`✅ DEBUG: Equipos equilibrados (diferencia ${diferencia} < 2) - no se requiere balance`);
         return;
+    }
+    
+    // CASO ESPECIAL: Detectar situación 4v2 y forzar balance a 3v3
+    if ((jugadoresRed.length === 4 && jugadoresBlue.length === 2) || 
+        (jugadoresRed.length === 2 && jugadoresBlue.length === 4)) {
+        console.log(`🎯 DEBUG: Detectada situación 4v2 - forzando balance automático a 3v3`);
+        anunciarGeneral(`⚖️ ⚡ Auto Balance 4v2 → 3v3 tras desconexión ⚡`, "FFD700", "bold");
     }
     
     console.log(`⚖️ DEBUG: Balance necesario - diferencia de ${diferencia} jugadores`);
@@ -4319,29 +4329,176 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
         return;
     }
 
-    // Elegir aleatoriamente un candidato
-    const candidatoElegido = candidatos[Math.floor(Math.random() * candidatos.length)];
+    // Determinar cuántos jugadores mover basado en la situación
+    let jugadoresAMover = 1; // Por defecto, mover 1 jugador
     
-    console.log(`⚖️ DEBUG: Balance post-salida - moviendo a ${candidatoElegido.name} del equipo ${equipoMayorEnum === 1 ? 'ROJO' : 'AZUL'} al ${equipoMenorEnum === 1 ? 'ROJO' : 'AZUL'}`);
-    
-    // Marcar movimiento como iniciado por el bot
-    movimientoIniciadorPorBot.add(candidatoElegido.id);
-    
-    room.setPlayerTeam(candidatoElegido.id, equipoMenorEnum);
-    const equipoDestinoNombre = equipoMenorEnum === 1 ? '🔴 ROJO' : '🔵 AZUL';
-    
-    // Mensaje indicando el balance automático
-    if (partidoEnCurso) {
-        anunciarGeneral(`⚖️ 🔄 Auto Balance: ${candidatoElegido.name} → ${equipoDestinoNombre} (diferencia ${diferencia})`, "FFD700", "bold");
+    // Para diferencias grandes, calcular cuántos jugadores mover para equilibrar mejor
+    if (diferencia >= 4) {
+        jugadoresAMover = 2; // Mover 2 jugadores para equilibrar mejor
+    } else if (diferencia >= 3) {
+        jugadoresAMover = 1; // Mover 1 jugador
     } else {
-        anunciarGeneral(`⚖️ 🔄 Balance: ${candidatoElegido.name} → ${equipoDestinoNombre} (${jugadoresRed.length > jugadoresBlue.length ? jugadoresRed.length : jugadoresBlue.length} vs ${jugadoresRed.length < jugadoresBlue.length ? jugadoresRed.length : jugadoresBlue.length})`, "87CEEB", "bold");
+        jugadoresAMover = 1; // Mover 1 jugador (caso 4v2 -> 3v3)
+    }
+    
+    console.log(`⚖️ DEBUG: Balance post-salida - moviendo ${jugadoresAMover} jugador(es) del equipo ${equipoMayorEnum === 1 ? 'ROJO' : 'AZUL'} al ${equipoMenorEnum === 1 ? 'ROJO' : 'AZUL'}`);
+    
+    // Mover los jugadores necesarios para equilibrar
+    for (let i = 0; i < jugadoresAMover && i < candidatos.length; i++) {
+        const candidatoElegido = candidatos[Math.floor(Math.random() * candidatos.length)];
+        
+        // Remover el candidato elegido de la lista para evitar moverlo dos veces
+        const index = candidatos.indexOf(candidatoElegido);
+        if (index > -1) {
+            candidatos.splice(index, 1);
+        }
+        
+        // Marcar movimiento como iniciado por el bot
+        movimientoIniciadorPorBot.add(candidatoElegido.id);
+        
+        room.setPlayerTeam(candidatoElegido.id, equipoMenorEnum);
+        const equipoDestinoNombre = equipoMenorEnum === 1 ? '🔴 ROJO' : '🔵 AZUL';
+        
+        // Mensaje indicando el balance automático
+        if (partidoEnCurso) {
+            anunciarGeneral(`⚖️ 🔄 Auto Balance: ${candidatoElegido.name} → ${equipoDestinoNombre} (${i + 1}/${jugadoresAMover})`, "FFD700", "bold");
+        } else {
+            anunciarGeneral(`⚖️ 🔄 Balance: ${candidatoElegido.name} → ${equipoDestinoNombre} (equilibrando equipos)`, "87CEEB", "bold");
+        }
+        
+        // Pequeño delay entre movimientos para evitar conflictos
+        if (i < jugadoresAMover - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+    }
+}
+
+// FUNCIÓN PARA OBTENER CANTIDAD DE JUGADORES POR EQUIPO
+function obtenerCantidadJugadoresPorEquipo() {
+    if (typeof room === 'undefined' || !room || !room.getPlayerList) {
+        console.warn('⚠️ Room no disponible para obtener jugadores');
+        return { rojo: 0, azul: 0, espectadores: 0, total: 0 };
+    }
+    
+    const jugadores = room.getPlayerList();
+    const jugadoresRojo = jugadores.filter(j => j.team === 1);
+    const jugadoresAzul = jugadores.filter(j => j.team === 2);
+    const espectadores = jugadores.filter(j => j.team === 0);
+    
+    return {
+        rojo: jugadoresRojo.length,
+        azul: jugadoresAzul.length,
+        espectadores: espectadores.length,
+        total: jugadores.length,
+        jugadoresRojo: jugadoresRojo,
+        jugadoresAzul: jugadoresAzul,
+        diferencia: Math.abs(jugadoresRojo.length - jugadoresAzul.length)
+    };
+}
+
+// FUNCIÓN DE BALANCE AUTOMÁTICO CONTINUO
+// Esta función se ejecuta automáticamente y balancea cuando la diferencia es mayor a 1 jugador
+function balanceAutomaticoContinuo() {
+    if (typeof room === 'undefined' || !room || !room.getPlayerList) {
+        return;
+    }
+    
+    const equipos = obtenerCantidadJugadoresPorEquipo();
+    const { rojo, azul, diferencia, jugadoresRojo, jugadoresAzul } = equipos;
+    
+    console.log(`🔄 DEBUG balanceAutomaticoContinuo: Rojo=${rojo}, Azul=${azul}, Diferencia=${diferencia}`);
+    
+    // Si no hay jugadores en equipos, no hacer nada
+    if (rojo === 0 && azul === 0) {
+        console.log(`❌ DEBUG: No hay jugadores en equipos para balancear`);
+        return;
+    }
+    
+    // CONDICIÓN PRINCIPAL: Balancear siempre que la diferencia sea mayor a 1 jugador
+    if (diferencia > 1) {
+        console.log(`⚖️ DEBUG: Balance necesario - diferencia de ${diferencia} jugadores`);
+        
+        // Determinar equipo con más jugadores y equipo con menos jugadores
+        const equipoConMas = rojo > azul ? jugadoresRojo : jugadoresAzul;
+        const equipoConMenos = rojo > azul ? 2 : 1; // 1=rojo, 2=azul
+        const equipoConMasNombre = rojo > azul ? 'ROJO' : 'AZUL';
+        const equipoConMenosNombre = rojo > azul ? 'AZUL' : 'ROJO';
+        
+        // Filtrar candidatos válidos (excluir bots y jugadores AFK)
+        const candidatos = equipoConMas.filter(jugador => {
+            if (esBot(jugador)) {
+                console.log(`🚫 DEBUG: Excluyendo bot ${jugador.name} del balance`);
+                return false;
+            }
+            if (jugadoresAFK.has(jugador.id)) {
+                console.log(`🚫 DEBUG: Excluyendo ${jugador.name} del balance (marcado como AFK)`);
+                return false;
+            }
+            return true;
+        });
+        
+        if (candidatos.length === 0) {
+            console.log(`⚠️ DEBUG: No hay candidatos válidos para balance automático continuo`);
+            return;
+        }
+        
+        // Calcular cuántos jugadores mover para equilibrar
+        // Si la diferencia es impar, mover (diferencia - 1) / 2 jugadores
+        // Si la diferencia es par, mover diferencia / 2 jugadores
+        const jugadoresAMover = Math.floor(diferencia / 2);
+        
+        console.log(`⚖️ DEBUG: Moviendo ${jugadoresAMover} jugador(es) del equipo ${equipoConMasNombre} al ${equipoConMenosNombre}`);
+        
+        // Mover jugadores aleatoriamente para mantener fairness
+        for (let i = 0; i < jugadoresAMover && i < candidatos.length; i++) {
+            const jugadorAleatorio = candidatos[Math.floor(Math.random() * candidatos.length)];
+            
+            // Remover el jugador seleccionado de candidatos para evitar moverlo dos veces
+            const index = candidatos.indexOf(jugadorAleatorio);
+            if (index > -1) {
+                candidatos.splice(index, 1);
+            }
+            
+            // Marcar movimiento como iniciado por el bot
+            movimientoIniciadorPorBot.add(jugadorAleatorio.id);
+            
+            // Mover el jugador
+            room.setPlayerTeam(jugadorAleatorio.id, equipoConMenos);
+            
+            // Anunciar el movimiento
+            const equipoDestinoEmoji = equipoConMenos === 1 ? '🔴' : '🔵';
+            anunciarGeneral(`⚖️ Balance: ${jugadorAleatorio.name} → ${equipoDestinoEmoji} ${equipoConMenosNombre}`, "87CEEB", "bold");
+            
+            console.log(`✅ DEBUG: Movido ${jugadorAleatorio.name} al equipo ${equipoConMenosNombre}`);
+        }
+        
+        // Verificar el resultado después del balance
+        setTimeout(() => {
+            const equiposPostBalance = obtenerCantidadJugadoresPorEquipo();
+            console.log(`📊 DEBUG Post-balance: Rojo=${equiposPostBalance.rojo}, Azul=${equiposPostBalance.azul}, Diferencia=${equiposPostBalance.diferencia}`);
+            
+            // Si aún hay diferencia mayor a 1, programar otro balance en 2 segundos
+            if (equiposPostBalance.diferencia > 1 && equiposPostBalance.rojo > 0 && equiposPostBalance.azul > 0) {
+                console.log(`🔄 DEBUG: Aún hay diferencia mayor a 1, programando nuevo balance`);
+                setTimeout(() => {
+                    balanceAutomaticoContinuo();
+                }, 2000);
+            }
+        }, 500);
+    } else {
+        console.log(`✅ DEBUG: Equipos balanceados (diferencia ${diferencia} ≤ 1)`);
     }
 }
 
 // FUNCIÓN DE AUTO BALANCE DE EQUIPOS (MANTENER COMPATIBILIDAD)
 function autoBalanceEquipos() {
-    // Usar la nueva función de balance inteligente
-    balanceInteligente("auto balance");
+    // Primero ejecutar el balance automático continuo
+    balanceAutomaticoContinuo();
+    
+    // Luego usar la función de balance inteligente como respaldo
+    setTimeout(() => {
+        balanceInteligente("auto balance");
+    }, 1000);
 }
 
 // Variables para controlar la frecuencia de verificarAutoStart
@@ -11385,7 +11542,7 @@ room.onTeamGoal = function(equipo) {
         // 2. Movimientos programados por el bot (tracked in movimientoIniciadorPorBot Set)
         // 3. El equipoByAdmin cuando es explícitamente un admin quien lo mueve
         
-        const esMovimientoDelBot = esBot(jugador) || movimientoIniciadorPorBot.has(jugador.id);
+        const esMovimientoDelBot = esBot(jugador) || movimientoIniciadorPorBot.has(jugador.id) || movimientoPermitidoPorComando.has(jugador.id);
         const esMovimientoDeAdmin = equipoByAdmin !== null && equipoByAdmin !== undefined;
         const esMezclaProcesandose = mezclaProcesandose; // Permitir movimientos durante mezcla automática
         

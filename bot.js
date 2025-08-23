@@ -1812,7 +1812,7 @@ const webhooks = {
         
         // Inyectar el código completo del bot con manejo de errores
         try {
-            await page.evaluate((codigo) => {
+            await page.evaluate(async (codigo) => {
                 console.log('🔧 DEBUG: Iniciando evaluación del código del bot...');
                 
                 try {
@@ -1821,8 +1821,10 @@ const webhooks = {
                     window.enlaceRealSala = "https://www.haxball.com/play?c=abcd1234";
                     window.enlaceRealConfirmado = false;
                     
-                    // Evaluar el código
-                    eval(codigo);
+                    // Evaluar el código en una función async
+                    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+                    const asyncEval = new AsyncFunction(codigo);
+                    await asyncEval();
                     
                     console.log('✅ DEBUG: Código evaluado correctamente');
                     

@@ -1821,10 +1821,9 @@ const webhooks = {
                     window.enlaceRealSala = "https://www.haxball.com/play?c=abcd1234";
                     window.enlaceRealConfirmado = false;
                     
-                    // Evaluar el código en una función async
-                    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-                    const asyncEval = new AsyncFunction(codigo);
-                    await asyncEval();
+                    // Evaluar el código envuelto en una función async IIFE (Immediately Invoked Function Expression)
+                    const wrappedCode = `(async () => { ${codigo} })();`;
+                    await eval(wrappedCode);
                     
                     console.log('✅ DEBUG: Código evaluado correctamente');
                     

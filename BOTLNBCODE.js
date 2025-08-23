@@ -4173,97 +4173,175 @@ function agregarJugadorAEquipo(jugador) {
     }, 500);
 }
 
-// FUNCIÓN DE AUTO BALANCE DE EQUIPOS
-function autoBalanceEquipos() {
+// FUNCIÓN DE BALANCE INTELIGENTE MEJORADA
+function balanceInteligente(razon = "balance automático") {
     const jugadores = room.getPlayerList();
     const jugadoresRed = jugadores.filter(j => j.team === 1);
     const jugadoresBlue = jugadores.filter(j => j.team === 2);
     const totalJugadoresEnEquipos = jugadoresRed.length + jugadoresBlue.length;
     const diferencia = Math.abs(jugadoresRed.length - jugadoresBlue.length);
 
-    console.log(`⚖️ DEBUG autoBalanceEquipos: Rojo=${jugadoresRed.length}, Azul=${jugadoresBlue.length}, Total=${totalJugadoresEnEquipos}, Diferencia=${diferencia}`);
+    console.log(`⚖️ DEBUG balanceInteligente (${razon}): Rojo=${jugadoresRed.length}, Azul=${jugadoresBlue.length}, Total=${totalJugadoresEnEquipos}, Diferencia=${diferencia}`);
     
-    // CORRECCIÓN DEL BUG AFK: Detectar casos críticos SOLO cuando realmente sea necesario
+    // Si no hay jugadores en equipos, no hacer nada
+    if (totalJugadoresEnEquipos === 0) {
+        console.log(`❌ DEBUG: No hay jugadores en equipos para balancear`);
+        return;
+    }
+    
+    // Durante partidos, solo balancear si hay una diferencia muy grande (3 o más)
+    // Fuera de partidos, balancear con diferencia de 2 o más
+    const umbralBalance = partidoEnCurso ? 3 : 2;
+    
+    // Si la diferencia es menor al umbral, no hacer nada
+    if (diferencia < umbralBalance) {
+        console.log(`✅ DEBUG: Equipos balanceados (diferencia ${diferencia} < umbral ${umbralBalance})`);
+        return;
+    }
+    
+    // CASO ESPECIAL: Si un equipo está completamente vacío
+    // Solo entonces hacer mezcla completa (pero solo si no está en partido)
     const equipoVacio = jugadoresRed.length === 0 || jugadoresBlue.length === 0;
-    const desbalanceCritico = diferencia >= 3; // CAMBIO: Aumentar umbral para evitar mezclas innecesarias
-    
-    // CORRECCIÓN CRÍTICA: Solo usar mezcla completa en casos muy específicos
-    // NO para jugadores AFK - esos casos se manejan con balance individual
-    const necesitaMezclaCompleta = equipoVacio && totalJugadoresEnEquipos >= 4 && !partidoEnCurso;
-    
-    if (necesitaMezclaCompleta) {
-        console.log(`🔥 DEBUG: Caso crítico detectado - equipo completamente vacío con ${totalJugadoresEnEquipos} jugadores. Activando mezcla completa...`);
+    if (equipoVacio && totalJugadoresEnEquipos >= 2 && !partidoEnCurso) {
+        console.log(`🔥 DEBUG: Equipo completamente vacío con ${totalJugadoresEnEquipos} jugadores. Activando mezcla completa...`);
         anunciarGeneral(`🔄 ⚡ REORGANIZANDO EQUIPOS POR EQUIPO VACÍO... ⚡ 🔄`, "FFD700", "bold");
         
-        // Usar la función de mezcla completa para redistribuir correctamente
         setTimeout(() => {
             mezclarEquiposAleatoriamente();
         }, 300);
         
         return; // Salir temprano, la mezcla se encargará del resto
     }
-
-    // Durante partidos, solo balancear si hay una diferencia muy grande (2 o más)
-    // Fuera de partidos, balancear con diferencia de 2 o más
-    const umbralBalance = partidoEnCurso ? 2 : 2;
     
-    if (diferencia >= umbralBalance) {
-        const jugadoresAMover = Math.floor(diferencia / 2);
-        const equipoMayor = jugadoresRed.length > jugadoresBlue.length ? jugadoresRed : jugadoresBlue;
-        const equipoMenorEnum = jugadoresRed.length > jugadoresBlue.length ? 2 : 1;
+    // BALANCE MÍNIMO: Solo mover los jugadores necesarios
+    const jugadoresAMover = Math.floor(diferencia / 2);
+    const equipoMayor = jugadoresRed.length > jugadoresBlue.length ? jugadoresRed : jugadoresBlue;
+    const equipoMenorEnum = jugadoresRed.length > jugadoresBlue.length ? 2 : 1;
+    const equipoMayorEnum = jugadoresRed.length > jugadoresBlue.length ? 1 : 2;
 
-        // CORRECCIÓN: Excluir jugadores AFK del auto balance
-        // Los jugadores AFK no deben ser movidos de vuelta a los equipos automáticamente
-        const candidatos = equipoMayor.filter(p => {
-            // Excluir bot
-            if (esBot(p)) return false;
-            
-            // IMPORTANTE: Excluir jugadores que fueron movidos a espectadores por inactividad
-            // Si un jugador está marcado como AFK, no debe ser balanceado automáticamente
-            if (jugadoresAFK.has(p.id)) {
-                console.log(`🚫 DEBUG: Excluyendo del balance a ${p.name} (marcado como AFK)`);
-                return false;
-            }
-            
-            return true;
-        });
-
-        // Si no hay candidatos válidos para mover, forzar mezcla completa
-        if (candidatos.length === 0 && totalJugadoresEnEquipos >= 2) {
-            console.log(`🔥 DEBUG: No hay candidatos para balance simple, forzando mezcla completa...`);
-            setTimeout(() => {
-                mezclarEquiposAleatoriamente();
-            }, 300);
-            return;
+    // Filtrar candidatos válidos (excluir bots y jugadores AFK)
+    const candidatos = equipoMayor.filter(p => {
+        if (esBot(p)) return false;
+        if (jugadoresAFK.has(p.id)) {
+            console.log(`🚫 DEBUG: Excluyendo del balance a ${p.name} (marcado como AFK)`);
+            return false;
         }
+        return true;
+    });
 
-        // Mezclar aleatoriamente los candidatos
-        for (let i = candidatos.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [candidatos[i], candidatos[j]] = [candidatos[j], candidatos[i]];
-        }
+    if (candidatos.length === 0) {
+        console.log(`⚠️ DEBUG: No hay candidatos válidos para balance mínimo`);
+        return;
+    }
+
+    // Mezclar candidatos aleatoriamente para fairness
+    for (let i = candidatos.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [candidatos[i], candidatos[j]] = [candidatos[j], candidatos[i]];
+    }
+    
+    console.log(`⚖️ DEBUG: Balance mínimo - moviendo ${jugadoresAMover} jugador(es) del equipo ${equipoMayorEnum === 1 ? 'ROJO' : 'AZUL'} al ${equipoMenorEnum === 1 ? 'ROJO' : 'AZUL'}`);
+    
+    // Mover solo los jugadores necesarios
+    for (let i = 0; i < jugadoresAMover && i < candidatos.length; i++) {
+        const jugador = candidatos[i];
         
-        console.log(`⚖️ DEBUG: Moviendo ${jugadoresAMover} jugador(es) de equipo mayor a menor`);
+        // Marcar movimiento como iniciado por el bot
+        movimientoIniciadorPorBot.add(jugador.id);
         
-        // Mover el número necesario de jugadores
-        for (let i = 0; i < jugadoresAMover; i++) {
-            if (candidatos[i]) {
-                const jugador = candidatos[i];
-                
-                // CRÍTICO: Marcar este movimiento como iniciado por el bot
-                movimientoIniciadorPorBot.add(jugador.id);
-                
-                room.setPlayerTeam(jugador.id, equipoMenorEnum);
-                const equipoDestinoNombre = equipoMenorEnum === 1 ? '🔴 ROJO' : '🔵 AZUL';
-                
-                if (partidoEnCurso) {
-                    anunciarGeneral(`⚖️ 🔄 Balance: ${jugador.name} → ${equipoDestinoNombre} 🔄`, "FFD700", "bold");
-                } else {
-                    anunciarGeneral(`⚖️ 🔄 Auto Balance: ${jugador.name} → ${equipoDestinoNombre} 🔄`, "87CEEB", "bold");
-                }
-            }
+        room.setPlayerTeam(jugador.id, equipoMenorEnum);
+        const equipoDestinoNombre = equipoMenorEnum === 1 ? '🔴 ROJO' : '🔵 AZUL';
+        
+        if (partidoEnCurso) {
+            anunciarGeneral(`⚖️ 🔄 Balance: ${jugador.name} → ${equipoDestinoNombre}`, "FFD700", "bold");
+        } else {
+            anunciarGeneral(`⚖️ 🔄 Auto Balance: ${jugador.name} → ${equipoDestinoNombre}`, "87CEEB", "bold");
         }
     }
+}
+
+// FUNCIÓN DE BALANCE INTELIGENTE ESPECÍFICA PARA CUANDO UN JUGADOR SALE
+// SISTEMA SIMPLIFICADO: Si diferencia >= 2, mover 1 jugador para equilibrar
+function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
+    const jugadores = room.getPlayerList();
+    const jugadoresRed = jugadores.filter(j => j.team === 1);
+    const jugadoresBlue = jugadores.filter(j => j.team === 2);
+    const totalJugadoresEnEquipos = jugadoresRed.length + jugadoresBlue.length;
+    const diferencia = Math.abs(jugadoresRed.length - jugadoresBlue.length);
+
+    console.log(`⚖️ DEBUG balancePostSalida (${nombreJugadorSalido} salió): Rojo=${jugadoresRed.length}, Azul=${jugadoresBlue.length}, Total=${totalJugadoresEnEquipos}, Diferencia=${diferencia}`);
+    
+    // Si no hay jugadores en equipos o muy pocos, no hacer nada
+    if (totalJugadoresEnEquipos <= 2) {
+        console.log(`✅ DEBUG: Muy pocos jugadores (${totalJugadoresEnEquipos}) - sin balance necesario`);
+        return;
+    }
+    
+    // SISTEMA SIMPLIFICADO: Si diferencia >= 2, mover 1 jugador
+    // Esto mantiene siempre máximo 1 jugador de diferencia entre equipos
+    if (diferencia < 2) {
+        console.log(`✅ DEBUG: Equipos equilibrados (diferencia ${diferencia} < 2) - no se requiere balance`);
+        return;
+    }
+    
+    console.log(`⚖️ DEBUG: Balance necesario - diferencia de ${diferencia} jugadores`);
+    
+    // CASO ESPECIAL: Un equipo completamente vacío -> mezcla completa (solo fuera de partidos)
+    const equipoVacio = jugadoresRed.length === 0 || jugadoresBlue.length === 0;
+    if (equipoVacio && totalJugadoresEnEquipos >= 2 && !partidoEnCurso) {
+        console.log(`🔥 DEBUG: Aplicando mezcla completa por equipo vacío`);
+        anunciarGeneral(`🔄 ⚡ REORGANIZANDO EQUIPOS (equipo vacío tras salida)... ⚡ 🔄`, "FFD700", "bold");
+        
+        setTimeout(() => {
+            mezclarEquiposAleatoriamente();
+        }, 300);
+        
+        return;
+    }
+    
+    // BALANCE SIMPLE: Mover 1 jugador del equipo mayor al menor
+    const equipoMayor = jugadoresRed.length > jugadoresBlue.length ? jugadoresRed : jugadoresBlue;
+    const equipoMenorEnum = jugadoresRed.length > jugadoresBlue.length ? 2 : 1;
+    const equipoMayorEnum = jugadoresRed.length > jugadoresBlue.length ? 1 : 2;
+
+    // Filtrar candidatos válidos (excluir bots y jugadores AFK)
+    const candidatos = equipoMayor.filter(p => {
+        if (esBot(p)) return false;
+        if (jugadoresAFK.has(p.id)) {
+            console.log(`🚫 DEBUG: Excluyendo del balance a ${p.name} (marcado como AFK)`);
+            return false;
+        }
+        return true;
+    });
+
+    if (candidatos.length === 0) {
+        console.log(`⚠️ DEBUG: No hay candidatos válidos para balance post-salida`);
+        return;
+    }
+
+    // Elegir aleatoriamente un candidato
+    const candidatoElegido = candidatos[Math.floor(Math.random() * candidatos.length)];
+    
+    console.log(`⚖️ DEBUG: Balance post-salida - moviendo a ${candidatoElegido.name} del equipo ${equipoMayorEnum === 1 ? 'ROJO' : 'AZUL'} al ${equipoMenorEnum === 1 ? 'ROJO' : 'AZUL'}`);
+    
+    // Marcar movimiento como iniciado por el bot
+    movimientoIniciadorPorBot.add(candidatoElegido.id);
+    
+    room.setPlayerTeam(candidatoElegido.id, equipoMenorEnum);
+    const equipoDestinoNombre = equipoMenorEnum === 1 ? '🔴 ROJO' : '🔵 AZUL';
+    
+    // Mensaje indicando el balance automático
+    if (partidoEnCurso) {
+        anunciarGeneral(`⚖️ 🔄 Auto Balance: ${candidatoElegido.name} → ${equipoDestinoNombre} (diferencia ${diferencia})`, "FFD700", "bold");
+    } else {
+        anunciarGeneral(`⚖️ 🔄 Balance: ${candidatoElegido.name} → ${equipoDestinoNombre} (${jugadoresRed.length > jugadoresBlue.length ? jugadoresRed.length : jugadoresBlue.length} vs ${jugadoresRed.length < jugadoresBlue.length ? jugadoresRed.length : jugadoresBlue.length})`, "87CEEB", "bold");
+    }
+}
+
+// FUNCIÓN DE AUTO BALANCE DE EQUIPOS (MANTENER COMPATIBILIDAD)
+function autoBalanceEquipos() {
+    // Usar la nueva función de balance inteligente
+    balanceInteligente("auto balance");
 }
 
 // Variables para controlar la frecuencia de verificarAutoStart
@@ -11158,7 +11236,7 @@ setTimeout(() => {
         // Auto-detección de mapa y verificaciones
         setTimeout(() => {
             detectarCambioMapa();
-            autoBalanceEquipos();
+            balanceInteligentePostSalida();
             verificarAutoStart();
             verificarAutoStop(null);
         }, 1000);

@@ -11397,7 +11397,7 @@ setTimeout(() => {
         // Auto-detección de mapa y verificaciones
         setTimeout(() => {
             detectarCambioMapa();
-            balanceInteligentePostSalida();
+            balanceInteligentePostSalida(nombreOriginal);
             verificarAutoStart();
             verificarAutoStop(null);
         }, 1000);

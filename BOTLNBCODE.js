@@ -560,7 +560,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGipWUFQFuMHZSqNxA.IqCf7qR1nQ0";
+const token = "thr1.AAAAAGip0coCO1cQY9x8mw.mxII52528ds";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -9414,7 +9414,16 @@ Script by ИФT`;
             }
         ],
         footer: {
-            text: "Liga Nacional de Bigger LNB • " + new Date().toLocaleString()
+            text: "Liga Nacional de Bigger LNB • " + new Date().toLocaleString('es-AR', { 
+                timeZone: 'America/Argentina/Buenos_Aires',
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                hour12: false 
+            })
         }
     };
     
@@ -11282,14 +11291,6 @@ room.onTeamGoal = function(equipo) {
             setTimeout(() => {
                 try {
                     room.setPlayerTeam(jugador.id, equipoAnterior);
-                    // Mensaje informativo al jugador
-                    room.sendAnnouncement(
-                        "🚫 Los cambios de equipo están deshabilitados. Solo los admins pueden mover jugadores.",
-                        jugador.id,
-                        0xFF6B6B,
-                        "bold",
-                        2
-                    );
                 } catch (error) {
                     console.error(`❌ Error revirtiendo movimiento de ${jugador.name}:`, error);
                 }
@@ -12187,7 +12188,6 @@ function inicializar() {
                 try {
                     room.setTeamsLock(true);
                     console.log('🔒 Botones de cambio de equipo deshabilitados exitosamente');
-                    anunciarInfo("🔒 Sistema de control de equipos activado. Solo los admins pueden mover jugadores.");
                 } catch (error) {
                     console.error('❌ Error al deshabilitar botones de cambio de equipo:', error);
                 }
@@ -12264,7 +12264,6 @@ function inicializar() {
     try {
         room.setTeamsLock(true);
         console.log('🔒 Botones de cambio de equipo deshabilitados exitosamente');
-        anunciarInfo("🔒 Sistema de control de equipos activado. Solo los admins pueden mover jugadores.");
     } catch (error) {
         console.error('❌ Error al deshabilitar botones de cambio de equipo:', error);
     }
@@ -12535,7 +12534,6 @@ function inicializarBot() {
     try {
         room.setTeamsLock(true);
         console.log('🔒 Botones de cambio de equipo deshabilitados exitosamente');
-        anunciarInfo("🔒 Sistema de control de equipos activado. Solo los admins pueden mover jugadores.");
     } catch (error) {
         console.error('❌ Error al deshabilitar botones de cambio de equipo:', error);
     }

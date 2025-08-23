@@ -17,8 +17,8 @@ const dbFunctions = {
                       (nombre, partidos, victorias, derrotas, goles, asistencias, autogoles, 
                        mejorRachaGoles, mejorRachaAsistencias, hatTricks, vallasInvictas, 
                        tiempoJugado, promedioGoles, promedioAsistencias, fechaPrimerPartido, 
-                       fechaUltimoPartido, xp, nivel, codigoRecuperacion, fechaCodigoCreado, updated_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                       fechaUltimoPartido, xp, nivel, codigoRecuperacion, fechaCodigoCreado, mvps, updated_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                       ON DUPLICATE KEY UPDATE
                       partidos = VALUES(partidos), victorias = VALUES(victorias), derrotas = VALUES(derrotas),
                       goles = VALUES(goles), asistencias = VALUES(asistencias), autogoles = VALUES(autogoles),
@@ -28,7 +28,7 @@ const dbFunctions = {
                       promedioAsistencias = VALUES(promedioAsistencias), fechaPrimerPartido = VALUES(fechaPrimerPartido),
                       fechaUltimoPartido = VALUES(fechaUltimoPartido), xp = VALUES(xp), nivel = VALUES(nivel),
                       codigoRecuperacion = VALUES(codigoRecuperacion), fechaCodigoCreado = VALUES(fechaCodigoCreado),
-                      updated_at = CURRENT_TIMESTAMP`;
+                      mvps = VALUES(mvps), updated_at = CURRENT_TIMESTAMP`;
         
         try {
             const result = await executeQuery(query, [
@@ -36,7 +36,8 @@ const dbFunctions = {
                 stats.asistencias, stats.autogoles, stats.mejorRachaGoles, stats.mejorRachaAsistencias, 
                 stats.hatTricks, stats.vallasInvictas, stats.tiempoJugado, stats.promedioGoles, 
                 stats.promedioAsistencias, stats.fechaPrimerPartido, stats.fechaUltimoPartido, 
-                stats.xp ?? 40, stats.nivel ?? 1, stats.codigoRecuperacion ?? null, stats.fechaCodigoCreado ?? null
+                stats.xp ?? 40, stats.nivel ?? 1, stats.codigoRecuperacion ?? null, stats.fechaCodigoCreado ?? null,
+                stats.mvps ?? 0
             ]);
             return result.insertId || result.affectedRows;
         } catch (error) {
@@ -102,7 +103,8 @@ const dbFunctions = {
                         xp: row.xp || 40,
                         nivel: row.nivel || 1,
                         codigoRecuperacion: row.codigoRecuperacion || null,
-                        fechaCodigoCreado: row.fechaCodigoCreado || null
+                        fechaCodigoCreado: row.fechaCodigoCreado || null,
+                        mvps: row.mvps || 0
                     };
                 });
                 

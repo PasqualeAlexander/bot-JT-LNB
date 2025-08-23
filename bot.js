@@ -82,7 +82,7 @@ const crearTablas = async () => {
             // Verificar si las columnas ya existen antes de agregarlas
             const checkColumnsQuery = `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
                                       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'jugadores' 
-                                      AND COLUMN_NAME IN ('esVIP', 'fechaVIP', 'uid', 'baneado', 'fecha_ban', 'razon_ban', 'admin_ban')`;
+                                      AND COLUMN_NAME IN ('esVIP', 'fechaVIP', 'uid', 'baneado', 'fecha_ban', 'razon_ban', 'admin_ban', 'mvps')`;
             
             const existingColumns = await executeQuery(checkColumnsQuery, [process.env.DB_NAME || 'lnb_estadisticas']);
             const existingColumnNames = existingColumns.map(row => row.COLUMN_NAME);
@@ -100,13 +100,14 @@ const crearTablas = async () => {
                 console.log(`✅ Columna fechaVIP agregada`);
             }
             
-            // Agregar columnas para sistema de baneos
+            // Agregar columnas para sistema de baneos y MVPs
             const columnasBaneo = [
                 { nombre: 'uid', definicion: 'VARCHAR(255) UNIQUE' },
                 { nombre: 'baneado', definicion: 'TINYINT DEFAULT 0' },
                 { nombre: 'fecha_ban', definicion: 'VARCHAR(50)' },
                 { nombre: 'razon_ban', definicion: 'TEXT' },
-                { nombre: 'admin_ban', definicion: 'VARCHAR(255)' }
+                { nombre: 'admin_ban', definicion: 'VARCHAR(255)' },
+                { nombre: 'mvps', definicion: 'INT DEFAULT 0' }
             ];
             
             for (const columna of columnasBaneo) {
@@ -1553,7 +1554,7 @@ const roomConfig = {
     password: null,
     maxPlayers: 23,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGipVKKHkS9XPb8kEg.MHsfM-GZ8_A", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
+    token: "thr1.AAAAAGipWUFQFuMHZSqNxA.IqCf7qR1nQ0", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
     geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };

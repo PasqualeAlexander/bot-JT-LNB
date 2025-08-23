@@ -560,7 +560,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGipVKKHkS9XPb8kEg.MHsfM-GZ8_A";
+const token = "thr1.AAAAAGipWUFQFuMHZSqNxA.IqCf7qR1nQ0";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -5798,7 +5798,7 @@ async function procesarComando(jugador, mensaje) {
                 mostrarTopJugadores(jugador, args[1].toLowerCase());
             } else {
                 room.sendAnnouncement("📝 Uso: !top <estadística>", jugador.id, parseInt("FF0000", 16), "normal", 0);
-                room.sendAnnouncement("📊 Estadísticas disponibles: goles, asistencias, vallas, autogoles, mvps", jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
+                room.sendAnnouncement("📊 Estadísticas disponibles: goles, asistencias, vallas, autogoles, mvps, hattrick", jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
             }
             break;
             
@@ -8175,9 +8175,16 @@ function mostrarRecords(solicitante) {
         if (i === 0) posicionEmoji = "🥇";
         else if (i === 1) posicionEmoji = "🥈";
         else if (i === 2) posicionEmoji = "🥉";
+        else if (i === 3) posicionEmoji = "4️⃣";
+        else if (i === 4) posicionEmoji = "5️⃣";
+        else if (i === 5) posicionEmoji = "6️⃣";
+        else if (i === 6) posicionEmoji = "7️⃣";
+        else if (i === 7) posicionEmoji = "8️⃣";
+        else if (i === 8) posicionEmoji = "9️⃣";
+        else if (i === 9) posicionEmoji = "🔟";
         else posicionEmoji = `${i + 1}.`;
         
-        goleadoresCompacto.push(`${posicionEmoji} ${jugador.nombre}: ${jugador.goles} goles (${jugador.promedioGoles}/partido)`);
+        goleadoresCompacto.push(`${posicionEmoji} ${jugador.nombre}: ${jugador.goles} goles`);
     });
     
     // Agregar goleadores en una sola línea
@@ -8195,7 +8202,7 @@ function mostrarRecords(solicitante) {
         else if (i === 2) posicionEmoji = "🥉";
         else posicionEmoji = `${i + 1}.`;
         
-        asistentesCompacto.push(`${posicionEmoji} ${jugador.nombre}: ${jugador.asistencias} asistencias (${jugador.promedioAsistencias}/partido)`);
+        asistentesCompacto.push(`${posicionEmoji} ${jugador.nombre}: ${jugador.asistencias} asistencias`);
     });
     
     // Agregar asistentes en una sola línea
@@ -8281,6 +8288,16 @@ function mostrarTopJugadores(solicitante, estadistica) {
             unidad = "autogoles";
             break;
             
+        case "hattrick":
+        case "hattricks":
+            topJugadores = jugadores
+                .sort((a, b) => b.hatTricks - a.hatTricks)
+                .slice(0, 10);
+            titulo = "TOP 10 HAT-TRICKS";
+            emoji = "🎩";
+            unidad = "hattrick";
+            break;
+            
         case "mvp":
         case "mvps":
             topJugadores = jugadores
@@ -8308,27 +8325,33 @@ function mostrarTopJugadores(solicitante, estadistica) {
         switch(estadistica) {
             case "goles":
                 valor = jugador.goles;
-                info = `(${jugador.promedioGoles}/partido)`;
+                info = "";
                 break;
             case "asistencias":
             case "asis":
                 valor = jugador.asistencias;
-                info = `(${jugador.promedioAsistencias}/partido)`;
+                info = "";
                 break;
             case "vallas":
             case "vallasInvictas":
             case "vallasinvictas":
                 valor = jugador.vallasInvictas;
-                info = `(${jugador.partidos} partidos)`;
+                info = "";
                 break;
             case "autogoles":
                 valor = jugador.autogoles;
-                info = `(${jugador.partidos} partidos)`;
+                info = ``; // Removed party count as requested
                 break;
             case "mvp":
             case "mvps":
                 valor = jugador.hatTricks;
                 info = `(${jugador.partidos} partidos)`;
+                break;
+                
+            case "hattrick":
+            case "hattricks":
+                valor = jugador.hatTricks;
+                info = ``;
                 break;
         }
         
@@ -8337,6 +8360,13 @@ function mostrarTopJugadores(solicitante, estadistica) {
         if (i === 0) posicionEmoji = "🥇";
         else if (i === 1) posicionEmoji = "🥈";
         else if (i === 2) posicionEmoji = "🥉";
+        else if (i === 3) posicionEmoji = "4️⃣";
+        else if (i === 4) posicionEmoji = "5️⃣";
+        else if (i === 5) posicionEmoji = "6️⃣";
+        else if (i === 6) posicionEmoji = "7️⃣";
+        else if (i === 7) posicionEmoji = "8️⃣";
+        else if (i === 8) posicionEmoji = "9️⃣";
+        else if (i === 9) posicionEmoji = "🔟";
         else posicionEmoji = `${i + 1}.`;
         
         lineas.push(`${posicionEmoji} ${jugador.nombre}: ${valor} ${unidad} ${info}`);

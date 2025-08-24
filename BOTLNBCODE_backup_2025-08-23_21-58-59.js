@@ -560,7 +560,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGiqa5A5ruqivRaj3g.VVqQQMrvYSc";
+const token = "thr1.AAAAAGiqJjNHzgMW8T8lVg.GkoYmyzuFu0";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -4260,114 +4260,8 @@ function balanceInteligente(razon = "balance automático") {
     }
 }
 
-// ========== SISTEMA DE BALANCE DINÁMICO - VERSIÓN INTEGRADA ==========
-// Esta función calcula el número óptimo de jugadores a mover para equilibrar TODOS los casos
-function calcularJugadoresOptimosAMover(equipoMayorSize, equipoMenorSize, totalJugadores) {
-    const diferenciaEquipos = equipoMayorSize - equipoMenorSize;
-    
-    // Si no hay diferencia significativa, no mover nada
-    if (diferenciaEquipos <= 1) {
-        return 0;
-    }
-    
-    // FÓRMULA BASE: Mover la mitad de la diferencia (redondeado hacia abajo)
-    let jugadoresAMover = Math.floor(diferenciaEquipos / 2);
-    
-    // CASOS ESPECIALES OPTIMIZADOS para obtener el mejor equilibrio posible
-    
-    // Casos básicos pequeños
-    if (equipoMayorSize === 3 && equipoMenorSize === 1) {
-        jugadoresAMover = 1; // 3v1 → 2v2 (perfecto)
-    } else if (equipoMayorSize === 4 && equipoMenorSize === 2) {
-        jugadoresAMover = 1; // 4v2 → 3v3 (perfecto)
-    } 
-    
-    // Casos con 5 jugadores en equipo mayor
-    else if (equipoMayorSize === 5 && equipoMenorSize === 1) {
-        jugadoresAMover = 2; // 5v1 → 3v3 (perfecto)
-    } else if (equipoMayorSize === 5 && equipoMenorSize === 2) {
-        jugadoresAMover = 1; // 5v2 → 4v3 (diferencia mínima)
-    } else if (equipoMayorSize === 5 && equipoMenorSize === 3) {
-        jugadoresAMover = 1; // 5v3 → 4v4 (perfecto)
-    }
-    
-    // Casos con 6 jugadores en equipo mayor
-    else if (equipoMayorSize === 6 && equipoMenorSize === 2) {
-        jugadoresAMover = 2; // 6v2 → 4v4 (perfecto)
-    } else if (equipoMayorSize === 6 && equipoMenorSize === 4) {
-        jugadoresAMover = 1; // 6v4 → 5v5 (perfecto)
-    }
-    
-    // Casos con 7 jugadores en equipo mayor
-    else if (equipoMayorSize === 7 && equipoMenorSize === 1) {
-        jugadoresAMover = 3; // 7v1 → 4v4 (perfecto)
-    } else if (equipoMayorSize === 7 && equipoMenorSize === 3) {
-        jugadoresAMover = 2; // 7v3 → 5v5 (perfecto)
-    } else if (equipoMayorSize === 7 && equipoMenorSize === 5) {
-        jugadoresAMover = 1; // 7v5 → 6v6 (perfecto)
-    }
-    
-    // Casos con 8 jugadores en equipo mayor
-    else if (equipoMayorSize === 8 && equipoMenorSize === 2) {
-        jugadoresAMover = 3; // 8v2 → 5v5 (perfecto)
-    } else if (equipoMayorSize === 8 && equipoMenorSize === 4) {
-        jugadoresAMover = 2; // 8v4 → 6v6 (perfecto)
-    } else if (equipoMayorSize === 8 && equipoMenorSize === 6) {
-        jugadoresAMover = 1; // 8v6 → 7v7 (perfecto)
-    }
-    
-    // Casos con 9 jugadores en equipo mayor
-    else if (equipoMayorSize === 9 && equipoMenorSize === 1) {
-        jugadoresAMover = 4; // 9v1 → 5v5 (perfecto)
-    } else if (equipoMayorSize === 9 && equipoMenorSize === 3) {
-        jugadoresAMover = 3; // 9v3 → 6v6 (perfecto)
-    } else if (equipoMayorSize === 9 && equipoMenorSize === 5) {
-        jugadoresAMover = 2; // 9v5 → 7v7 (perfecto)
-    } else if (equipoMayorSize === 9 && equipoMenorSize === 7) {
-        jugadoresAMover = 1; // 9v7 → 8v8 (perfecto)
-    }
-    
-    // Casos con 10 jugadores en equipo mayor
-    else if (equipoMayorSize === 10 && equipoMenorSize === 2) {
-        jugadoresAMover = 4; // 10v2 → 6v6 (perfecto)
-    } else if (equipoMayorSize === 10 && equipoMenorSize === 4) {
-        jugadoresAMover = 3; // 10v4 → 7v7 (perfecto)
-    } else if (equipoMayorSize === 10 && equipoMenorSize === 6) {
-        jugadoresAMover = 2; // 10v6 → 8v8 (perfecto)
-    } else if (equipoMayorSize === 10 && equipoMenorSize === 8) {
-        jugadoresAMover = 1; // 10v8 → 9v9 (perfecto)
-    }
-    
-    // CASOS EXTREMOS: Para diferencias muy grandes, usar fórmula dinámica
-    else if (diferenciaEquipos > 8) {
-        // Para casos extremos, mover suficientes jugadores para lograr equilibrio cerca del ideal
-        const ideal = Math.round(totalJugadores / 2);
-        jugadoresAMover = equipoMayorSize - ideal;
-        
-        // Limitar para evitar movimientos extremos
-        if (jugadoresAMover > Math.floor(equipoMayorSize * 0.7)) {
-            jugadoresAMover = Math.floor(equipoMayorSize * 0.7);
-        }
-        
-        // Asegurar al menos 1 movimiento
-        if (jugadoresAMover < 1) {
-            jugadoresAMover = 1;
-        }
-    }
-    
-    // VALIDACIÓN FINAL: Asegurar que siempre se mueva al menos 1 jugador si hay diferencia > 1
-    if (diferenciaEquipos > 1 && jugadoresAMover === 0) {
-        jugadoresAMover = 1;
-    }
-    
-    // Debug logging
-    console.log(`🧮 DEBUG calcularJugadores: ${equipoMayorSize}v${equipoMenorSize} (diff=${diferenciaEquipos}) → mover ${jugadoresAMover} jugador(es)`);
-    
-    return jugadoresAMover;
-}
-
 // FUNCIÓN DE BALANCE INTELIGENTE ESPECÍFICA PARA CUANDO UN JUGADOR SALE
-// SISTEMA AVANZADO: Balance dinámico que maneja TODOS los casos específicos (3v1→2v2, 4v2→3v3, 5v1→3v3, etc.)
+// SISTEMA MEJORADO: Balance automático 4v2 -> 3v3
 function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
     const jugadores = room.getPlayerList();
     const jugadoresRed = jugadores.filter(j => j.team === 1);
@@ -4383,10 +4277,21 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
         return;
     }
     
-    // SISTEMA AVANZADO: Usar balance dinámico solo para diferencias >= 2
+    // SISTEMA MEJORADO: Balance más agresivo para mantener equilibrio
+    // Casos específicos que requieren balance:
+    // - Diferencia >= 2 jugadores
+    // - Caso especial 4v2 -> 3v3 (diferencia = 2)
+    // - Caso especial 5v2 -> 4v3 (diferencia = 3)
     if (diferencia < 2) {
         console.log(`✅ DEBUG: Equipos equilibrados (diferencia ${diferencia} < 2) - no se requiere balance`);
         return;
+    }
+    
+    // CASO ESPECIAL: Detectar situación 4v2 y forzar balance a 3v3
+    if ((jugadoresRed.length === 4 && jugadoresBlue.length === 2) || 
+        (jugadoresRed.length === 2 && jugadoresBlue.length === 4)) {
+        console.log(`🎯 DEBUG: Detectada situación 4v2 - forzando balance automático a 3v3`);
+        anunciarGeneral(`⚖️ ⚡ Auto Balance 4v2 → 3v3 tras desconexión ⚡`, "FFD700", "bold");
     }
     
     console.log(`⚖️ DEBUG: Balance necesario - diferencia de ${diferencia} jugadores`);
@@ -4404,21 +4309,10 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
         return;
     }
     
-    // DETERMINAR EQUIPOS
+    // BALANCE SIMPLE: Mover 1 jugador del equipo mayor al menor
     const equipoMayor = jugadoresRed.length > jugadoresBlue.length ? jugadoresRed : jugadoresBlue;
-    const equipoMenor = jugadoresRed.length > jugadoresBlue.length ? jugadoresBlue : jugadoresRed;
     const equipoMenorEnum = jugadoresRed.length > jugadoresBlue.length ? 2 : 1;
     const equipoMayorEnum = jugadoresRed.length > jugadoresBlue.length ? 1 : 2;
-    const equipoMayorNombre = equipoMayorEnum === 1 ? 'ROJO' : 'AZUL';
-    const equipoMenorNombre = equipoMenorEnum === 1 ? 'ROJO' : 'AZUL';
-
-    // USAR EL SISTEMA DE BALANCE DINÁMICO INTEGRADO
-    const jugadoresAMover = calcularJugadoresOptimosAMover(equipoMayor.length, equipoMenor.length, totalJugadoresEnEquipos);
-    
-    if (jugadoresAMover === 0) {
-        console.log(`✅ DEBUG: Sistema dinámico determinó que no se requiere balance`);
-        return;
-    }
 
     // Filtrar candidatos válidos (excluir bots y jugadores AFK)
     const candidatos = equipoMayor.filter(p => {
@@ -4435,105 +4329,52 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
         return;
     }
 
-    // Mezclar candidatos para fairness
-    for (let i = candidatos.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [candidatos[i], candidatos[j]] = [candidatos[j], candidatos[i]];
-    }
+    // Determinar cuántos jugadores mover basado en la situación
+    let jugadoresAMover = 1; // Por defecto, mover 1 jugador
     
-    // MOSTRAR MENSAJE ESPECÍFICO SEGÚN EL CASO DETECTADO
-    const equipoMayorSize = equipoMayor.length;
-    const equipoMenorSize = equipoMenor.length;
-    let mensajeBalance = "";
-    
-    // Casos específicos con mensajes personalizados
-    if (equipoMayorSize === 3 && equipoMenorSize === 1) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 3v1 → 2v2 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 4 && equipoMenorSize === 2) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 4v2 → 3v3 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 5 && equipoMenorSize === 1) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 5v1 → 3v3 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 5 && equipoMenorSize === 3) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 5v3 → 4v4 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 6 && equipoMenorSize === 2) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 6v2 → 4v4 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 6 && equipoMenorSize === 4) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 6v4 → 5v5 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 7 && equipoMenorSize === 1) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 7v1 → 4v4 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 7 && equipoMenorSize === 3) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 7v3 → 5v5 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 7 && equipoMenorSize === 5) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 7v5 → 6v6 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 8 && equipoMenorSize === 2) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 8v2 → 5v5 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 8 && equipoMenorSize === 4) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 8v4 → 6v6 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 8 && equipoMenorSize === 6) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 8v6 → 7v7 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 9 && equipoMenorSize === 1) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 9v1 → 5v5 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 9 && equipoMenorSize === 3) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 9v3 → 6v6 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 9 && equipoMenorSize === 5) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 9v5 → 7v7 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 9 && equipoMenorSize === 7) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 9v7 → 8v8 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 10 && equipoMenorSize === 2) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 10v2 → 6v6 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 10 && equipoMenorSize === 4) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 10v4 → 7v7 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 10 && equipoMenorSize === 6) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 10v6 → 8v8 (perfecto) ⚡`;
-    } else if (equipoMayorSize === 10 && equipoMenorSize === 8) {
-        mensajeBalance = `⚖️ ⚡ Balance Inteligente: 10v8 → 9v9 (perfecto) ⚡`;
+    // Para diferencias grandes, calcular cuántos jugadores mover para equilibrar mejor
+    if (diferencia >= 4) {
+        jugadoresAMover = 2; // Mover 2 jugadores para equilibrar mejor
+    } else if (diferencia >= 3) {
+        jugadoresAMover = 1; // Mover 1 jugador
     } else {
-        // Caso genérico para situaciones no específicas
-        const equipoMayorFinal = equipoMayorSize - jugadoresAMover;
-        const equipoMenorFinal = equipoMenorSize + jugadoresAMover;
-        mensajeBalance = `⚖️ ⚡ Balance Dinámico: ${equipoMayorSize}v${equipoMenorSize} → ${equipoMayorFinal}v${equipoMenorFinal} ⚡`;
+        jugadoresAMover = 1; // Mover 1 jugador (caso 4v2 -> 3v3)
     }
     
-    // Anunciar el balance con mensaje específico
-    if (partidoEnCurso) {
-        anunciarGeneral(mensajeBalance + " (en partido)", "FFD700", "bold");
-    } else {
-        anunciarGeneral(mensajeBalance, "87CEEB", "bold");
-    }
+    console.log(`⚖️ DEBUG: Balance post-salida - moviendo ${jugadoresAMover} jugador(es) del equipo ${equipoMayorEnum === 1 ? 'ROJO' : 'AZUL'} al ${equipoMenorEnum === 1 ? 'ROJO' : 'AZUL'}`);
     
-    console.log(`⚖️ DEBUG: Sistema dinámico - moviendo ${jugadoresAMover} jugador(es) del equipo ${equipoMayorNombre} al ${equipoMenorNombre}`);
-    
-    // Mover los jugadores calculados por el sistema dinámico
+    // Mover los jugadores necesarios para equilibrar
     for (let i = 0; i < jugadoresAMover && i < candidatos.length; i++) {
-        const jugadorSeleccionado = candidatos[i]; // Usar el orden mezclado
+        const candidatoElegido = candidatos[Math.floor(Math.random() * candidatos.length)];
+        
+        // Remover el candidato elegido de la lista para evitar moverlo dos veces
+        const index = candidatos.indexOf(candidatoElegido);
+        if (index > -1) {
+            candidatos.splice(index, 1);
+        }
         
         // Marcar movimiento como iniciado por el bot
-        movimientoIniciadorPorBot.add(jugadorSeleccionado.id);
+        movimientoIniciadorPorBot.add(candidatoElegido.id);
         
-        room.setPlayerTeam(jugadorSeleccionado.id, equipoMenorEnum);
+        room.setPlayerTeam(candidatoElegido.id, equipoMenorEnum);
         const equipoDestinoNombre = equipoMenorEnum === 1 ? '🔴 ROJO' : '🔵 AZUL';
         
-        // Mensaje individual de cada movimiento
-        anunciarGeneral(`⚖️ ${jugadorSeleccionado.name} → ${equipoDestinoNombre} (${i + 1}/${jugadoresAMover})`, "90EE90", "normal");
-        
-        console.log(`✅ DEBUG: Movido ${jugadorSeleccionado.name} al equipo ${equipoMenorNombre} (${i + 1}/${jugadoresAMover})`);
-    }
-    
-    // Verificar resultado del balance después de un breve delay
-    setTimeout(() => {
-        const jugadoresPost = room.getPlayerList();
-        const jugadoresRedPost = jugadoresPost.filter(j => j.team === 1);
-        const jugadoresBluePost = jugadoresPost.filter(j => j.team === 2);
-        const diferenciaPost = Math.abs(jugadoresRedPost.length - jugadoresBluePost.length);
-        
-        console.log(`📊 DEBUG Post-balance: Rojo=${jugadoresRedPost.length}, Azul=${jugadoresBluePost.length}, Diferencia=${diferenciaPost}`);
-        
-        if (diferenciaPost <= 1) {
-            console.log(`✅ DEBUG: Balance completado exitosamente - diferencia final: ${diferenciaPost}`);
+        // Mensaje indicando el balance automático
+        if (partidoEnCurso) {
+            anunciarGeneral(`⚖️ 🔄 Auto Balance: ${candidatoElegido.name} → ${equipoDestinoNombre} (${i + 1}/${jugadoresAMover})`, "FFD700", "bold");
         } else {
-            console.log(`⚠️ DEBUG: Balance parcial - diferencia restante: ${diferenciaPost}`);
+            anunciarGeneral(`⚖️ 🔄 Balance: ${candidatoElegido.name} → ${equipoDestinoNombre} (equilibrando equipos)`, "87CEEB", "bold");
         }
-    }, 500);
+        
+        // Pequeño delay entre movimientos para evitar conflictos (cambiado a setTimeout)
+        if (i < jugadoresAMover - 1) {
+            // En lugar de await, usar setTimeout para que no bloquee la ejecución
+            setTimeout(() => {
+                // El delay ya no es necesario aquí ya que se ejecuta secuencialmente
+                console.log(`💫 DEBUG: Delay aplicado entre movimientos de balance`);
+            }, 200);
+        }
+    }
 }
 
 // FUNCIÓN PARA OBTENER CANTIDAD DE JUGADORES POR EQUIPO

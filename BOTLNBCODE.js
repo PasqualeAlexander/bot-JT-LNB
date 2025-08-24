@@ -4761,7 +4761,7 @@ function balanceAutomaticoContinuo() {
     }
     
     // CORRECCIÓN: Anunciar el balance ANTES de mover jugadores (para confirmar que llega hasta aquí)
-    anunciarGeneral(`⚖️ 🔄 Equilibrando equipos por desconexión (${jugadoresAMover} jugador${jugadoresAMover > 1 ? 'es' : ''})...`, "87CEEB", "bold");
+    // anunciarGeneral(`⚖️ 🔄 Equilibrando equipos por desconexión (${jugadoresAMover} jugador${jugadoresAMover > 1 ? 'es' : ''})...`, "87CEEB", "bold");
     
     // CORRECCIÓN: Mezclar candidatos y mover uno por uno con verificaciones
     const candidatosAleatorios = [...candidatos].sort(() => 0.5 - Math.random());
@@ -4826,7 +4826,7 @@ function balanceAutomaticoContinuo() {
         
         if (equiposPostBalance.diferencia <= 1) {
             console.log(`✅ DEBUG balanceAutomaticoContinuo: Balance COMPLETADO exitosamente - diferencia final: ${equiposPostBalance.diferencia}`);
-            anunciarGeneral(`✅ Equipos equilibrados correctamente`, "90EE90", "normal");
+            // anunciarGeneral(`✅ Equipos equilibrados correctamente`, "90EE90", "normal");
         } else if (equiposPostBalance.diferencia > 1 && equiposPostBalance.rojo > 0 && equiposPostBalance.azul > 0) {
             console.log(`🔄 DEBUG balanceAutomaticoContinuo: AÚN hay diferencia mayor a 1 (${equiposPostBalance.diferencia}), programando nuevo balance en 2s`);
             setTimeout(() => {
@@ -5407,6 +5407,8 @@ function verificarInactividad() {
 let cambioMapaEnProceso = false;
 // Variable para detectar si el partido terminó por cambio de mapa
 let terminoPorCambioMapa = false;
+// Variable para controlar cambios de mapa pendientes (que esperan al final del partido)
+let cambioMapaPendiente = null; // {mapa: 'biggerx7', razon: 'x5 -> x7 con 12+ jugadores'}
 // Variables para controlar el spam de logs
 let ultimoEstadoLogeado = {
     jugadores: -1,
@@ -5643,23 +5645,21 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
         
         // Cambiar de biggerx5 a biggerx7 si hay 12 o más jugadores
         if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
-            cambioMapaEnProceso = true;
-            terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
-            console.log(`📈 DEBUG: Cambiando de x5 a x7 durante partido (${jugadoresActivos} >= 12)`);
-            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa a x7...");
-            room.stopGame();
-            cambiarMapa("biggerx7");
-            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x5 a x7...`);
+            console.log(`📈 DEBUG CRÍTICO: Detectado cambio crítico x5->x7 durante partido (${jugadoresActivos} >= 12)`);
+            console.log(`⏰ DEBUG: En lugar de detener inmediatamente, programando cambio pendiente para fin de partido`);
             
-            setTimeout(() => {
-                autoBalanceEquipos();
-                verificarAutoStart();
-                setTimeout(() => { 
-                    cambioMapaEnProceso = false;
-                    terminoPorCambioMapa = false; // Resetear la bandera
-                }, 5000);
-            }, 1000);
-            return;
+            // Programar cambio pendiente en lugar de detener el partido inmediatamente
+            cambioMapaPendiente = {
+                mapa: 'biggerx7',
+                razon: `x5 -> x7 con ${jugadoresActivos}+ jugadores`,
+                momento: 'fin_partido'
+            };
+            
+            // Notificar que el cambio está pendiente
+            anunciarInfo(`⚡ El mapa cambiará al terminar el partido actual para una mejor experiencia de juego!`);
+            
+            console.log(`✅ DEBUG: Cambio de mapa pendiente configurado:`, cambioMapaPendiente);
+            return; // Continuar con el partido actual
         }
         
         console.log(`✅ DEBUG: No se necesita cambio de mapa durante partido (${jugadoresActivos} jugadores en ${mapaActual})`);

@@ -4600,23 +4600,54 @@ function balanceAutomaticoContinuo() {
     
     console.log(`🔍 DEBUG balanceAutomaticoContinuo: Equipo mayor: ${equipoConMasNombre} (${equipoConMas.length}), Equipo menor: ${equipoConMenosNombre}`);
     
-    // CORRECCIÓN: Verificar que esBot está definida
+    // CORRECCIÓN: Verificar que esBot está definida y usar versión mejorada
     let funcionEsBot = esBot;
     if (typeof funcionEsBot !== 'function') {
         funcionEsBot = function(jugador) {
-            return jugador && jugador.name && (
-                jugador.name.includes('[BOT]') ||
-                jugador.name.includes('Bot') ||
-                jugador.name.includes('bot') ||
-                jugador.name === '' ||
-                jugador.id === 0
-            );
+            if (!jugador || !jugador.name) return false;
+            
+            // Lista comprensiva de patrones para bots
+            const patronesBots = [
+                'HOST LNB',           // Bot principal
+                '[BOT]',              // Bots marcados explícitamente
+                'Bot',                // Bots con "Bot" en mayúsculas  
+                'bot'                 // Bots con "bot" en minúsculas
+            ];
+            
+            // Verificar ID especiales (0 = host)
+            if (jugador.id === 0) return true;
+            
+            // Verificar nombres vacíos
+            if (jugador.name === '') return true;
+            
+            // Verificar patrones en el nombre
+            return patronesBots.some(patron => jugador.name.includes(patron));
         };
-        console.log(`⚠️ DEBUG balanceAutomaticoContinuo: Usando función de respaldo para detectar bots`);
+        console.log(`⚠️ DEBUG balanceAutomaticoContinuo: Usando función esBot mejorada`);
     }
     
-    // CORRECCIÓN: Filtrar candidatos válidos con verificaciones mejoradas
-    const candidatos = equipoConMas.filter(jugador => {
+    // CORRECCIÓN: Filtrar candidatos válidos con lógica de fallback mejorada
+    console.log(`🔍 DEBUG balanceAutomaticoContinuo: Iniciando filtrado de candidatos...`);
+    
+    // Función auxiliar para debugging detallado
+    function debugearCandidatos(equipoConMas, jugadoresAFK, funcionEsBot) {
+        console.log(`🔍 DEBUG DETALLADO DE CANDIDATOS:`);
+        equipoConMas.forEach((jugador, index) => {
+            const esValido = jugador && typeof jugador.id !== 'undefined';
+            const esBot = funcionEsBot(jugador);
+            const estaAFK = jugadoresAFK && jugadoresAFK.has(jugador.id);
+            const jugadorActual = room.getPlayerList().find(j => j.id === jugador.id);
+            const enEquipo = jugadorActual && jugadorActual.team !== 0;
+            
+            console.log(`  ${index + 1}. ${jugador.name}: Válido=${esValido}, Bot=${esBot}, AFK=${estaAFK}, EnEquipo=${enEquipo}`);
+        });
+    }
+    
+    // Debug inicial
+    debugearCandidatos(equipoConMas, jugadoresAFK, funcionEsBot);
+    
+    // PASO 1: Filtrado normal con criterios estrictos
+    let candidatos = equipoConMas.filter(jugador => {
         // Verificar que el jugador existe y tiene las propiedades necesarias
         if (!jugador || typeof jugador.id === 'undefined') {
             console.log(`🚫 DEBUG balanceAutomaticoContinuo: Jugador inválido detectado`);
@@ -4645,6 +4676,45 @@ function balanceAutomaticoContinuo() {
         console.log(`✅ DEBUG balanceAutomaticoContinuo: ${jugador.name} es candidato válido`);
         return true;
     });
+    
+    console.log(`🎯 DEBUG balanceAutomaticoContinuo: Candidatos válidos (criterios estrictos): ${candidatos.length}/${equipoConMas.length}`);
+    
+    // PASO 2: Si no hay candidatos, aplicar lógica de fallback
+    if (candidatos.length === 0) {
+        console.log(`⚠️ DEBUG balanceAutomaticoContinuo: No hay candidatos con criterios estrictos, aplicando fallback...`);
+        
+        // Fallback 1: Relajar criterio AFK
+        candidatos = equipoConMas.filter(jugador => {
+            if (!jugador || typeof jugador.id === 'undefined') return false;
+            if (funcionEsBot(jugador)) return false;
+            
+            const jugadorActual = room.getPlayerList().find(j => j.id === jugador.id);
+            if (!jugadorActual || jugadorActual.team === 0) return false;
+            
+            return true;
+        });
+        
+        console.log(`🔄 DEBUG balanceAutomaticoContinuo: Candidatos sin restricción AFK: ${candidatos.length}`);
+        
+        // Fallback 2: Solo excluir bots muy obvios
+        if (candidatos.length === 0) {
+            console.log(`⚠️ DEBUG balanceAutomaticoContinuo: Aplicando fallback final (solo bots obvios)...`);
+            
+            candidatos = equipoConMas.filter(jugador => {
+                if (!jugador || typeof jugador.id === 'undefined') return false;
+                
+                // Solo excluir HOST LNB e ID 0
+                if (jugador.id === 0 || jugador.name === 'HOST LNB') return false;
+                
+                const jugadorActual = room.getPlayerList().find(j => j.id === jugador.id);
+                if (!jugadorActual || jugadorActual.team === 0) return false;
+                
+                return true;
+            });
+            
+            console.log(`🔄 DEBUG balanceAutomaticoContinuo: Candidatos con criterios mínimos: ${candidatos.length}`);
+        }
+    }
     
     console.log(`🎯 DEBUG balanceAutomaticoContinuo: Candidatos válidos: ${candidatos.length}/${equipoConMas.length}`);
     candidatos.forEach(c => console.log(`  - ${c.name} (ID: ${c.id}, Team: ${c.team})`));

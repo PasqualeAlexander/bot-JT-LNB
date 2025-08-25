@@ -574,7 +574,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGir5hp5AKSLcKcIUA.X2RWMDg7m_Q";
+const token = "thr1.AAAAAGis5Ef3T2v87ylMnA.Gkn1DY5X8J4";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -3306,7 +3306,6 @@ let desafiosPPT = new Map(); // {desafiadorID: {oponente, jugadaDesafiador, tiem
 // SISTEMA DE MODERACIÓN
 let jugadoresMuteados = new Set(); // IDs de jugadores silenciados permanentemente
 let jugadoresMuteadosTemporales = new Map(); // {playerID: {finMute: timestamp, razon: string, timeoutId: timeoutId}}
-let advertenciasJugadores = new Map(); // {playerID: cantidad_de_advertencias}
 
 // SISTEMA PARA MANEJAR SALIDAS VOLUNTARIAS
 let jugadoresSaliendoVoluntariamente = new Set(); // IDs de jugadores que están saliendo voluntariamente (!nv, !bb)
@@ -4286,6 +4285,25 @@ function obtenerJugadorPorID(id) {
     console.log(`✅ DEBUG obtenerJugadorPorID: Jugador encontrado con ID real ${idNum}: ${jugadorEncontrado.name}`);
     
     return jugadorEncontrado;
+}
+
+// FUNCIÓN UNIFICADA PARA BUSCAR JUGADORES POR NOMBRE O ID
+function obtenerJugadorPorNombreOID(input) {
+    if (!input || typeof input !== 'string') {
+        console.log(`❌ DEBUG obtenerJugadorPorNombreOID: Input inválido: ${input}`);
+        return null;
+    }
+    
+    // Verificar si es un ID numérico (empieza con #)
+    if (input.startsWith('#')) {
+        const id = input.substring(1);
+        console.log(`🔍 DEBUG obtenerJugadorPorNombreOID: Buscando por ID #${id}`);
+        return obtenerJugadorPorID(id);
+    } else {
+        // Búsqueda por nombre tradicional
+        console.log(`🔍 DEBUG obtenerJugadorPorNombreOID: Buscando por nombre "${input}"`);
+        return obtenerJugadorPorNombre(input);
+    }
 }
 
 // FUNCIÓN PARA MOSTRAR LISTA DE JUGADORES CON IDs
@@ -6477,7 +6495,6 @@ const comandosPublicos = [];
 
     const comandosModeracion = [
         "\n⚖️ COMANDOS DE MODERACIÓN (ADMINS):",
-        "!warn [jugador] [razón] - Advertir a un jugador (3 warns = kick)",
         "!mute [jugador] [tiempo_min] [razón] - Silenciar jugador temporalmente",
         "!unmute [jugador] - Quitar silencio a un jugador", 
         "!kick <jugador|#ID> [razón] - Expulsar jugador de la sala",
@@ -7062,7 +7079,7 @@ async function procesarComando(jugador, mensaje) {
             let objetivo;
             if (args[1]) {
                 const nombreObjetivo = args.slice(1).join(" ");
-                objetivo = obtenerJugadorPorNombre(nombreObjetivo);
+                objetivo = obtenerJugadorPorNombreOID(nombreObjetivo);
 
                 if (!objetivo) {
                     anunciarError(`❌ No se encontró a ningún jugador con el nombre "${nombreObjetivo}"`, jugador);
@@ -7470,7 +7487,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                 const nombreJugador = args[1];
                 let tiempo = args[2] ? parseInt(args[2]) : null; // tiempo en minutos
                 let razon = args.slice(tiempo ? 3 : 2).join(" ") || "Muteado por admin";
-                const jugadorObjetivo = obtenerJugadorPorNombre(nombreJugador);
+                const jugadorObjetivo = obtenerJugadorPorNombreOID(nombreJugador);
                 
                 if (jugadorObjetivo) {
                     // Prevenir que los admins se muteen entre sí
@@ -7563,34 +7580,6 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             }
             break;
             
-        case "warn":
-            if (!esAdmin(jugador)) return;
-            if (args[1]) {
-                const nombreJugador = args[1];
-                const razon = args.slice(2).join(" ") || "No especificada";
-                const jugadorObjetivo = obtenerJugadorPorNombre(nombreJugador);
-                if (jugadorObjetivo) {
-                    if (!advertenciasJugadores.has(jugadorObjetivo.id)) {
-                        advertenciasJugadores.set(jugadorObjetivo.id, 0);
-                    }
-                    const warns = advertenciasJugadores.get(jugadorObjetivo.id) + 1;
-                    advertenciasJugadores.set(jugadorObjetivo.id, warns);
-                    
-                    anunciarAdvertencia(`⚠️ ${jugadorObjetivo.name} ha recibido una advertencia [${warns}/3]`);
-                    room.sendAnnouncement(`⚠️ Advertencia: ${razon}`, jugadorObjetivo.id, parseInt("FF8C00", 16), "bold", 1);
-                    
-                    if (warns >= 3) {
-                        room.kickPlayer(jugadorObjetivo.id, "Expulsado por acumular 3 advertencias", false);
-                        advertenciasJugadores.delete(jugadorObjetivo.id);
-                        anunciarAdvertencia(`🥾 ${jugadorObjetivo.name} ha sido expulsado por acumular 3 advertencias`);
-                    }
-                } else {
-                    anunciarError("Jugador no encontrado", jugador);
-                }
-            } else {
-                anunciarError("📝 Uso: !warn <jugador> [razón]", jugador);
-            }
-            break;
             
         case "kick":
             // Verificar permisos básicos - cualquier tipo de admin puede kickear
@@ -7660,7 +7649,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             if (!esAdmin(jugador)) return;
             if (args[1]) {
                 const nombreJugador = args[1];
-                const jugadorObjetivo = obtenerJugadorPorNombre(nombreJugador);
+                const jugadorObjetivo = obtenerJugadorPorNombreOID(nombreJugador);
                 
                 if (jugadorObjetivo) {
                     let jugadorDesmmuteado = false;
@@ -9502,7 +9491,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
                 .sort((a, b) => b.goles - a.goles)
                 .slice(0, 10);
             titulo = "⚽ TOP 10 GOLEADORES ⚽";
-            unidad = "goles";
+            unidad = "";
             // Eliminar el emoji de título adicional
             break;
             

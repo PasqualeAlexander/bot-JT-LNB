@@ -67,6 +67,20 @@ if (isNode) {
     }
 }
 
+// ==================== SISTEMA DE TRACKING PERSISTENTE ====================
+// Importar sistema de tracking persistente (reemplaza los Maps de JavaScript)
+let PlayerTrackingPersistent = null;
+let sistemaTrackingPersistente = null;
+if (isNode) {
+    try {
+        const trackingModule = require('./player_tracking_persistent.js');
+        PlayerTrackingPersistent = trackingModule.PlayerTrackingPersistent;
+        console.log('✅ Sistema de tracking persistente importado correctamente');
+    } catch (error) {
+        console.warn('⚠️ No se pudo importar el sistema de tracking persistente:', error.message);
+    }
+}
+
 // ==================== SISTEMA DE ALMACENAMIENTO CON BASE DE DATOS ====================
 // Funciones para manejo de almacenamiento usando MySQL a través de Node.js
 
@@ -560,7 +574,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGirZZaLq1ipzxeN9Q.lt2c9KLSV28";
+const token = "thr1.AAAAAGirtLU51AaHJ1TOvA.gN7cJ6qGop8";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -3265,6 +3279,11 @@ let jugadoresSaliendoVoluntariamente = new Set(); // IDs de jugadores que están
 let jugadoresBaneadosUID = new Map(); // {auth: {nombre: string, razon: string, fecha: string, admin: string, duracion?: number}}
 let jugadoresUID = new Map(); // {playerID: auth} - Mapeo temporal de IDs a UIDs
 
+// SISTEMA DE TRACKING DE JUGADORES PARA WEBHOOK DISCORD
+let jugadoresTracker = new Map(); // {auth: {nombres: Set(nombres), ips: Set(ips), primeraConexion: timestamp, ultimaConexion: timestamp}}
+let historialNombresJugadores = new Map(); // {playerID: {auth: string, nombres: Array(nombres)}}
+const WEBHOOK_JUGADORES_URL = "https://discord.com/api/webhooks/1409271835018919947/eIXwPUhKsuGSm8pYYIV44nX6dwBJJyKktPjMyB6iNXvuV7Bo6F3_1WMwDxvrG-Qj9EEo";
+
 // SISTEMA DE PROTECCIÓN CONTRA MÚLTIPLES CONEXIONES DEL MISMO NAVEGADOR
 const MAX_JUGADORES_POR_IP = 1; // Máximo 1 jugador por navegador/IP
 let conexionesPorAuth = new Map(); // {auth: {jugadores: Set(playerIDs), timestamp: number}}
@@ -3573,6 +3592,482 @@ function obtenerEstadisticasIP() {
 setInterval(limpiarIPsBloqueadasExpiradas, 10 * 60 * 1000);
 
 // ==================== FIN FUNCIONES AUXILIARES PARA PROTECCIÓN IP ====================
+
+// ==================== SISTEMA DE TRACKING DE JUGADORES PARA WEBHOOK ====================
+
+/**
+ * Registra o actualiza los datos de tracking de un jugador
+ * @param {Object} jugador - El objeto jugador de HaxBall
+ */
+function trackearJugador(jugador) {
+    try {
+        if (!jugador || !jugador.auth) {
+            console.log(`⚠️ TRACKING: No se puede trackear jugador sin auth: ${jugador?.name}`);
+            return;
+        }
+        
+        const auth = jugador.auth;
+        const nombre = jugador.name;
+        const ipSimulada = obtenerIdentificadorConexion(jugador);
+        const ahora = Date.now();
+        
+        console.log(`📊 TRACKING: Registrando jugador ${nombre} (Auth: ${auth}, IP: ${ipSimulada})`);
+        
+        // Obtener o crear datos de tracking para este auth
+        let datosTracking = jugadoresTracker.get(auth);
+        
+        if (!datosTracking) {
+            // Primera vez que vemos este auth
+            datosTracking = {
+                nombres: new Set([nombre]),
+                ips: new Set([ipSimulada]),
+                primeraConexion: ahora,
+                ultimaConexion: ahora,
+                totalConexiones: 1,
+                conexionesHoy: 1,
+                ultimaFechaConexion: new Date().toISOString().split('T')[0] // Solo la fecha
+            };
+            
+            console.log(`✨ TRACKING: Nuevo jugador registrado - Auth: ${auth}`);
+        } else {
+            // Actualizar datos existentes
+            datosTracking.nombres.add(nombre);
+            if (ipSimulada) {
+                datosTracking.ips.add(ipSimulada);
+            }
+            datosTracking.ultimaConexion = ahora;
+            datosTracking.totalConexiones = (datosTracking.totalConexiones || 0) + 1;
+            
+            // Actualizar conexiones de hoy
+            const fechaHoy = new Date().toISOString().split('T')[0];
+            if (datosTracking.ultimaFechaConexion !== fechaHoy) {
+                datosTracking.conexionesHoy = 1;
+                datosTracking.ultimaFechaConexion = fechaHoy;
+            } else {
+                datosTracking.conexionesHoy = (datosTracking.conexionesHoy || 0) + 1;
+            }
+            
+            console.log(`🔄 TRACKING: Datos actualizados para Auth: ${auth}`);
+            console.log(`   - Nombres totales: ${datosTracking.nombres.size}`);
+            console.log(`   - IPs totales: ${datosTracking.ips.size}`);
+            console.log(`   - Conexiones hoy: ${datosTracking.conexionesHoy}`);
+        }
+        
+        // Guardar en el Map principal
+        jugadoresTracker.set(auth, datosTracking);
+        
+        // Actualizar historial de nombres para esta sesión
+        actualizarHistorialNombres(jugador, auth);
+        
+        console.log(`✅ TRACKING: Jugador ${nombre} trackeado correctamente`);
+        
+    } catch (error) {
+        console.error(`❌ Error en trackearJugador:`, error);
+    }
+}
+
+/**
+ * Actualiza el historial de nombres para la sesión actual
+ * @param {Object} jugador - El objeto jugador de HaxBall
+ * @param {string} auth - El auth del jugador
+ */
+function actualizarHistorialNombres(jugador, auth) {
+    try {
+        if (!jugador || !auth) {
+            return;
+        }
+        
+        // Obtener o crear historial para este jugador en la sesión
+        let historial = historialNombresJugadores.get(jugador.id);
+        
+        if (!historial) {
+            historial = {
+                auth: auth,
+                nombres: [jugador.name],
+                inicioSesion: Date.now()
+            };
+        } else {
+            // Agregar el nombre si no existe ya
+            if (!historial.nombres.includes(jugador.name)) {
+                historial.nombres.push(jugador.name);
+            }
+        }
+        
+        historialNombresJugadores.set(jugador.id, historial);
+        
+        console.log(`📝 HISTORIAL: Actualizado para ${jugador.name} - Total nombres en sesión: ${historial.nombres.length}`);
+        
+    } catch (error) {
+        console.error(`❌ Error actualizando historial de nombres:`, error);
+    }
+}
+
+/**
+ * Obtiene datos completos de un jugador para el reporte
+ * @param {Object} jugador - El objeto jugador de HaxBall
+ * @param {string} tipoEvento - Tipo de evento ("join", "leave", "kick", "ban")
+ * @returns {Object} - Datos del jugador para el reporte
+ */
+function obtenerDatosJugadorParaReporte(jugador, tipoEvento = "join") {
+    try {
+        const auth = jugador.auth || "Sin Auth";
+        const ipSimulada = obtenerIdentificadorConexion(jugador) || "Desconocida";
+        const datosTracking = jugadoresTracker.get(auth);
+        const historialSesion = historialNombresJugadores.get(jugador.id);
+        
+        // Datos básicos del jugador
+        const datosBasicos = {
+            nombre: jugador.name,
+            id: jugador.id,
+            auth: auth,
+            ip: ipSimulada,
+            tipoEvento: tipoEvento,
+            timestamp: Date.now(),
+            fecha: new Date().toISOString()
+        };
+        
+        // Datos de tracking (historial completo)
+        const datosHistorial = {
+            esNuevoJugador: !datosTracking,
+            nombresHistoricos: datosTracking ? Array.from(datosTracking.nombres) : [jugador.name],
+            ipsHistoricas: datosTracking ? Array.from(datosTracking.ips) : [ipSimulada],
+            primeraVezVisto: datosTracking ? new Date(datosTracking.primeraConexion).toISOString() : new Date().toISOString(),
+            ultimaConexionAnterior: datosTracking ? new Date(datosTracking.ultimaConexion).toISOString() : null,
+            totalConexionesHistoricas: datosTracking ? datosTracking.totalConexiones : 1,
+            conexionesHoy: datosTracking ? datosTracking.conexionesHoy : 1
+        };
+        
+        // Datos de la sesión actual
+        const datosSesion = {
+            nombresEnSesion: historialSesion ? historialSesion.nombres : [jugador.name],
+            tiempoEnSesion: historialSesion ? Date.now() - historialSesion.inicioSesion : 0
+        };
+        
+        // Datos del estado actual de la sala
+        const jugadoresEnSala = room.getPlayerList().filter(j => j.id !== 0);
+        const datosSala = {
+            jugadoresConectados: jugadoresEnSala.length,
+            maxJugadores: room.getConfig?.()?.maxPlayers || maxPlayers,
+            nombresSala: jugadoresEnSala.map(j => j.name),
+            hayPartidoEnCurso: room.getGame?.()?.isRunning || false
+        };
+        
+        return {
+            ...datosBasicos,
+            historial: datosHistorial,
+            sesion: datosSesion,
+            sala: datosSala
+        };
+        
+    } catch (error) {
+        console.error(`❌ Error obteniendo datos para reporte:`, error);
+        return {
+            nombre: jugador?.name || "Desconocido",
+            id: jugador?.id || 0,
+            auth: jugador?.auth || "Sin Auth",
+            tipoEvento: tipoEvento,
+            error: error.message
+        };
+    }
+}
+
+/**
+ * Envía un reporte de jugador al webhook de Discord
+ * @param {Object} datosJugador - Datos del jugador obtenidos de obtenerDatosJugadorParaReporte
+ * @param {string} razonAdicional - Razón adicional para eventos como kick o ban
+ */
+function enviarReporteJugadorDiscord(datosJugador, razonAdicional = null) {
+    try {
+        if (!WEBHOOK_JUGADORES_URL) {
+            console.log(`⚠️ WEBHOOK: URL del webhook no configurada`);
+            return;
+        }
+        
+        console.log(`📤 WEBHOOK: Enviando reporte de ${datosJugador.tipoEvento} para ${datosJugador.nombre}`);
+        
+        // Determinar color y emoji según el tipo de evento
+        let color = 0x87CEEB; // Celeste por defecto
+        let emoji = "👋";
+        let titulo = "Jugador Conectado";
+        
+        switch (datosJugador.tipoEvento) {
+            case "join":
+                color = 0x00FF00; // Verde
+                emoji = "🟢";
+                titulo = "Jugador Conectado";
+                break;
+            case "leave":
+                color = 0xFFA500; // Naranja
+                emoji = "🟠";
+                titulo = "Jugador Desconectado";
+                break;
+            case "kick":
+                color = 0xFF6B6B; // Rojo claro
+                emoji = "🔴";
+                titulo = "Jugador Expulsado";
+                break;
+            case "ban":
+                color = 0xFF0000; // Rojo
+                emoji = "🚫";
+                titulo = "Jugador Baneado";
+                break;
+        }
+        
+        // Crear embed principal
+        const embed = {
+            title: `${emoji} ${titulo}`,
+            color: color,
+            timestamp: datosJugador.fecha,
+            footer: {
+                text: "Sistema de Tracking LNB",
+                icon_url: "https://i.imgur.com/4M34hi2.png"
+            },
+            fields: [
+                {
+                    name: "👤 Información del Jugador",
+                    value: `**Nombre:** ${datosJugador.nombre}\n**Auth:** \`${datosJugador.auth}\`\n**ID:** ${datosJugador.id}`,
+                    inline: true
+                },
+                {
+                    name: "🌐 Conexión",
+                    value: `**IP:** \`${datosJugador.ip}\`\n**Conexiones Hoy:** ${datosJugador.historial.conexionesHoy}`,
+                    inline: true
+                },
+                {
+                    name: "🏠 Estado de la Sala",
+                    value: `**Jugadores:** ${datosJugador.sala.jugadoresConectados}/${datosJugador.sala.maxJugadores}\n**Partido:** ${datosJugador.sala.hayPartidoEnCurso ? '🟢 Activo' : '🔴 Detenido'}`,
+                    inline: true
+                }
+            ]
+        };
+        
+        // Agregar información de historial si no es un jugador nuevo
+        if (!datosJugador.historial.esNuevoJugador) {
+            const nombresHistoricos = datosJugador.historial.nombresHistoricos.slice(0, 5); // Solo primeros 5
+            const nombresTexto = nombresHistoricos.length > 5 
+                ? nombresHistoricos.slice(0, 4).join(', ') + `, +${nombresHistoricos.length - 4} más`
+                : nombresHistoricos.join(', ');
+                
+            embed.fields.push({
+                name: "📚 Historial",
+                value: `**Primera vez visto:** <t:${Math.floor(new Date(datosJugador.historial.primeraVezVisto).getTime() / 1000)}:R>\n**Total conexiones:** ${datosJugador.historial.totalConexionesHistoricas}\n**Nombres usados:** ${nombresTexto}`,
+                inline: false
+            });
+        } else {
+            embed.fields.push({
+                name: "✨ Jugador Nuevo",
+                value: "Este es la primera vez que vemos a este jugador",
+                inline: false
+            });
+        }
+        
+        // Agregar información de sesión actual
+        if (datosJugador.sesion.nombresEnSesion.length > 1) {
+            embed.fields.push({
+                name: "📝 En esta sesión",
+                value: `**Nombres usados:** ${datosJugador.sesion.nombresEnSesion.join(', ')}\n**Tiempo en sala:** ${Math.floor(datosJugador.sesion.tiempoEnSesion / 60000)} minutos`,
+                inline: false
+            });
+        }
+        
+        // Agregar razón adicional si la hay (para kicks/bans)
+        if (razonAdicional) {
+            embed.fields.push({
+                name: "⚠️ Motivo",
+                value: razonAdicional,
+                inline: false
+            });
+        }
+        
+        // Crear payload completo
+        const payload = {
+            embeds: [embed],
+            username: "LNB Tracker Bot",
+            avatar_url: "https://i.imgur.com/4M34hi2.png"
+        };
+        
+        // Enviar webhook
+        enviarWebhook(WEBHOOK_JUGADORES_URL, payload)
+            .then(() => {
+                console.log(`✅ WEBHOOK: Reporte enviado exitosamente para ${datosJugador.nombre}`);
+            })
+            .catch(error => {
+                console.error(`❌ WEBHOOK: Error enviando reporte:`, error);
+            });
+            
+    } catch (error) {
+        console.error(`❌ Error en enviarReporteJugadorDiscord:`, error);
+    }
+}
+
+/**
+ * Función helper para enviar webhook HTTP
+ * @param {string} webhookUrl - URL del webhook
+ * @param {Object} payload - Datos a enviar
+ * @returns {Promise} - Promesa del envío
+ */
+function enviarWebhook(webhookUrl, payload) {
+    return new Promise((resolve, reject) => {
+        try {
+            // Prioridad 1: Usar nodeEnviarWebhook si está disponible (más confiable)
+            if (typeof nodeEnviarWebhook === 'function') {
+                console.log(`📤 WEBHOOK: Usando nodeEnviarWebhook para mejor compatibilidad`);
+                
+                nodeEnviarWebhook(webhookUrl, payload)
+                    .then(response => {
+                        console.log(`✅ WEBHOOK: Enviado exitosamente con nodeEnviarWebhook`);
+                        resolve(response);
+                    })
+                    .catch(error => {
+                        console.log(`⚠️ WEBHOOK: Error con nodeEnviarWebhook, intentando fallback con fetch`);
+                        // Fallback a fetch si nodeEnviarWebhook falla
+                        enviarWebhookConFetch(webhookUrl, payload)
+                            .then(resolve)
+                            .catch(reject);
+                    });
+                return;
+            }
+            
+            // Fallback: Usar fetch si nodeEnviarWebhook no está disponible
+            console.log(`📤 WEBHOOK: nodeEnviarWebhook no disponible, usando fetch como fallback`);
+            enviarWebhookConFetch(webhookUrl, payload)
+                .then(resolve)
+                .catch(reject);
+                
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+/**
+ * Función fallback para enviar webhook usando fetch
+ * @param {string} webhookUrl - URL del webhook
+ * @param {Object} payload - Datos a enviar
+ * @returns {Promise} - Promesa del envío
+ */
+function enviarWebhookConFetch(webhookUrl, payload) {
+    return new Promise((resolve, reject) => {
+        try {
+            if (typeof fetch === 'undefined') {
+                console.log(`⚠️ WEBHOOK: fetch no disponible, webhook omitido`);
+                resolve();
+                return;
+            }
+            
+            fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log(`✅ WEBHOOK: Enviado exitosamente con fetch`);
+                    resolve(response);
+                } else {
+                    reject(new Error(`HTTP ${response.status}: ${response.statusText}`));
+                }
+            })
+            .catch(error => {
+                reject(error);
+            });
+            
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+/**
+ * Limpia datos de tracking de jugadores desconectados
+ * (Solo limpia datos de la sesión, mantiene el historial persistente)
+ */
+function limpiarDatosTrackingDesconectados() {
+    try {
+        if (typeof room === 'undefined' || !room || !room.getPlayerList) {
+            return;
+        }
+        
+        const jugadoresActuales = new Set(room.getPlayerList().map(j => j.id));
+        let limpiezasRealizadas = 0;
+        
+        // Limpiar historial de nombres de la sesión para jugadores desconectados
+        for (const [playerId] of historialNombresJugadores.entries()) {
+            if (!jugadoresActuales.has(playerId)) {
+                historialNombresJugadores.delete(playerId);
+                limpiezasRealizadas++;
+            }
+        }
+        
+        if (limpiezasRealizadas > 0) {
+            console.log(`🧹 TRACKING: Limpiados ${limpiezasRealizadas} historiales de sesión de jugadores desconectados`);
+        }
+        
+    } catch (error) {
+        console.error(`❌ Error limpiando datos de tracking:`, error);
+    }
+}
+
+/**
+ * Obtiene estadísticas del sistema de tracking
+ * @returns {Object} - Estadísticas del tracking
+ */
+function obtenerEstadisticasTracking() {
+    try {
+        const stats = {
+            jugadores_unicos_historicos: jugadoresTracker.size,
+            jugadores_en_sesion_actual: historialNombresJugadores.size,
+            total_nombres_unicos: 0,
+            total_ips_unicas: 0,
+            jugadores_nuevos_hoy: 0,
+            conexiones_totales_hoy: 0
+        };
+        
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        const nombresUnicos = new Set();
+        const ipsUnicas = new Set();
+        
+        // Analizar datos de tracking
+        for (const [auth, datos] of jugadoresTracker.entries()) {
+            // Contar nombres únicos
+            datos.nombres.forEach(nombre => nombresUnicos.add(nombre));
+            
+            // Contar IPs únicas
+            datos.ips.forEach(ip => ipsUnicas.add(ip));
+            
+            // Contar jugadores nuevos y conexiones de hoy
+            if (datos.ultimaFechaConexion === fechaHoy) {
+                stats.conexiones_totales_hoy += datos.conexionesHoy;
+                
+                // Es nuevo si su primera conexión fue hoy
+                const fechaPrimeraConexion = new Date(datos.primeraConexion).toISOString().split('T')[0];
+                if (fechaPrimeraConexion === fechaHoy) {
+                    stats.jugadores_nuevos_hoy++;
+                }
+            }
+        }
+        
+        stats.total_nombres_unicos = nombresUnicos.size;
+        stats.total_ips_unicas = ipsUnicas.size;
+        
+        return stats;
+        
+    } catch (error) {
+        console.error(`❌ Error obteniendo estadísticas de tracking:`, error);
+        return {
+            error: error.message,
+            jugadores_unicos_historicos: 0,
+            jugadores_en_sesion_actual: 0
+        };
+    }
+}
+
+// Limpieza automática de datos de tracking cada 5 minutos
+setInterval(limpiarDatosTrackingDesconectados, 5 * 60 * 1000);
+
+// ==================== FIN SISTEMA DE TRACKING DE JUGADORES ====================
 
 
 // FUNCIÓN AUXILIAR PARA OBTENER JUGADORES SIN HOST
@@ -11609,6 +12104,50 @@ setTimeout(() => {
             console.error('❌ Error registrando jugador global:', error);
         }
         
+        // ====================== TRACKING DE JUGADORES - SISTEMA INTEGRADO ======================
+        // SISTEMA NUEVO: Tracking persistente (con BD)
+        try {
+            if (typeof obtenerSistemaTracking === 'function') {
+                const sistemaTrackingPersistente = obtenerSistemaTracking();
+                if (sistemaTrackingPersistente) {
+                    console.log(`📊 TRACKING PERSISTENTE: Procesando ${jugador.name}`);
+                    sistemaTrackingPersistente.trackearConexionJugador(jugador).catch(error => {
+                        console.error(`❌ Error en tracking persistente:`, error);
+                        // Fallback al sistema legacy si el persistente falla
+                        console.log(`🔄 Fallback: Usando sistema legacy para ${jugador.name}`);
+                        trackearJugador(jugador);
+                    });
+                } else {
+                    console.warn(`⚠️ Sistema de tracking persistente no inicializado - usando legacy`);
+                    trackearJugador(jugador);
+                }
+            } else {
+                console.warn(`⚠️ Función obtenerSistemaTracking no disponible - usando legacy`);
+                trackearJugador(jugador);
+            }
+        } catch (error) {
+            console.error(`❌ Error en sistema de tracking integrado:`, error);
+            // Fallback al sistema legacy
+            console.log(`🔄 Fallback crítico: Usando sistema legacy para ${jugador.name}`);
+            trackearJugador(jugador);
+        }
+        // ====================== FIN TRACKING INTEGRADO ======================
+        
+        // ====================== ENVIAR REPORTE DE CONEXIÓN AL WEBHOOK ======================
+        try {
+            console.log(`📤 WEBHOOK: Enviando reporte de conexión para ${jugador.name}`);
+            
+            // Obtener datos completos del jugador para el reporte
+            const datosJugador = obtenerDatosJugadorParaReporte(jugador, "join");
+            
+            // Enviar reporte al webhook de Discord
+            enviarReporteJugadorDiscord(datosJugador);
+            
+        } catch (error) {
+            console.error(`❌ Error enviando reporte de conexión para ${jugador.name}:`, error);
+        }
+        // ====================== FIN REPORTE WEBHOOK ======================
+        
         // Actualizar nombre con nivel después de un breve delay
         setTimeout(() => {
             try {
@@ -12930,6 +13469,26 @@ function inicializar() {
     }
     
     // Bot configurado - sin intentos de invisibilidad
+    
+    // ==================== INICIALIZAR SISTEMA DE TRACKING PERSISTENTE ====================
+    // Inicializar el sistema de tracking persistente después de crear la sala
+    if (PlayerTrackingPersistent && !sistemaTrackingPersistente) {
+        try {
+            console.log('🔄 Inicializando sistema de tracking persistente...');
+            sistemaTrackingPersistente = new PlayerTrackingPersistent();
+            console.log('✅ Sistema de tracking persistente inicializado correctamente');
+            anunciarInfo('🗄️ Sistema de seguimiento persistente activado');
+        } catch (error) {
+            console.error('❌ Error al inicializar sistema de tracking persistente:', error);
+            anunciarError('⚠️ Error al activar el sistema de seguimiento persistente');
+            // El sistema continúa con el tracking legacy (JavaScript Maps)
+        }
+    } else if (!PlayerTrackingPersistent) {
+        console.warn('⚠️ PlayerTrackingPersistent no está disponible - usando sistema legacy');
+        anunciarAdvertencia('⚠️ Usando sistema de seguimiento legacy (memoria)');
+    } else {
+        console.log('✅ Sistema de tracking persistente ya estaba inicializado');
+    }
     
     // Cargar estadísticas globales desde localStorage
     cargarEstadisticasGlobalesCompletas();

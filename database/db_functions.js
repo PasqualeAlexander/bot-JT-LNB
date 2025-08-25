@@ -170,7 +170,7 @@ const dbFunctions = {
     
     // Obtener top jugadores
     obtenerTopJugadores: async (campo, limite = 10) => {
-        const validCampos = ['goles', 'asistencias', 'partidos', 'victorias', 'hatTricks', 'vallasInvictas'];
+        const validCampos = ['goles', 'asistencias', 'partidos', 'victorias', 'hatTricks', 'vallasInvictas', 'mvps'];
         if (!validCampos.includes(campo)) {
             throw new Error('Campo inválido');
         }

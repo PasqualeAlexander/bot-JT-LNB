@@ -574,7 +574,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 23;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGirtLU51AaHJ1TOvA.gN7cJ6qGop8";
+const token = "thr1.AAAAAGir5hp5AKSLcKcIUA.X2RWMDg7m_Q";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -592,6 +592,42 @@ function debounce(func, delay) {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => func.apply(this, args), delay);
     };
+}
+
+// ==================== LÓGICA SEPARADA: HAT-TRICKS Y MVPs ====================
+// Procesar y registrar hat-tricks de un jugador en un partido
+function procesarHatTricks(jugadorPartido, statsGlobal, fechaActual) {
+    try {
+        if (!jugadorPartido || !statsGlobal) return;
+        // Criterio: 3 o más goles en el partido
+        if ((jugadorPartido.goles || 0) >= 3) {
+            statsGlobal.hatTricks = (statsGlobal.hatTricks || 0) + 1;
+            if (estadisticasGlobales && estadisticasGlobales.records && Array.isArray(estadisticasGlobales.records.hatTricks)) {
+                estadisticasGlobales.records.hatTricks.push({
+                    jugador: jugadorPartido.nombre,
+                    goles: jugadorPartido.goles,
+                    fecha: fechaActual
+                });
+            }
+            // Otorgar XP por hat-trick
+            try { otorgarXP(jugadorPartido.nombre, 'hat_trick'); } catch (e) {}
+        }
+    } catch (e) {
+        console.error('❌ Error en procesarHatTricks:', e);
+    }
+}
+
+// Procesar y registrar MVP del partido
+function procesarMVPPartido(nombreMVP, fechaActual) {
+    try {
+        if (!nombreMVP) return;
+        const statsGlobal = registrarJugadorGlobal(nombreMVP);
+        if (!statsGlobal) return;
+        statsGlobal.mvps = (statsGlobal.mvps || 0) + 1;
+        // Opcional: aquí podríamos llevar un historial de MVPs si fuese necesario
+    } catch (e) {
+        console.error('❌ Error en procesarMVPPartido:', e);
+    }
 }
 
 // Variables para cambio de camisetas (separado por equipos)
@@ -6151,7 +6187,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             };
             
             // Notificar que el cambio está pendiente
-            anunciarInfo(`⚡ El mapa cambiará al terminar el partido actual para una mejor experiencia de juego!`);
+            // anunciarInfo(`⚡ El mapa cambiará al terminar el partido actual para una mejor experiencia de juego!`);
             
             console.log(`✅ DEBUG: Cambio de mapa pendiente configurado:`, cambioMapaPendiente);
             return; // Continuar con el partido actual
@@ -6328,6 +6364,84 @@ function iniciarAnunciosDiscord() {
             // Error en anuncio de Discord
         }
     }, 600000); // 10 minutos
+}
+
+// ANUNCIAR TOP DE GOLES CADA 30 MINUTOS
+let intervalTopGoles = null;
+function iniciarTopGolesAutomatico() {
+    if (intervalTopGoles) clearInterval(intervalTopGoles);
+    // Ejecutar una vez tras 1 minuto para no spamear al iniciar
+    try {
+        setTimeout(() => {
+            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
+                try {
+                    room.sendAnnouncement("⚽ TOP GOLEADORES (automático)", null, parseInt(COLORES.DORADO, 16), "bold", 0);
+                    // Reutilizamos la función existente enviando a todos (id null)
+                    if (typeof mostrarTopJugadores === 'function') {
+                        mostrarTopJugadores({ id: null }, 'goles');
+                    }
+                } catch (e) {
+                    // Silenciar errores de anuncio inicial
+                }
+            }
+        }, 60000);
+    } catch (e) { /* noop */ }
+
+    intervalTopGoles = setInterval(() => {
+        try {
+            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
+                // Opcional: solo anunciar si hay jugadores en sala
+                const players = room.getPlayerList ? room.getPlayerList() : [];
+                if (!players || players.length === 0) return;
+
+                room.sendAnnouncement("⚽ TOP GOLEADORES (automático)", null, parseInt(COLORES.DORADO, 16), "bold", 0);
+                if (typeof mostrarTopJugadores === 'function') {
+                    mostrarTopJugadores({ id: null }, 'goles');
+                }
+            }
+        } catch (error) {
+            // Error en anuncio automático de top goles
+        }
+    }, 1800000); // 30 minutos
+}
+
+// ANUNCIAR TOP RANK CADA 45 MINUTOS
+let intervalTopRank = null;
+function iniciarTopRankAutomatico() {
+    if (intervalTopRank) clearInterval(intervalTopRank);
+    // Ejecutar una vez tras 2 minutos para no spamear al iniciar (diferente al de goles)
+    try {
+        setTimeout(() => {
+            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
+                try {
+                    room.sendAnnouncement("🏆 TOP RANKING GENERAL (automático)", null, parseInt(COLORES.DORADO, 16), "bold", 0);
+                    // Reutilizamos la función existente enviando a todos (id null)
+                    if (typeof mostrarTopJugadores === 'function') {
+                        mostrarTopJugadores({ id: null }, 'rank');
+                    }
+                } catch (e) {
+                    // Silenciar errores de anuncio inicial
+                }
+            }
+        }, 120000); // 2 minutos
+    } catch (e) { /* noop */ }
+
+    intervalTopRank = setInterval(() => {
+        try {
+            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
+                // Opcional: solo anunciar si hay jugadores en sala
+                const players = room.getPlayerList ? room.getPlayerList() : [];
+                if (!players || players.length === 0) return;
+
+                room.sendAnnouncement("🏆 TOP RANKING GENERAL (automático)", null, parseInt(COLORES.DORADO, 16), "bold", 0);
+                if (typeof mostrarTopJugadores === 'function') {
+                    mostrarTopJugadores({ id: null }, 'rank');
+                }
+            }
+        } catch (error) {
+            // Error en anuncio automático de top rank
+        }
+    }, 2700000); // 45 minutos
 }
 
 // FUNCIONES DE COMANDOS
@@ -6912,7 +7026,7 @@ async function procesarComando(jugador, mensaje) {
                 mostrarTopJugadores(jugador, args[1].toLowerCase());
             } else {
                 room.sendAnnouncement("📝 Uso: !top <estadística>", jugador.id, parseInt("FF0000", 16), "normal", 0);
-                room.sendAnnouncement("📊 Estadísticas disponibles: goles, asistencias, vallas, autogoles, mvps, hattrick", jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
+                room.sendAnnouncement("📊 Estadísticas disponibles: goles, asistencias, vallas, autogoles, mvps, hattrick, rank", jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
             }
             break;
             
@@ -9091,6 +9205,7 @@ function registrarJugadorGlobal(nombre) {
             mejorRachaGoles: 0,
             mejorRachaAsistencias: 0,
             hatTricks: 0,
+            mvps: 0, // Campo separado para MVPs
             vallasInvictas: 0,
             tiempoJugado: 0, // en segundos
             promedioGoles: 0,
@@ -9144,14 +9259,7 @@ function actualizarEstadisticasGlobales(datosPartido) {
         }
         
         // Hat-tricks
-        if (jugadorPartido.goles >= 3) {
-            statsGlobal.hatTricks++;
-            estadisticasGlobales.records.hatTricks.push({
-                jugador: jugadorPartido.nombre,
-                goles: jugadorPartido.goles,
-                fecha: fechaActual
-            });
-        }
+        procesarHatTricks(jugadorPartido, statsGlobal, fechaActual);
         
         // Vallas Invictas
         const esArqueroRojo = jugadorPartido.nombre === datosPartido.arqueroRed;
@@ -9216,6 +9324,14 @@ function actualizarEstadisticasGlobales(datosPartido) {
             console.log(`🔐 Código de recuperación generado automáticamente para ${jugadorPartido.nombre}: ${statsGlobal.codigoRecuperacion}`);
         }
     });
+
+    // MVP del partido (si está presente en los datos)
+    if (datosPartido.mejorJugador) {
+        const nombreMVP = typeof datosPartido.mejorJugador === 'string' ? datosPartido.mejorJugador : datosPartido.mejorJugador.nombre;
+        if (nombreMVP) {
+            procesarMVPPartido(nombreMVP, fechaActual);
+        }
+    }
     
     // Récords del partido
     if (datosPartido.duracion > estadisticasGlobales.records.partidoMasLargo.duracion) {
@@ -9397,7 +9513,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
                 .slice(0, 10);
             titulo = "TOP 10 ASISTENTES";
             emoji = "🎯";
-            unidad = "asistencias";
+            unidad = "";
             break;
             
         case "vallas":
@@ -9408,7 +9524,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
                 .slice(0, 10);
             titulo = "TOP 10 VALLAS INVICTAS";
             emoji = "🛡️";
-            unidad = "vallas invictas";
+            unidad = ""; // Formato compacto: solo el número
             break;
             
         case "autogoles":
@@ -9417,7 +9533,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
                 .slice(0, 10);
             titulo = "TOP 10 AUTOGOLES";
             emoji = "😱";
-            unidad = "autogoles";
+            unidad = "";
             break;
             
         case "hattrick":
@@ -9427,21 +9543,45 @@ function mostrarTopJugadores(solicitante, estadistica) {
                 .slice(0, 10);
             titulo = "TOP 10 HAT-TRICKS";
             emoji = "🎩";
-            unidad = "hattrick";
+            unidad = "";
             break;
             
         case "mvp":
         case "mvps":
             topJugadores = jugadores
-                .sort((a, b) => b.hatTricks - a.hatTricks)
+                .sort((a, b) => (b.mvps || 0) - (a.mvps || 0))
                 .slice(0, 10);
-            titulo = "TOP 10 HAT-TRICKS (MVPs)";
-            emoji = "🎩";
-            unidad = "hat-tricks";
+            titulo = "TOP 10 MVPs";
+            emoji = "👑";
+            unidad = "";
+            break;
+            
+        case "partidos":
+        case "pj":
+            topJugadores = jugadores
+                .sort((a, b) => b.partidos - a.partidos)
+                .slice(0, 10);
+            titulo = "TOP 10 PARTIDOS JUGADOS";
+            emoji = "🎮";
+            unidad = "";
+            break;
+            
+        case "rank":
+            // Calcular ranking basado en goles + asistencias + vallas invictas
+            topJugadores = jugadores
+                .map(j => ({
+                    ...j,
+                    puntuacionRank: j.goles + j.asistencias + j.vallasInvictas
+                }))
+                .sort((a, b) => b.puntuacionRank - a.puntuacionRank)
+                .slice(0, 10);
+            titulo = "🏆 TOP 10 RANKING GENERAL 🏆";
+            emoji = "🏆";
+            unidad = "puntos";
             break;
             
         default:
-            room.sendAnnouncement("❌ Estadística no válida. Usa: goles, asistencias (asis), vallas, autogoles, mvps", solicitante.id, parseInt("FF0000", 16), "normal", 0);
+            room.sendAnnouncement("❌ Estadística no válida. Usa: goles, asistencias (asis), vallas, autogoles, partidos (pj), mvps, rank", solicitante.id, parseInt("FF0000", 16), "normal", 0);
             return;
     }
     
@@ -9476,14 +9616,19 @@ function mostrarTopJugadores(solicitante, estadistica) {
                 break;
             case "mvp":
             case "mvps":
-                valor = jugador.hatTricks;
-                info = `(${jugador.partidos} partidos)`;
+                valor = jugador.mvps || 0;
+                info = ``;
                 break;
                 
             case "hattrick":
             case "hattricks":
                 valor = jugador.hatTricks;
                 info = ``;
+                break;
+                
+            case "rank":
+                valor = jugador.puntuacionRank;
+                info = ``; // Sin información adicional para el rank
                 break;
         }
         
@@ -9501,7 +9646,12 @@ function mostrarTopJugadores(solicitante, estadistica) {
         else if (i === 9) posicionEmoji = "🔟";
         else posicionEmoji = `${i + 1}.`;
         
-        lineas.push(`${posicionEmoji} ${jugador.nombre}: ${valor} ${unidad} ${info}`);
+        if (estadistica === "rank") {
+            // Formato especial para rank: solo nombre y valor
+            lineas.push(`${posicionEmoji} ${jugador.nombre}: ${valor}`);
+        } else {
+            lineas.push(`${posicionEmoji} ${jugador.nombre}: ${valor} ${unidad} ${info}`);
+        }
     });
     
     // Enviar título en línea separada
@@ -12670,9 +12820,11 @@ room.onTeamGoal = function(equipo) {
             
             anunciarGeneral("🏁 ⭐ ¡PARTIDO FINALIZADO! ⭐ 🏁", "FFA500", "bold");
             
-            const mejorJugador = calcularMejorJugador();
+const mejorJugador = calcularMejorJugador();
             if (mejorJugador) {
                 anunciarGeneral(`⭐ 👑 MEJOR JUGADOR: ${mejorJugador.nombre.toUpperCase()} 👑 ⭐`, "FFD700", "bold");
+                // Guardar MVP en las estadísticas del partido para actualizar globales
+                estadisticasPartido.mejorJugador = mejorJugador;
             }
             
             // Enviar puntuaciones privadas a cada jugador después de mostrar el resultado
@@ -13720,6 +13872,12 @@ function inicializarSistemas() {
     
     // Iniciar anuncios de Discord
     iniciarAnunciosDiscord();
+
+    // Iniciar anuncios automáticos de Top Goles
+    iniciarTopGolesAutomatico();
+    
+    // Iniciar anuncios automáticos de Top Rank
+    iniciarTopRankAutomatico();
     
     // Sistema de limpieza de datos
     setInterval(limpiarDatosExpirados, 60000); // Cada minuto

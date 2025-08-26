@@ -571,10 +571,10 @@ async function registrarJugador(nombre) {
 // ==================== CONFIGURACIÓN DE LA SALA ====================
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
-const maxPlayers = 23;
+const maxPlayers = 19;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGis5Ef3T2v87ylMnA.Gkn1DY5X8J4";
+const token = "thr1.AAAAAGityGlQaeKncAfe6A.Kc8xC-XR9Z4";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room

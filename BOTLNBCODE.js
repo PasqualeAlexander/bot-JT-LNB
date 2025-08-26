@@ -6393,7 +6393,6 @@ function iniciarTopGolesAutomatico() {
         setTimeout(() => {
             if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
                 try {
-                    room.sendAnnouncement("⚽ TOP GOLEADORES (automático)", null, parseInt(COLORES.DORADO, 16), "bold", 0);
                     // Reutilizamos la función existente enviando a todos (id null)
                     if (typeof mostrarTopJugadores === 'function') {
                         mostrarTopJugadores({ id: null }, 'goles');
@@ -6412,7 +6411,6 @@ function iniciarTopGolesAutomatico() {
                 const players = room.getPlayerList ? room.getPlayerList() : [];
                 if (!players || players.length === 0) return;
 
-                room.sendAnnouncement("⚽ TOP GOLEADORES (automático)", null, parseInt(COLORES.DORADO, 16), "bold", 0);
                 if (typeof mostrarTopJugadores === 'function') {
                     mostrarTopJugadores({ id: null }, 'goles');
                 }
@@ -6432,7 +6430,6 @@ function iniciarTopRankAutomatico() {
         setTimeout(() => {
             if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
                 try {
-                    room.sendAnnouncement("🏆 TOP RANKING GENERAL (automático)", null, parseInt(COLORES.DORADO, 16), "bold", 0);
                     // Reutilizamos la función existente enviando a todos (id null)
                     if (typeof mostrarTopJugadores === 'function') {
                         mostrarTopJugadores({ id: null }, 'rank');
@@ -6451,7 +6448,6 @@ function iniciarTopRankAutomatico() {
                 const players = room.getPlayerList ? room.getPlayerList() : [];
                 if (!players || players.length === 0) return;
 
-                room.sendAnnouncement("🏆 TOP RANKING GENERAL (automático)", null, parseInt(COLORES.DORADO, 16), "bold", 0);
                 if (typeof mostrarTopJugadores === 'function') {
                     mostrarTopJugadores({ id: null }, 'rank');
                 }
@@ -11318,7 +11314,14 @@ function enviarPuntuacionesPrivadas() {
                 0
             );
             
-            // Mensaje adicional según el rol del jugador (removido mensaje de arquero)
+            // Agregar Discord
+            room.sendAnnouncement(
+                `━━━━━━━┓ LNB 🔥 Discord: 'discord.gg/nJRhZXRNCA' ┏━━━━━━━`,
+                jugadorConectado.id,
+                parseInt(COLORES.DORADO, 16),
+                "bold",
+                0
+            );
             
             room.sendAnnouncement(
                 `═══════════════════════════════════════════════════════`,

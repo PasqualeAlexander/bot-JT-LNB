@@ -653,6 +653,28 @@ const dbFunctions = {
         }
     },
     
+    // Obtener TODOS los jugadores (para carga completa de estadísticas)
+    obtenerTodosJugadores: async () => {
+        try {
+            const query = `
+                SELECT nombre, partidos, victorias, derrotas, goles, asistencias, 
+                       autogoles, mejorRachaGoles, mejorRachaAsistencias, hatTricks, 
+                       vallasInvictas, tiempoJugado, promedioGoles, promedioAsistencias,
+                       fechaPrimerPartido, fechaUltimoPartido, xp, nivel, mvps,
+                       codigoRecuperacion, fechaCodigoCreado
+                FROM jugadores
+                ORDER BY nombre
+            `;
+            
+            const result = await executeQuery(query);
+            console.log(`[DB] 📊 ${result.length} jugadores cargados desde DB`);
+            return result;
+        } catch (error) {
+            console.error('[DB] ❌ Error al obtener todos los jugadores:', error);
+            return [];
+        }
+    },
+    
     // ====================== FUNCIONES DE UID Y BANEOS ======================
     
     // Registrar/actualizar UID de un jugador

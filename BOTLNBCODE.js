@@ -574,7 +574,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 19;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGityGlQaeKncAfe6A.Kc8xC-XR9Z4";
+const token = "thr1.AAAAAGity-Jz9mQkA466Cg.o8rmujXmY30";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -9113,21 +9113,94 @@ function aplicarCamisetaEspecial(jugador, configuracion) {
 async function cargarEstadisticasGlobalesCompletas() {
     try {
         console.log('🔄 Iniciando carga de estadísticas globales...');
-        const datos = await cargarEstadisticasGlobalesDB(); // Usar función de base de datos de forma asíncrona
-        console.log('📊 Datos recibidos de la base de datos:', datos ? 'Con datos' : 'null/undefined');
         
-        if (datos && datos.jugadores) {
-            estadisticasGlobales = datos;
-            console.log(`📊 Estadísticas de ${Object.keys(datos.jugadores).length} jugadores cargadas desde DB`);
+        // Obtener TODOS los jugadores de la base de datos
+        if (typeof nodeObtenerTodosJugadores === 'function') {
+            const todosJugadores = await nodeObtenerTodosJugadores();
+            
+            if (todosJugadores && todosJugadores.length > 0) {
+                console.log(`📊 ${todosJugadores.length} jugadores encontrados en DB`);
+                
+                // Inicializar estructura
+                estadisticasGlobales = {
+                    jugadores: {},
+                    records: {
+                        mayorGoles: {jugador: "", cantidad: 0, fecha: ""},
+                        mayorAsistencias: {jugador: "", cantidad: 0, fecha: ""},
+                        partidoMasLargo: {duracion: 0, fecha: "", equipos: ""},
+                        goleadaMasGrande: {diferencia: 0, resultado: "", fecha: ""},
+                        hatTricks: [],
+                        vallasInvictas: []
+                    },
+                    totalPartidos: 0,
+                    fechaCreacion: new Date().toISOString(),
+                    contadorJugadores: todosJugadores.length
+                };
+                
+                // Convertir cada jugador al formato interno
+                let totalPartidos = 0;
+                todosJugadores.forEach(jugadorDB => {
+                    estadisticasGlobales.jugadores[jugadorDB.nombre] = {
+                        nombre: jugadorDB.nombre,
+                        partidos: jugadorDB.partidos || 0,
+                        victorias: jugadorDB.victorias || 0,
+                        derrotas: jugadorDB.derrotas || 0,
+                        goles: jugadorDB.goles || 0,
+                        asistencias: jugadorDB.asistencias || 0,
+                        autogoles: jugadorDB.autogoles || 0,
+                        mejorRachaGoles: jugadorDB.mejorRachaGoles || 0,
+                        mejorRachaAsistencias: jugadorDB.mejorRachaAsistencias || 0,
+                        hatTricks: jugadorDB.hatTricks || 0,
+                        mvps: jugadorDB.mvps || 0,
+                        vallasInvictas: jugadorDB.vallasInvictas || 0,
+                        tiempoJugado: jugadorDB.tiempoJugado || 0,
+                        promedioGoles: jugadorDB.promedioGoles || 0,
+                        promedioAsistencias: jugadorDB.promedioAsistencias || 0,
+                        fechaPrimerPartido: jugadorDB.fechaPrimerPartido || new Date().toISOString(),
+                        fechaUltimoPartido: jugadorDB.fechaUltimoPartido || new Date().toISOString(),
+                        xp: jugadorDB.xp || 40,
+                        nivel: jugadorDB.nivel || 1,
+                        codigoRecuperacion: jugadorDB.codigoRecuperacion,
+                        fechaCodigoCreado: jugadorDB.fechaCodigoCreado
+                    };
+                    
+                    totalPartidos += (jugadorDB.partidos || 0);
+                });
+                
+                estadisticasGlobales.totalPartidos = Math.floor(totalPartidos / 6);
+                
+                console.log(`✅ Estadísticas cargadas: ${Object.keys(estadisticasGlobales.jugadores).length} jugadores`);
+                
+                // Verificar top partidos
+                const topPartidos = Object.values(estadisticasGlobales.jugadores)
+                    .filter(j => j.partidos > 0)
+                    .sort((a, b) => b.partidos - a.partidos)
+                    .slice(0, 3);
+                    
+                if (topPartidos.length > 0) {
+                    console.log('🏆 Top 3 partidos cargado:');
+                    topPartidos.forEach((j, i) => {
+                        console.log(`   ${i+1}. ${j.nombre}: ${j.partidos} partidos`);
+                    });
+                } else {
+                    console.warn('⚠️ No se encontraron jugadores con partidos > 0');
+                }
+                
+                return true;
+            } else {
+                console.warn('⚠️ No se encontraron jugadores en la base de datos');
+                return false;
+            }
         } else {
-            // Inicializar estructura por primera vez
-            estadisticasGlobales = inicializarBaseDatos();
-            console.log('📊 Estadísticas globales inicializadas por primera vez');
+            console.error('❌ Función nodeObtenerTodosJugadores no disponible');
+            return false;
         }
+        
     } catch (error) {
         console.error('❌ Error al cargar estadísticas globales:', error);
         estadisticasGlobales = inicializarBaseDatos();
         console.log('📊 Estadísticas globales inicializadas de emergencia');
+        return false;
     }
     
     // Verificación final
@@ -9613,6 +9686,12 @@ function mostrarTopJugadores(solicitante, estadistica) {
             case "hattricks":
                 valor = jugador.hatTricks;
                 info = ``;
+                break;
+                
+            case "partidos":
+            case "pj":
+                valor = jugador.partidos;
+                info = "";
                 break;
                 
             case "rank":

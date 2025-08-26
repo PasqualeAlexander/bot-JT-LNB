@@ -1554,7 +1554,7 @@ const roomConfig = {
     password: null,
     maxPlayers: 19,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGityGlQaeKncAfe6A.Kc8xC-XR9Z4", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
+    token: "thr1.AAAAAGity-Jz9mQkA466Cg.o8rmujXmY30", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
     geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };
@@ -1600,6 +1600,9 @@ const webhooks = {
         await page.exposeFunction('nodeObtenerJugador', dbFunctions.obtenerJugador);
         await page.exposeFunction('nodeObtenerTopJugadores', dbFunctions.obtenerTopJugadores);
         await page.exposeFunction('nodeGuardarPartido', dbFunctions.guardarPartido);
+        
+        // Exponer función para obtener todos los jugadores (para carga completa de estadísticas)
+        await page.exposeFunction('nodeObtenerTodosJugadores', dbFunctions.obtenerTodosJugadores);
         
         // Exponer funciones de limpieza de cuentas inactivas
         await page.exposeFunction('nodeEliminarCuentasInactivas', dbFunctions.eliminarCuentasInactivas);

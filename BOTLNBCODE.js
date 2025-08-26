@@ -7599,7 +7599,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                         return;
                     }
                     
-                    anunciarInfo(`🎯 Jugador seleccionado por ID #${id}: ${jugadorObjetivo.name}`, jugador);
+                    // anunciarInfo(`🎯 Jugador seleccionado por ID #${id}: ${jugadorObjetivo.name}`, jugador);
                 } else {
                     // Búsqueda por nombre tradicional
                     jugadorObjetivo = obtenerJugadorPorNombre(inputJugador);

@@ -1086,6 +1086,36 @@ const XP_POR_ACCION = {
     valla_invicta: 15
 };
 
+// ========== SISTEMA EXPONENCIAL DE NIVELES ==========
+function calcularXPRequerida(nivel) {
+    if (nivel <= 1) return 0;
+    const base = 100;
+    const multiplicador = 1.15; // 15% más difícil cada nivel
+    return Math.floor(base * Math.pow(multiplicador, nivel - 2));
+}
+
+function calcularXPTotalParaNivel(nivel) {
+    let total = 0;
+    for (let i = 2; i <= nivel; i++) {
+        total += calcularXPRequerida(i);
+    }
+    return total;
+}
+
+function calcularNivelPorXP(xpTotal) {
+    if (xpTotal < 100) return 1;
+    let nivel = 1;
+    let xpAcumulada = 0;
+    while (xpAcumulada <= xpTotal) {
+        nivel++;
+        const xpParaSiguienteNivel = calcularXPRequerida(nivel);
+        if (xpAcumulada + xpParaSiguienteNivel > xpTotal) break;
+        xpAcumulada += xpParaSiguienteNivel;
+    }
+    return nivel - 1;
+}
+// ====================================================
+
 // Función para calcular y otorgar XP
 function otorgarXP(nombreJugador, accion, cantidad = null) {
     // Verificar que estadisticasGlobales y jugadores existan
@@ -1113,8 +1143,8 @@ function otorgarXP(nombreJugador, accion, cantidad = null) {
     
     stats.xp += xpGanada;
     
-    // Calcular nuevo nivel (cada 100 XP = 1 nivel)
-    const nuevoNivel = Math.floor(stats.xp / 100) + 1;
+    // Calcular nuevo nivel usando el sistema exponencial
+    const nuevoNivel = calcularNivelPorXP(stats.xp);
     
     if (nuevoNivel > nivelAnterior) {
         stats.nivel = nuevoNivel;

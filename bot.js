@@ -27,6 +27,9 @@ const { executeQuery, executeTransaction, testConnection, closePool } = require(
 // Importar funciones de base de datos
 const dbFunctions = require('./database/db_functions');
 
+// Importar sistema de roles persistentes
+const { rolesPersistentSystem } = require('./roles_persistent_system');
+
 console.log('🔌 Inicializando conexión a MySQL...');
 
 // Probar conexión al inicializar
@@ -1554,7 +1557,7 @@ const roomConfig = {
     password: null,
     maxPlayers: 19,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGity-Jz9mQkA466Cg.o8rmujXmY30", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
+    token: "thr1.AAAAAGiuS90Cd94xryNDgg.Y4FL5H-2iiY", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
     geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };
@@ -1668,6 +1671,91 @@ const webhooks = {
         // Integrar sistemas compartidos
         await page.exposeFunction('cargarEstadisticasGlobales', dbFunctions.cargarEstadisticasGlobales);
         await page.exposeFunction('guardarEstadisticasGlobales', dbFunctions.guardarEstadisticasGlobales);
+        
+        // Exponer funciones del sistema de roles persistentes
+        await page.exposeFunction('nodeGetRole', async (authID, playerName = null) => {
+            try {
+                console.log(`🔍 nodeGetRole llamado: authID=${authID}, playerName=${playerName}`);
+                const result = rolesPersistentSystem.getRole(authID, playerName);
+                console.log(`🔍 nodeGetRole resultado:`, result ? `${result.role} para ${result.playerName}` : 'null');
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeGetRole:', error);
+                return null;
+            }
+        });
+        
+        await page.exposeFunction('nodeAssignRole', async (authID, role, assignedBy, playerName, alternativeIds = {}) => {
+            try {
+                console.log(`🔑 nodeAssignRole llamado: authID=${authID}, role=${role}, playerName=${playerName}`);
+                const result = rolesPersistentSystem.assignRole(authID, role, assignedBy, playerName, alternativeIds);
+                console.log(`🔑 nodeAssignRole resultado:`, result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeAssignRole:', error);
+                return { ok: false, reason: 'ERROR' };
+            }
+        });
+        
+        await page.exposeFunction('nodeRemoveRole', async (authID) => {
+            try {
+                console.log(`🗑️ nodeRemoveRole llamado: authID=${authID}`);
+                const result = rolesPersistentSystem.removeRole(authID);
+                console.log(`🗑️ nodeRemoveRole resultado:`, result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeRemoveRole:', error);
+                return false;
+            }
+        });
+        
+        await page.exposeFunction('nodeHasRole', async (authID, role, playerName = null) => {
+            try {
+                console.log(`🔒 nodeHasRole llamado: authID=${authID}, role=${role}, playerName=${playerName}`);
+                const result = rolesPersistentSystem.hasRole(authID, role, playerName);
+                console.log(`🔒 nodeHasRole resultado:`, result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeHasRole:', error);
+                return false;
+            }
+        });
+        
+        await page.exposeFunction('nodeUpdateLastSeen', async (authID, playerName) => {
+            try {
+                console.log(`📝 nodeUpdateLastSeen llamado: authID=${authID}, playerName=${playerName}`);
+                rolesPersistentSystem.updateLastSeen(authID, playerName);
+                console.log(`📝 nodeUpdateLastSeen completado`);
+                return true;
+            } catch (error) {
+                console.error('❌ Error en nodeUpdateLastSeen:', error);
+                return false;
+            }
+        });
+        
+        await page.exposeFunction('nodeGetAllRoles', async () => {
+            try {
+                console.log(`📋 nodeGetAllRoles llamado`);
+                const result = rolesPersistentSystem.getAllRoles();
+                console.log(`📋 nodeGetAllRoles resultado: ${result.length} roles`);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeGetAllRoles:', error);
+                return [];
+            }
+        });
+        
+        await page.exposeFunction('nodeGetRoleStats', async () => {
+            try {
+                console.log(`📊 nodeGetRoleStats llamado`);
+                const result = rolesPersistentSystem.getStats();
+                console.log(`📊 nodeGetRoleStats resultado:`, result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeGetRoleStats:', error);
+                return { totalRoles: 0, superAdmins: 0, adminsFull: 0, adminsBasico: 0 };
+            }
+        });
 
         await page.exposeFunction('nodeEnviarWebhook', async (webhookUrl, payload) => {
             try {

@@ -81,6 +81,19 @@ if (isNode) {
     }
 }
 
+// ==================== SISTEMA DE ROLES PERSISTENTES ====================
+// Importar sistema de roles persistentes para mantener roles entre desconexiones
+let rolesPersistentSystem = null;
+if (isNode) {
+    try {
+        const rolesModule = require('./roles_persistent_system.js');
+        rolesPersistentSystem = rolesModule.rolesPersistentSystem;
+        console.log('✅ Sistema de roles persistentes importado correctamente');
+    } catch (error) {
+        console.warn('⚠️ No se pudo importar el sistema de roles persistentes:', error.message);
+    }
+}
+
 // ==================== SISTEMA DE ALMACENAMIENTO CON BASE DE DATOS ====================
 // Funciones para manejo de almacenamiento usando MySQL a través de Node.js
 
@@ -574,7 +587,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 19;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGity-Jz9mQkA466Cg.o8rmujXmY30";
+const token = "thr1.AAAAAGiuS90Cd94xryNDgg.Y4FL5H-2iiY";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -7324,6 +7337,25 @@ async function procesarComando(jugador, mensaje) {
         // COMANDOS DE ADMIN
         case "claim":
         case "admin":
+            // ==================== DEBUG COMPLETO DEL JUGADOR ====================
+            console.log('🔍 [CLAIM DEBUG] =================================');
+            console.log('🔍 [CLAIM DEBUG] Estado completo del jugador:');
+            console.log('🔍 [CLAIM DEBUG] - ID:', jugador.id);
+            console.log('🔍 [CLAIM DEBUG] - Nombre:', jugador.name);
+            console.log('🔍 [CLAIM DEBUG] - Auth (tipo):', typeof jugador.auth);
+            console.log('🔍 [CLAIM DEBUG] - Auth (valor):', JSON.stringify(jugador.auth));
+            console.log('🔍 [CLAIM DEBUG] - Auth (string):', String(jugador.auth));
+            console.log('🔍 [CLAIM DEBUG] - Auth (length):', jugador.auth ? jugador.auth.length : 'N/A');
+            console.log('🔍 [CLAIM DEBUG] - Propiedades del jugador:', Object.keys(jugador));
+            
+            // Verificar si hay otros jugadores con auth válido
+            const jugadoresConAuth = room.getPlayerList().filter(p => p.auth && typeof p.auth === 'string' && p.auth.length > 0);
+            console.log('🔍 [CLAIM DEBUG] - Total jugadores con auth válido:', jugadoresConAuth.length);
+            jugadoresConAuth.forEach(p => {
+                console.log(`🔍 [CLAIM DEBUG]   - ${p.name}: ${p.auth}`);
+            });
+            console.log('🔍 [CLAIM DEBUG] =================================');
+            
             if (args[1]) {
                 const password = args[1];
                 let rolAsignado = null;
@@ -7344,6 +7376,52 @@ async function procesarComando(jugador, mensaje) {
                         assignedAt: Date.now(),
                         assignedBy: jugador.name
                     });
+                    
+                    // ==================== GUARDAR ROL DE FORMA PERSISTENTE ====================
+                    // Obtener auth desde jugadoresUID (guardado al conectarse) en lugar de jugador.auth
+                    const authGuardado = jugadoresUID.get(jugador.id);
+                    console.log('[DEBUG AUTH LEGACY]', jugador.name, { 
+                        type: typeof jugador.auth, 
+                        auth: jugador.auth,
+                        authGuardado: authGuardado,
+                        jugadorId: jugador.id 
+                    });
+                    
+                    // Guardar el rol en el sistema de persistencia si está disponible
+                    try {
+                        if (typeof nodeAssignRole === 'function') {
+                            // Verificar que tenemos un auth válido antes de intentar guardar
+                            if (!authGuardado || authGuardado.length === 0) {
+                                console.warn(`⚠️ No se puede guardar rol persistente para ${jugador.name} - Auth no disponible`);
+                                anunciarError("🔑 ⚠️ Para que tu rol sea permanente, debes estar logueado en Haxball.com", jugador);
+                                anunciarInfo(`📝 Ve a https://www.haxball.com/ y haz login antes de usar !claim`, jugador);
+                                anunciarInfo(`🔍 Debug: Auth guardado: ${typeof authGuardado} - "${authGuardado}"`, jugador);
+                            } else {
+                                const resultado = await nodeAssignRole(
+                                    authGuardado, // Usar auth guardado en lugar de jugador.auth
+                                    rolAsignado,
+                                    'SISTEMA_CLAIM', // Indicar que fue por comando !claim
+                                    jugador.name
+                                );
+                                
+                                if (resultado?.ok) {
+                                    console.log(`🔑 ROL GUARDADO PERSISTENTEMENTE: ${jugador.name} (${authGuardado}) -> ${rolAsignado}`);
+                                    anunciarInfo(`✅ Rol ${rolAsignado} guardado permanentemente`, jugador);
+                                } else if (resultado?.reason === 'AUTH_REQUIRED') {
+                                    // Notificar al jugador que necesita login de Haxball
+                                    anunciarError("🔑 ⚠️ Para que tu rol sea permanente, debes estar logueado en Haxball.com", jugador);
+                                    anunciarInfo(`📝 Ve a https://www.haxball.com/ y haz login antes de usar !claim`, jugador);
+                                    anunciarInfo(`🔍 Debug: AuthID recibido: ${typeof authGuardado} - "${authGuardado}"`, jugador);
+                                } else {
+                                    console.error(`❌ Error guardando rol persistente para ${jugador.name}:`, resultado);
+                                }
+                            }
+                        } else {
+                            console.warn(`⚠️ Sistema de roles persistentes no disponible`);
+                        }
+                    } catch (error) {
+                        console.error(`❌ Error guardando rol persistente:`, error);
+                    }
                     
                     const rol = ROLES[rolAsignado];
                     
@@ -8584,6 +8662,241 @@ function esSuperAdmin(jugador) {
 function esAdminBasico(jugador) {
     const rolJugador = jugadoresConRoles.get(jugador.id);
     return rolJugador && (ROLES[rolJugador.role]?.level || 0) >= ROLES.ADMIN_BASICO.level;
+}
+
+// FUNCIÓN AUXILIAR PARA VERIFICAR SI UN AUTH ES VÁLIDO
+function tieneAuth(jugador) {
+    return jugador && 
+           typeof jugador.auth === 'string' && 
+           jugador.auth.length > 0 && 
+           jugador.auth !== 'null' && 
+           jugador.auth !== 'undefined';
+}
+
+// ==================== FUNCIÓN DE VERIFICACIÓN Y RESTAURACIÓN DE ROLES PERSISTENTES MEJORADA ====================
+/**
+ * Verifica si un jugador tiene un rol persistente guardado y lo restaura en la sesión actual
+ * Incluye migración automática desde sistema de fallback por nombre hacia authID
+ * @param {Object} jugador - Objeto jugador con propiedades id, name, auth
+ */
+async function verificarYRestaurarRol(jugador) {
+    try {
+        console.log(`🔍 [DEBUG AUTH] Verificando rol para jugador: ${jugador.name}`);
+        console.log(`🔍 [DEBUG AUTH] - Tipo auth: ${typeof jugador.auth}`);
+        console.log(`🔍 [DEBUG AUTH] - Valor auth: "${jugador.auth}"`);
+        console.log(`🔍 [DEBUG AUTH] - Auth válido: ${tieneAuth(jugador)}`);
+        
+        // Verificar si tenemos acceso a las funciones expuestas desde Node
+        if (typeof nodeGetRole !== 'function') {
+            console.log(`⚠️ Sistema de roles persistentes no disponible para ${jugador.name}`);
+            return false;
+        }
+        
+        // Verificar si el jugador tiene auth válido
+        const tieneAuthValido = tieneAuth(jugador);
+        const authID = tieneAuthValido ? jugador.auth : null;
+        
+        console.log(`🔍 [DEBUG AUTH] AuthID final para búsqueda: ${authID}`);
+        
+        let rolGuardado = null;
+        let migrationPerformed = false;
+        let restorationMethod = 'NONE';
+        
+        // PASO 1: Buscar por authID si está disponible
+        if (authID) {
+            rolGuardado = await nodeGetRole(authID);
+            console.log(`🔍 [DEBUG AUTH] Búsqueda por auth "${authID}": ${rolGuardado ? 'ENCONTRADO' : 'NO ENCONTRADO'}`);
+            if (rolGuardado) {
+                restorationMethod = 'AUTH_ID';
+            }
+        }
+        
+        // PASO 2: Si no se encontró por auth pero el jugador tiene auth válido, buscar por nombre (fallback)
+        if (!rolGuardado && authID) {
+            console.log(`🔍 [DEBUG AUTH] Búsqueda fallback por nombre: "${jugador.name}"`);
+            const rolPorNombre = await nodeGetRole(jugador.name);
+            
+            if (rolPorNombre) {
+                console.log(`🔄 [MIGRATION] Rol encontrado por nombre, iniciando migración a authID`);
+                console.log(`🔄 [MIGRATION] - Nombre: ${jugador.name} -> AuthID: ${authID}`);
+                console.log(`🔄 [MIGRATION] - Rol: ${rolPorNombre.role}`);
+                
+                // Migrar de nombre a authID
+                        const resultadoMigracion = await nodeAssignRole(
+                            authID,
+                            rolPorNombre.role,
+                            'MIGRATION_AUTO',
+                            jugador.name
+                        );
+                
+                if (resultadoMigracion?.ok) {
+                    // Eliminar el rol guardado por nombre
+                    rolesPersistentSystem.removeRole(jugador.name);
+                    rolGuardado = rolPorNombre;
+                    migrationPerformed = true;
+                    restorationMethod = 'MIGRATED_FROM_NAME';
+                    console.log(`✅ [MIGRATION] Migración completada exitosamente`);
+                } else {
+                    console.error(`❌ [MIGRATION] Error en migración:`, resultadoMigracion);
+                }
+            }
+        }
+        
+        // PASO 3: Si no hay auth válido, intentar búsqueda por nombre (solo lectura, sin migración)
+        if (!rolGuardado && !authID) {
+            console.log(`🔍 [DEBUG AUTH] Búsqueda por nombre sin auth válido: "${jugador.name}"`);
+            const rolPorNombre = await nodeGetRole(jugador.name);
+            
+            if (rolPorNombre) {
+                rolGuardado = rolPorNombre;
+                restorationMethod = 'NAME_FALLBACK';
+                console.log(`⚠️ [RESTORE] Rol encontrado por nombre, pero sin auth válido para migrar`);
+            }
+        }
+        
+        // PASO 4: Si se encontró un rol, aplicarlo
+        if (rolGuardado) {
+            console.log(`✅ [RESTORE] Rol encontrado para ${jugador.name}: ${rolGuardado.role} (método: ${restorationMethod})`);
+            if (migrationPerformed) {
+                console.log(`✅ [RESTORE] Rol migrado de sistema fallback (nombre) a authID`);
+            }
+            
+            // Verificar que el rol existe en el sistema actual
+            if (!ROLES[rolGuardado.role]) {
+                console.error(`❌ [RESTORE] Rol guardado '${rolGuardado.role}' no existe en ROLES actual - saltando`);
+                return false;
+            }
+            
+            // Aplicar rol a la sesión actual
+            const rolData = {
+                role: rolGuardado.role,
+                assignedBy: migrationPerformed ? 'SISTEMA_MIGRATION_RESTORE' : rolGuardado.assignedBy || 'SISTEMA_AUTO_RESTORE',
+                assignedAt: rolGuardado.assignedAt || Date.now(),
+                restored: true,
+                timestamp: Date.now(),
+                migrated: migrationPerformed,
+                restorationMethod: restorationMethod
+            };
+            
+            // Asignar rol en el mapa de sesión actual
+            jugadoresConRoles.set(jugador.id, rolData);
+            
+            // Actualizar último acceso en el sistema persistente si tenemos authID
+            if (authID) {
+                rolesPersistentSystem.updateLastSeen(authID, jugador.name);
+            }
+            
+            const rolInfo = ROLES[rolGuardado.role];
+            
+            // Aplicar admin en HaxBall si es necesario CON DELAY
+            const esRolAdmin = ['SUPER_ADMIN', 'ADMIN_FULL', 'ADMIN_BASICO'].includes(rolGuardado.role);
+            
+            if (esRolAdmin) {
+                console.log(`👑 [RESTORE] Aplicando admin para ${jugador.name} con rol ${rolGuardado.role}`);
+                
+                // DELAY IMPORTANTE: aplicar admin después de un pequeño delay
+                setTimeout(() => {
+                    try {
+                        room.setPlayerAdmin(jugador.id, true);
+                        console.log(`✅ [RESTORE] Admin aplicado exitosamente para ${jugador.name}`);
+                        
+                        // Mensaje de bienvenida para admin
+                        let mensajeBienvenida;
+                        if (migrationPerformed) {
+                            mensajeBienvenida = `👑 🔄 Bienvenido de vuelta, ${rolInfo.nombre} ${jugador.name}! (Sistema migrado)`;
+                        } else if (restorationMethod === 'NAME_FALLBACK') {
+                            mensajeBienvenida = `👑 ⚠️ Bienvenido de vuelta, ${rolInfo.nombre} ${jugador.name}! (Requiere login para persistencia)`;
+                        } else {
+                            mensajeBienvenida = `👑 Bienvenido de vuelta, ${rolInfo.nombre} ${jugador.name}!`;
+                        }
+                            
+                        anunciarGeneral(mensajeBienvenida, COLORES.DORADO, "bold");
+                        
+                        if (restorationMethod === 'NAME_FALLBACK') {
+                            setTimeout(() => {
+                                room.sendAnnouncement(
+                                    "⚠️ Para hacer tu rol completamente persistente, inicia sesión en haxball.com",
+                                    jugador.id,
+                                    parseInt(COLORES.ADVERTENCIA, 16),
+                                    "normal",
+                                    0
+                                );
+                            }, 2000);
+                        }
+                        
+                    } catch (error) {
+                        console.error(`❌ [RESTORE] Error aplicando admin para ${jugador.name}:`, error);
+                    }
+                }, 500); // 500ms de delay
+            } else {
+                console.log(`ℹ️ [RESTORE] Rol ${rolGuardado.role} no requiere permisos de admin`);
+                
+                // Mensaje de bienvenida para roles no-admin
+                let mensajeBienvenida;
+                if (migrationPerformed) {
+                    mensajeBienvenida = `🎉 🔄 ¡Bienvenido de vuelta! Tu rol de ${rolInfo.nombre} ha sido restaurado (sistema migrado).`;
+                } else if (restorationMethod === 'NAME_FALLBACK') {
+                    mensajeBienvenida = `🎉 ⚠️ ¡Bienvenido de vuelta! Tu rol de ${rolInfo.nombre} ha sido restaurado.`;
+                } else {
+                    mensajeBienvenida = `🎉 ¡Bienvenido de vuelta! Tu rol de ${rolInfo.nombre} ha sido restaurado.`;
+                }
+                
+                room.sendAnnouncement(
+                    mensajeBienvenida,
+                    jugador.id,
+                    parseInt(rolInfo.color, 16),
+                    "bold",
+                    1
+                );
+                
+                if (restorationMethod === 'NAME_FALLBACK') {
+                    setTimeout(() => {
+                        room.sendAnnouncement(
+                            "⚠️ Para hacer tu rol completamente persistente, inicia sesión en haxball.com",
+                            jugador.id,
+                            parseInt(COLORES.ADVERTENCIA, 16),
+                            "normal",
+                            0
+                        );
+                    }, 2000);
+                }
+            }
+            
+            // Actualizar nombre con rol CON DELAY
+            setTimeout(() => {
+                actualizarNombreConRol(jugador);
+            }, 1000);
+            
+            console.log(`🎯 [RESTORE] Rol ${rolGuardado.role} restaurado exitosamente para ${jugador.name}`);
+            
+            // Log de éxito extendido
+            console.log(`✅ [RESTORE SUCCESS] Detalles completos:`);
+            console.log(`   - Jugador: ${jugador.name}`);
+            console.log(`   - Auth: ${authID || 'NO_AUTH'}`);
+            console.log(`   - Rol: ${rolGuardado.role}`);
+            console.log(`   - Método: ${restorationMethod}`);
+            console.log(`   - Migración: ${migrationPerformed ? 'SÍ' : 'NO'}`);
+            console.log(`   - Admin aplicado: ${esRolAdmin ? 'SÍ' : 'NO'}`);
+            
+            return true;
+            
+        } else {
+            // No hay rol guardado
+            const motivoSinRol = !authID ? 'sin auth válido' : 'no encontrado en sistema';
+            console.log(`ℹ️ [RESTORE] No hay rol guardado para ${jugador.name} (${motivoSinRol})`);
+            
+            if (!authID) {
+                console.log(`ℹ️ [RESTORE] El jugador ${jugador.name} necesita auth válido para roles persistentes`);
+            }
+            
+            return false;
+        }
+        
+    } catch (error) {
+        console.error(`❌ [RESTORE ERROR] Error verificando rol para ${jugador?.name}:`, error);
+        console.error(`❌ [RESTORE ERROR] Stack trace:`, error.stack);
+        return false;
+    }
 }
 
 function mostrarColores(jugador) {
@@ -11871,6 +12184,29 @@ procesarComando(jugador, mensaje);
     room.onPlayerJoin = async function(jugador) {
         console.log(`🎮 DEBUG: Jugador se unió: ${jugador.name} (ID: ${jugador.id})`);
         
+        // ==================== DEBUG MEJORADO DEL AUTH AL CONECTAR ====================
+        console.log('🔍 [AUTH JOIN DEBUG] =================================');
+        console.log('🔍 [AUTH JOIN DEBUG] Estado del jugador al conectarse:');
+        console.log('🔍 [AUTH JOIN DEBUG] - Nombre:', jugador.name);
+        console.log('🔍 [AUTH JOIN DEBUG] - ID:', jugador.id);
+        console.log('🔍 [AUTH JOIN DEBUG] - Auth (tipo):', typeof jugador.auth);
+        console.log('🔍 [AUTH JOIN DEBUG] - Auth (valor):', JSON.stringify(jugador.auth));
+        console.log('🔍 [AUTH JOIN DEBUG] - Auth (string):', String(jugador.auth));
+        console.log('🔍 [AUTH JOIN DEBUG] - Auth es null:', jugador.auth === null);
+        console.log('🔍 [AUTH JOIN DEBUG] - Auth es undefined:', jugador.auth === undefined);
+        console.log('🔍 [AUTH JOIN DEBUG] - Auth length:', jugador.auth ? jugador.auth.length : 'N/A');
+        console.log('🔍 [AUTH JOIN DEBUG] - Timestamp:', new Date().toISOString());
+        console.log('🔍 [AUTH JOIN DEBUG] - Propiedades completas:', Object.keys(jugador));
+        console.log('🔍 [AUTH JOIN DEBUG] =================================');
+        
+        // GUARDAR EL AUTH EN EL MOMENTO DE LA CONEXIÓN PARA TRACKING
+        if (jugador.auth) {
+            jugadoresUID.set(jugador.id, jugador.auth);
+            console.log(`🔐 [AUTH JOIN DEBUG] Auth guardado en jugadoresUID: ${jugador.id} -> ${jugador.auth}`);
+        } else {
+            console.log(`⚠️ [AUTH JOIN DEBUG] JUGADOR SIN AUTH DETECTADO: ${jugador.name} (ID: ${jugador.id})`);
+        }
+        
         // Verificar que room esté disponible antes de proceder
         if (!room || !room.sendAnnouncement) {
             console.error('❌ Room no disponible en onPlayerJoin');
@@ -11963,13 +12299,21 @@ procesarComando(jugador, mensaje);
                 return; // Impedir que continúe el proceso de unión
             }
             
-            // Registrar la conexión en la base de datos
+        // Registrar la conexión en la base de datos
             try {
                 if (typeof nodeRegistrarConexion === 'function') {
                     nodeRegistrarConexion(jugador.name, jugador.auth, ipJugador, 'CONNECTED');
                 }
             } catch (error) {
                 console.error('❌ Error registrando conexión:', error);
+            }
+            
+            // ====================== VERIFICACIÓN DE ROLES PERSISTENTES ======================
+            // Verificar si el jugador tiene un rol persistente asignado y restaurarlo
+            try {
+                await verificarYRestaurarRol(jugador);
+            } catch (error) {
+                console.error('❌ Error verificando rol persistente:', error);
             }
             
             // Sistema de memoria como respaldo (mantenido para compatibilidad)

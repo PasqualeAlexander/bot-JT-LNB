@@ -587,7 +587,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 19;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGiuS90Cd94xryNDgg.Y4FL5H-2iiY";
+const token = "thr1.AAAAAGivwoqCfIMTx4nHUw.KrzcwiCnhPU";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -630,13 +630,22 @@ function procesarHatTricks(jugadorPartido, statsGlobal, fechaActual) {
     }
 }
 
-// Procesar y registrar MVP del partido
+// Procesar y registrar MVP del partido (SOLO en canchas x4 y x7)
 function procesarMVPPartido(nombreMVP, fechaActual) {
     try {
         if (!nombreMVP) return;
+        
+        // ====================== VALIDAR CANCHA ANTES DE REGISTRAR MVP ======================
+        if (!esPartidoValido()) {
+            console.log(`📊 MVP NO registrado para ${nombreMVP}: Partido en cancha no válida (${mapaActual})`);
+            return;
+        }
+        
         const statsGlobal = registrarJugadorGlobal(nombreMVP);
         if (!statsGlobal) return;
         statsGlobal.mvps = (statsGlobal.mvps || 0) + 1;
+        console.log(`🏆 MVP registrado para ${nombreMVP} en cancha válida (${mapaActual})`);
+        
         // Opcional: aquí podríamos llevar un historial de MVPs si fuese necesario
     } catch (e) {
         console.error('❌ Error en procesarMVPPartido:', e);
@@ -9618,8 +9627,29 @@ function registrarJugadorGlobal(nombre) {
     return estadisticasGlobales.jugadores[nombre];
 }
 
+// ====================== FUNCIÓN DE VALIDACIÓN DE CANCHA ======================
+function esPartidoValido() {
+    // Verificar que el partido se jugó en cancha x4 o x7
+    const canchasValidas = ['biggerx4', 'biggerx7'];
+    const esValido = canchasValidas.includes(mapaActual);
+    
+    if (!esValido) {
+        console.log(`📊 Stats no válidas: Partido jugado en ${mapaActual} (solo x4 y x7 cuentan para estadísticas)`);
+    } else {
+        console.log(`✅ Stats válidas: Partido en ${mapaActual} cuenta para estadísticas`);
+    }
+    
+    return esValido;
+}
+
 function actualizarEstadisticasGlobales(datosPartido) {
     if (!datosPartido.iniciado) return;
+    
+    // ====================== VALIDAR CANCHA ANTES DE ACTUALIZAR STATS ======================
+    if (!esPartidoValido()) {
+        console.log('📊 Estadísticas NO actualizadas: Partido en cancha no válida');
+        return;
+    }
     
     // Verificar que estadisticasGlobales esté inicializado
     if (!estadisticasGlobales || !estadisticasGlobales.jugadores) {

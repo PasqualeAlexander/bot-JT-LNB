@@ -8792,7 +8792,15 @@ async function verificarYRestaurarRol(jugador) {
             
             // Actualizar último acceso en el sistema persistente si tenemos authID
             if (authID) {
-                rolesPersistentSystem.updateLastSeen(authID, jugador.name);
+                try {
+                    if (rolesPersistentSystem && typeof rolesPersistentSystem.updateLastSeen === 'function') {
+                        rolesPersistentSystem.updateLastSeen(authID, jugador.name);
+                    } else {
+                        console.warn(`⚠️ [RESTORE] Sistema persistente no disponible para actualizar lastSeen de ${jugador.name}`);
+                    }
+                } catch (error) {
+                    console.error(`❌ [RESTORE ERROR] Error actualizando lastSeen para ${jugador.name}:`, error);
+                }
             }
             
             const rolInfo = ROLES[rolGuardado.role];

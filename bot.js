@@ -30,6 +30,16 @@ const dbFunctions = require('./database/db_functions');
 // Importar sistema de roles persistentes
 const { rolesPersistentSystem } = require('./roles_persistent_system');
 
+// Importar sistema de estadísticas Discord
+let discordStatsSystem = null;
+try {
+    const DiscordStatsSystem = require('./discord_stats_system');
+    discordStatsSystem = new DiscordStatsSystem();
+    console.log('✅ Sistema de estadísticas Discord importado correctamente');
+} catch (error) {
+    console.warn('⚠️ No se pudo importar el sistema de estadísticas Discord:', error.message);
+}
+
 console.log('🔌 Inicializando conexión a MySQL...');
 
 // Probar conexión al inicializar
@@ -2178,6 +2188,29 @@ console.log('   - Comando manual disponible en el bot');
 
         // Ejecutar limpieza de conexiones inmediatamente al iniciar
         ejecutarLimpiezaConexiones();
+        
+        // ====================== INICIALIZAR SISTEMA DE ESTADÍSTICAS DISCORD ======================
+        if (discordStatsSystem) {
+            try {
+                console.log('🎯 Inicializando sistema de estadísticas Discord...');
+                
+                // Inicializar el sistema después de un breve retraso para asegurar que la DB esté lista
+                setTimeout(async () => {
+                    try {
+                        await discordStatsSystem.iniciar();
+                        console.log('✅ Sistema de estadísticas Discord iniciado correctamente');
+                    } catch (statsError) {
+                        console.error('❌ Error al inicializar sistema de estadísticas Discord:', statsError.message);
+                        console.error('💡 El sistema continuará funcionando sin estadísticas automáticas');
+                    }
+                }, 30000); // Esperar 30 segundos para que todo esté listo
+                
+            } catch (error) {
+                console.error('❌ Error configurando sistema de estadísticas Discord:', error.message);
+            }
+        } else {
+            console.warn('⚠️ Sistema de estadísticas Discord no disponible');
+        }
         
         // Mantener el proceso vivo
         // Graceful shutdown

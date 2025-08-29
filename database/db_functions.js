@@ -175,9 +175,16 @@ const dbFunctions = {
             throw new Error('Campo inválido');
         }
         
-        const query = `SELECT * FROM jugadores WHERE partidos > 0 ORDER BY ${campo} DESC LIMIT ?`;
+        // Validar que limite sea un número válido para evitar inyección SQL
+        const limiteNumero = parseInt(limite);
+        if (isNaN(limiteNumero) || limiteNumero <= 0 || limiteNumero > 100) {
+            throw new Error('Límite inválido');
+        }
+        
+        // Construir query con LIMIT literal (no como parámetro preparado)
+        const query = `SELECT * FROM jugadores WHERE partidos > 0 ORDER BY ${campo} DESC LIMIT ${limiteNumero}`;
         try {
-            const results = await executeQuery(query, [limite]);
+            const results = await executeQuery(query, []);
             return results;
         } catch (error) {
             console.error('❌ Error obteniendo top jugadores:', error);

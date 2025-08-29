@@ -579,6 +579,190 @@ async function registrarJugador(nombre) {
     }
 }
 
+// ==================== SISTEMA DE FALLBACK INTELIGENTE PARA IDENTIFICACIÓN DE JUGADORES ====================
+
+/**
+ * Identifica a un jugador usando múltiples métodos de fallback
+ * @param {string} identificador - auth_id, nombre o palabra clave
+ * @param {Object} solicitante - Jugador que solicita la información (opcional para logs)
+ * @returns {Object} - { success: boolean, player: Object|null, method: string, message: string }
+ */
+async function identificarJugadorInteligente(identificador, solicitante = null) {
+    console.log(`🔍 [SMART ID] Identificando jugador: "${identificador}" (solicitado por: ${solicitante?.name || 'SISTEMA'})`);
+    
+    if (!identificador || identificador.trim().length === 0) {
+        return {
+            success: false,
+            player: null,
+            method: 'NONE',
+            message: '❌ Identificador vacío o nulo'
+        };
+    }
+    
+    const identificadorLimpio = identificador.trim();
+    
+    // MÉTODO 1: Búsqueda por Auth ID exacto
+    try {
+        if (typeof nodeObtenerJugadorPorAuth === 'function') {
+            const jugadorPorAuth = await nodeObtenerJugadorPorAuth(identificadorLimpio);
+            if (jugadorPorAuth) {
+                console.log(`✅ [SMART ID] Encontrado por Auth ID: ${jugadorPorAuth.nombre}`);
+                return {
+                    success: true,
+                    player: jugadorPorAuth,
+                    method: 'AUTH_ID',
+                    message: `✅ Jugador identificado por Auth ID: ${jugadorPorAuth.nombre}`
+                };
+            }
+        }
+    } catch (error) {
+        console.warn(`⚠️ [SMART ID] Error en búsqueda por Auth ID: ${error.message}`);
+    }
+    
+    // MÉTODO 2: Búsqueda por nombre exacto
+    try {
+        const jugadorPorNombre = await obtenerEstadisticasJugador(identificadorLimpio);
+        if (jugadorPorNombre) {
+            console.log(`✅ [SMART ID] Encontrado por nombre exacto: ${jugadorPorNombre.nombre}`);
+            return {
+                success: true,
+                player: jugadorPorNombre,
+                method: 'EXACT_NAME',
+                message: `✅ Jugador identificado por nombre: ${jugadorPorNombre.nombre}`
+            };
+        }
+    } catch (error) {
+        console.warn(`⚠️ [SMART ID] Error en búsqueda por nombre: ${error.message}`);
+    }
+    
+    // MÉTODO 3: Búsqueda fuzzy por nombre (contiene)
+    try {
+        if (typeof nodeObtenerJugadoresPorNombreFuzzy === 'function') {
+            const jugadoresFuzzy = await nodeObtenerJugadoresPorNombreFuzzy(identificadorLimpio);
+            if (jugadoresFuzzy && jugadoresFuzzy.length > 0) {
+                if (jugadoresFuzzy.length === 1) {
+                    console.log(`✅ [SMART ID] Encontrado por búsqueda fuzzy: ${jugadoresFuzzy[0].nombre}`);
+                    return {
+                        success: true,
+                        player: jugadoresFuzzy[0],
+                        method: 'FUZZY_SINGLE',
+                        message: `✅ Jugador identificado por búsqueda aproximada: ${jugadoresFuzzy[0].nombre}`
+                    };
+                } else {
+                    // Múltiples resultados fuzzy
+                    const nombres = jugadoresFuzzy.slice(0, 5).map(j => j.nombre).join(', ');
+                    console.log(`⚠️ [SMART ID] Múltiples resultados fuzzy: ${nombres}`);
+                    return {
+                        success: false,
+                        player: null,
+                        method: 'FUZZY_MULTIPLE',
+                        message: `⚠️ Múltiples jugadores encontrados: ${nombres}${jugadoresFuzzy.length > 5 ? '...' : ''}`
+                    };
+                }
+            }
+        }
+    } catch (error) {
+        console.warn(`⚠️ [SMART ID] Error en búsqueda fuzzy: ${error.message}`);
+    }
+    
+    // MÉTODO 4: Búsqueda en jugadores conectados actualmente (fallback)
+    try {
+        if (room) {
+            const jugadoresConectados = room.getPlayerList();
+            const jugadorConectado = jugadoresConectados.find(j => {
+                const nombreOriginal = obtenerNombreOriginal ? obtenerNombreOriginal(j) : j.name;
+                return nombreOriginal.toLowerCase().includes(identificadorLimpio.toLowerCase());
+            });
+            
+            if (jugadorConectado) {
+                const nombreOriginal = obtenerNombreOriginal ? obtenerNombreOriginal(jugadorConectado) : jugadorConectado.name;
+                console.log(`✅ [SMART ID] Encontrado en jugadores conectados: ${nombreOriginal}`);
+                
+                // Intentar obtener stats del jugador conectado
+                const statsConectado = await obtenerEstadisticasJugador(nombreOriginal);
+                return {
+                    success: true,
+                    player: statsConectado || {
+                        nombre: nombreOriginal,
+                        partidos: 0,
+                        goles: 0,
+                        asistencias: 0,
+                        victorias: 0,
+                        derrotas: 0,
+                        _conectado: true,
+                        _playerId: jugadorConectado.id
+                    },
+                    method: 'CONNECTED_PLAYER',
+                    message: `✅ Jugador conectado identificado: ${nombreOriginal}`
+                };
+            }
+        }
+    } catch (error) {
+        console.warn(`⚠️ [SMART ID] Error en búsqueda de jugadores conectados: ${error.message}`);
+    }
+    
+    // MÉTODO 5: Comando especial "me" o "yo"
+    if ((identificadorLimpio.toLowerCase() === 'me' || identificadorLimpio.toLowerCase() === 'yo') && solicitante) {
+        try {
+            const nombreSolicitante = obtenerNombreOriginal ? obtenerNombreOriginal(solicitante) : solicitante.name;
+            const statsSolicitante = await obtenerEstadisticasJugador(nombreSolicitante);
+            console.log(`✅ [SMART ID] Comando 'me' procesado para: ${nombreSolicitante}`);
+            return {
+                success: true,
+                player: statsSolicitante || {
+                    nombre: nombreSolicitante,
+                    partidos: 0,
+                    goles: 0,
+                    asistencias: 0,
+                    victorias: 0,
+                    derrotas: 0,
+                    _conectado: true,
+                    _playerId: solicitante.id
+                },
+                method: 'SELF_REFERENCE',
+                message: `✅ Estadísticas propias: ${nombreSolicitante}`
+            };
+        } catch (error) {
+            console.warn(`⚠️ [SMART ID] Error procesando comando 'me': ${error.message}`);
+        }
+    }
+    
+    // No se encontró el jugador
+    console.log(`❌ [SMART ID] No se pudo identificar: "${identificadorLimpio}"`);
+    return {
+        success: false,
+        player: null,
+        method: 'NOT_FOUND',
+        message: `❌ No se encontró ningún jugador con el identificador: "${identificadorLimpio}"`
+    };
+}
+
+/**
+ * Versión simplificada para obtener solo las estadísticas del jugador
+ * @param {string} identificador - auth_id, nombre o palabra clave
+ * @param {Object} solicitante - Jugador que solicita la información (opcional)
+ * @returns {Object|null} - Estadísticas del jugador o null si no se encuentra
+ */
+async function obtenerEstadisticasJugadorInteligente(identificador, solicitante = null) {
+    const resultado = await identificarJugadorInteligente(identificador, solicitante);
+    return resultado.success ? resultado.player : null;
+}
+
+/**
+ * Función de conveniencia para comandos de estadísticas
+ * @param {Object} solicitante - Jugador que solicita las estadísticas
+ * @param {string} identificador - auth_id, nombre, o null para mostrar estadísticas propias
+ * @returns {Object} - { success: boolean, player: Object|null, message: string }
+ */
+async function resolverObjetivoEstadisticas(solicitante, identificador = null) {
+    // Si no se especifica identificador, mostrar estadísticas propias
+    if (!identificador || identificador.trim().length === 0) {
+        return await identificarJugadorInteligente('me', solicitante);
+    }
+    
+    return await identificarJugadorInteligente(identificador, solicitante);
+}
+
 // HBInit y fetch están disponibles globalmente en el navegador
 
 // ==================== CONFIGURACIÓN DE LA SALA ====================
@@ -7047,9 +7231,63 @@ async function procesarComando(jugador, mensaje) {
             mostrarEstadisticasJugador(jugador, jugador.name);
             break;
             
+        case "stats":
+        case "estadisticas":
+            if (args[1]) {
+                // Usar el nuevo sistema de fallback inteligente
+                const identificador = args.slice(1).join(" ");
+                const resultado = await identificarJugadorInteligente(identificador, jugador);
+                
+                if (resultado.success) {
+                    mostrarEstadisticasJugador(jugador, resultado.player.nombre);
+                    // Mostrar mensaje sobre el método usado si no fue exacto
+                    if (resultado.method !== 'auth_id_exact' && resultado.method !== 'name_exact') {
+                        room.sendAnnouncement(`💡 ${resultado.message}`, jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
+                    }
+                } else {
+                    anunciarError(resultado.message, jugador);
+                }
+            } else {
+                // Si no se especifica jugador, mostrar estadísticas propias
+                const resultado = await resolverObjetivoEstadisticas(jugador, null);
+                if (resultado.success) {
+                    mostrarEstadisticasJugador(jugador, resultado.player.nombre);
+                } else {
+                    anunciarError(resultado.message, jugador);
+                }
+            }
+            break;
+            
         case "compare":
             if (args[1] && args[2]) {
-                compararEstadisticas(jugador, args[1], args[2]);
+                // Usar el nuevo sistema de fallback inteligente para ambos jugadores
+                const identificador1 = args[1];
+                const identificador2 = args[2];
+                
+                // Identificar primer jugador
+                const resultado1 = await identificarJugadorInteligente(identificador1, jugador);
+                if (!resultado1.success) {
+                    anunciarError(`❌ Primer jugador: ${resultado1.message}`, jugador);
+                    return;
+                }
+                
+                // Identificar segundo jugador
+                const resultado2 = await identificarJugadorInteligente(identificador2, jugador);
+                if (!resultado2.success) {
+                    anunciarError(`❌ Segundo jugador: ${resultado2.message}`, jugador);
+                    return;
+                }
+                
+                // Comparar estadísticas usando los nombres encontrados
+                compararEstadisticas(jugador, resultado1.player.nombre, resultado2.player.nombre);
+                
+                // Mostrar mensajes informativos si se usaron métodos de fallback
+                if (resultado1.method !== 'auth_id_exact' && resultado1.method !== 'name_exact') {
+                    room.sendAnnouncement(`💡 Jugador 1: ${resultado1.message}`, jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
+                }
+                if (resultado2.method !== 'auth_id_exact' && resultado2.method !== 'name_exact') {
+                    room.sendAnnouncement(`💡 Jugador 2: ${resultado2.message}`, jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
+                }
             } else {
                 anunciarError("📝 Uso: !compare <jugador1> <jugador2>", jugador);
             }
@@ -7058,10 +7296,52 @@ async function procesarComando(jugador, mensaje) {
         case "h2h":
         case "headtohead":
             if (args[1] && args[2]) {
-                mostrarHeadToHead(jugador, args[1], args[2]);
+                // Usar el nuevo sistema de fallback inteligente para ambos jugadores
+                const identificador1 = args[1];
+                const identificador2 = args[2];
+                
+                // Identificar primer jugador
+                const resultado1 = await identificarJugadorInteligente(identificador1, jugador);
+                if (!resultado1.success) {
+                    anunciarError(`❌ Primer jugador: ${resultado1.message}`, jugador);
+                    return;
+                }
+                
+                // Identificar segundo jugador
+                const resultado2 = await identificarJugadorInteligente(identificador2, jugador);
+                if (!resultado2.success) {
+                    anunciarError(`❌ Segundo jugador: ${resultado2.message}`, jugador);
+                    return;
+                }
+                
+                // Mostrar head-to-head usando los nombres encontrados
+                mostrarHeadToHead(jugador, resultado1.player.nombre, resultado2.player.nombre);
+                
+                // Mostrar mensajes informativos si se usaron métodos de fallback
+                if (resultado1.method !== 'auth_id_exact' && resultado1.method !== 'name_exact') {
+                    room.sendAnnouncement(`💡 Jugador 1: ${resultado1.message}`, jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
+                }
+                if (resultado2.method !== 'auth_id_exact' && resultado2.method !== 'name_exact') {
+                    room.sendAnnouncement(`💡 Jugador 2: ${resultado2.message}`, jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
+                }
             } else if (args[1]) {
-                // Si solo se proporciona un jugador, comparar con el solicitante
-                mostrarHeadToHead(jugador, jugador.name, args[1]);
+                // Si solo se proporciona un jugador, comparar con el solicitante usando sistema inteligente
+                const identificadorOponente = args[1];
+                
+                // Identificar el oponente
+                const resultadoOponente = await identificarJugadorInteligente(identificadorOponente, jugador);
+                if (!resultadoOponente.success) {
+                    anunciarError(`❌ Oponente: ${resultadoOponente.message}`, jugador);
+                    return;
+                }
+                
+                // Mostrar head-to-head del solicitante vs oponente
+                mostrarHeadToHead(jugador, jugador.name, resultadoOponente.player.nombre);
+                
+                // Mostrar mensaje informativo si se usó método de fallback para el oponente
+                if (resultadoOponente.method !== 'auth_id_exact' && resultadoOponente.method !== 'name_exact') {
+                    room.sendAnnouncement(`💡 Oponente: ${resultadoOponente.message}`, jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
+                }
             } else {
                 anunciarError("📝 Uso: !h2h <jugador1> <jugador2> o !h2h <jugador> (para comparar contigo)", jugador);
             }
@@ -11860,14 +12140,34 @@ function configurarEventos() {
             }
         }
         
+        // Lista de comandos permitidos para jugadores muteados/silenciados
+        const comandosPermitidosParaMuteados = [
+            'nv', 'bb',           // Comandos para salir de la sala
+            'afk', 'back',        // Comandos para manejar AFK
+            'ayuda', 'help'       // Comando de ayuda (información básica)
+        ];
+        
+        // Verificar si el mensaje es un comando permitido para muteados
+        let esComandoPermitidoParaMuteado = false;
+        if (mensaje.startsWith("!")) {
+            const comando = mensaje.slice(1).split(" ")[0].toLowerCase();
+            esComandoPermitidoParaMuteado = comandosPermitidosParaMuteados.includes(comando);
+        }
+        
         // Verificar si está silenciado por spam
         if (estaSilenciadoPorSpam(jugador)) {
-            return false;
+            // Si es un comando permitido para muteados, permitir su ejecución
+            if (!esComandoPermitidoParaMuteado) {
+                return false;
+            }
         }
         
         // Verificar si está muteado por admin
         if (estaMuteadoPorAdmin(jugador)) {
-            return false;
+            // Si es un comando permitido para muteados, permitir su ejecución
+            if (!esComandoPermitidoParaMuteado) {
+                return false;
+            }
         }
         
         // Verificar si está en timeout (mantenido para otros tipos de timeout)

@@ -74,14 +74,14 @@ class DiscordStatsSystem {
                 totalJugadores,
                 partidosRecientes
             ] = await Promise.all([
-                dbFunctions.obtenerTopJugadores('goles', 7),
-                dbFunctions.obtenerTopJugadores('asistencias', 7),
-                dbFunctions.obtenerTopJugadores('partidos', 7),
-                dbFunctions.obtenerTopJugadores('victorias', 7),
-                dbFunctions.obtenerTopJugadores('hatTricks', 7),
-                dbFunctions.obtenerTopJugadores('vallasInvictas', 7),
-                dbFunctions.obtenerTopJugadores('mvps', 7),
-                executeQuery("SELECT nombre, goles, asistencias, (goles + asistencias) AS ga FROM jugadores WHERE partidos > 0 ORDER BY ga DESC LIMIT 7"),
+                dbFunctions.obtenerTopJugadores('goles', 10),
+                dbFunctions.obtenerTopJugadores('asistencias', 10),
+                dbFunctions.obtenerTopJugadores('partidos', 10),
+                dbFunctions.obtenerTopJugadores('victorias', 10),
+                dbFunctions.obtenerTopJugadores('hatTricks', 10),
+                dbFunctions.obtenerTopJugadores('vallasInvictas', 10),
+                dbFunctions.obtenerTopJugadores('mvps', 10),
+                executeQuery("SELECT nombre, goles, asistencias, partidos, ROUND((goles + asistencias) / partidos, 2) AS ga_por_partido FROM jugadores WHERE partidos > 0 ORDER BY ga_por_partido DESC LIMIT 10"),
                 executeQuery('SELECT COUNT(*) as total FROM jugadores WHERE partidos > 0'),
                 executeQuery('SELECT * FROM partidos ORDER BY created_at DESC LIMIT 5')
             ]);
@@ -125,7 +125,7 @@ class DiscordStatsSystem {
             if (!jugadores || jugadores.length === 0) return '`Sin datos disponibles`';
             
             const lista = jugadores.map((jugador, index) => {
-                const posicion = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣'][index] || `${index + 1}️⃣`;
+                const posicion = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'][index] || `${index + 1}️⃣`;
                 
                 // Formato compacto - solo números para todas las categorías
                 const texto = `${posicion} ${jugador.nombre} - ${jugador[campo]} `;
@@ -140,11 +140,11 @@ class DiscordStatsSystem {
             if (!jugadores || jugadores.length === 0) return '`Sin datos disponibles`';
             
             const lista = jugadores.map((jugador, index) => {
-                const posicion = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣'][index] || `${index + 1}️⃣`;
-                const ga = jugador.ga ?? ((jugador.goles || 0) + (jugador.asistencias || 0));
+                const posicion = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'][index] || `${index + 1}️⃣`;
+                const gaPorPartido = jugador.ga_por_partido ?? (jugador.partidos > 0 ? ((jugador.goles || 0) + (jugador.asistencias || 0)) / jugador.partidos : 0);
                 
-                // Formato compacto para balón de oro - solo números
-                const texto = `${posicion} ${jugador.nombre} - ${ga} `;
+                // Formato compacto para balón de oro - mostrar promedio por partido
+                const texto = `${posicion} ${jugador.nombre} - ${gaPorPartido.toFixed(2)} `;
                 
                 return texto;
             }).join('\n');
@@ -218,7 +218,7 @@ class DiscordStatsSystem {
                         inline: true
                     },
                     {
-                        name: '<:bdo:1376300142084362300> **BALÓN DE ORO (G+A)**',
+                        name: '<:bdo:1376300142084362300> **BALÓN DE ORO (G+A)/P**',
                         value: formatearBalonDeOro(topBalonDeOro),
                         inline: true
                     },

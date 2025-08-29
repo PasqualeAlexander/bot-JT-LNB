@@ -1565,9 +1565,9 @@ const roomConfig = {
     roomName: "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡",
     playerName: "",
     password: null,
-    maxPlayers: 19,
+    maxPlayers: 18,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGiw_xxo6K6fsWmO2A.b7A6U7S5UHg", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
+    token: "thr1.AAAAAGiyN5T2YtEgCTWazA.zDcpuY8reyE", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
     geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };

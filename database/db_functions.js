@@ -11,8 +11,14 @@ const { executeQuery, executeTransaction } = require('../config/database');
 const dbFunctions = {
     // ====================== FUNCIONES DE JUGADORES ======================
     
-    // Guardar/actualizar jugador
-    guardarJugador: async (nombre, stats) => {
+    // Guardar/actualizar jugador (por auth_id o nombre como fallback)
+    guardarJugador: async (identificador, stats, authId = null) => {
+        // Si se proporciona authId, usar sistema basado en auth_id
+        if (authId) {
+            return await dbFunctions.guardarJugadorPorAuth(authId, identificador, stats);
+        }
+        
+        // Fallback: sistema anterior por nombre
         const query = `INSERT INTO jugadores 
                       (nombre, partidos, victorias, derrotas, goles, asistencias, autogoles, 
                        mejorRachaGoles, mejorRachaAsistencias, hatTricks, vallasInvictas, 
@@ -32,7 +38,7 @@ const dbFunctions = {
         
         try {
             const result = await executeQuery(query, [
-                nombre, stats.partidos, stats.victorias, stats.derrotas, stats.goles, 
+                identificador, stats.partidos, stats.victorias, stats.derrotas, stats.goles, 
                 stats.asistencias, stats.autogoles, stats.mejorRachaGoles, stats.mejorRachaAsistencias, 
                 stats.hatTricks, stats.vallasInvictas, stats.tiempoJugado, stats.promedioGoles, 
                 stats.promedioAsistencias, stats.fechaPrimerPartido, stats.fechaUltimoPartido, 
@@ -58,9 +64,9 @@ const dbFunctions = {
         }
     },
 
-    // Cargar estadísticas globales
+    // Cargar estadísticas globales (ACTUALIZADO PARA USAR AUTH_ID)
     cargarEstadisticasGlobales: async () => {
-        const query = 'SELECT * FROM jugadores';
+        const query = 'SELECT * FROM jugadores ORDER BY partidos DESC';
         try {
             const rows = await executeQuery(query);
             
@@ -81,10 +87,20 @@ const dbFunctions = {
             };
             
             // Convertir filas de la base de datos a la estructura esperada
+            // NUEVO: Usar auth_id como clave principal, con fallback a nombre
             if (rows && rows.length > 0) {
                 rows.forEach(row => {
-                    estadisticasFormateadas.jugadores[row.nombre] = {
+                    // Identificador único: usar auth_id si está disponible, sino usar nombre
+                    const identificadorUnico = row.auth_id || row.nombre;
+                    const nombreMostrar = row.nombre_display || row.nombre;
+                    
+                    estadisticasFormateadas.jugadores[identificadorUnico] = {
+                        // Información de identificación
+                        auth_id: row.auth_id,
                         nombre: row.nombre,
+                        nombre_display: nombreMostrar,
+                        
+                        // Estadísticas del jugador
                         partidos: row.partidos || 0,
                         victorias: row.victorias || 0,
                         derrotas: row.derrotas || 0,
@@ -104,7 +120,10 @@ const dbFunctions = {
                         nivel: row.nivel || 1,
                         codigoRecuperacion: row.codigoRecuperacion || null,
                         fechaCodigoCreado: row.fechaCodigoCreado || null,
-                        mvps: row.mvps || 0
+                        mvps: row.mvps || 0,
+                        
+                        // Metadata de identificación
+                        tipo_identificacion: row.auth_id ? 'auth' : 'nombre'
                     };
                 });
                 
@@ -114,7 +133,7 @@ const dbFunctions = {
                     if (jugador.goles > maxGoles) {
                         maxGoles = jugador.goles;
                         estadisticasFormateadas.records.mayorGoles = {
-                            jugador: jugador.nombre,
+                            jugador: jugador.nombre_display || jugador.nombre,
                             cantidad: jugador.goles,
                             fecha: jugador.fechaUltimoPartido
                         };
@@ -122,7 +141,7 @@ const dbFunctions = {
                     if (jugador.asistencias > maxAsistencias) {
                         maxAsistencias = jugador.asistencias;
                         estadisticasFormateadas.records.mayorAsistencias = {
-                            jugador: jugador.nombre,
+                            jugador: jugador.nombre_display || jugador.nombre,
                             cantidad: jugador.asistencias,
                             fecha: jugador.fechaUltimoPartido
                         };
@@ -131,7 +150,13 @@ const dbFunctions = {
                 });
             }
             
-            console.log(`📊 [DB] Cargadas estadísticas de ${Object.keys(estadisticasFormateadas.jugadores).length} jugadores`);
+            const jugadoresConAuth = Object.values(estadisticasFormateadas.jugadores).filter(j => j.auth_id).length;
+            const jugadoresSinAuth = Object.values(estadisticasFormateadas.jugadores).filter(j => !j.auth_id).length;
+            
+            console.log(`📊 [AUTH-ID] Cargadas estadísticas: ${Object.keys(estadisticasFormateadas.jugadores).length} jugadores`);
+            console.log(`   - Con auth_id: ${jugadoresConAuth}`);
+            console.log(`   - Sin auth_id: ${jugadoresSinAuth}`);
+            
             return estadisticasFormateadas;
         } catch (error) {
             console.error('❌ Error cargando estadísticas globales:', error);
@@ -139,7 +164,7 @@ const dbFunctions = {
         }
     },
 
-    // Guardar estadísticas globales
+    // Guardar estadísticas globales (ACTUALIZADO PARA USAR AUTH_ID)
     guardarEstadisticasGlobales: async (datos) => {
         try {
             if (!datos || !datos.jugadores) {
@@ -147,23 +172,59 @@ const dbFunctions = {
                 return false;
             }
             
-            console.log(`💾 [DB] Guardando estadísticas de ${Object.keys(datos.jugadores).length} jugadores...`);
+            console.log(`💾 [AUTH-ID] Guardando estadísticas de ${Object.keys(datos.jugadores).length} jugadores...`);
             
-            // Guardar cada jugador individualmente
+            // Guardar cada jugador individualmente usando el sistema auth_id
             const jugadoresGuardados = [];
-            for (const [nombre, stats] of Object.entries(datos.jugadores)) {
+            const erroresDetallados = [];
+            
+            for (const [identificador, stats] of Object.entries(datos.jugadores)) {
                 try {
-                    await dbFunctions.guardarJugador(nombre, stats);
-                    jugadoresGuardados.push(nombre);
+                    // Determinar si el identificador es un auth_id o nombre
+                    const esAuthId = stats.auth_id || stats.tipo_identificacion === 'auth';
+                    const authId = esAuthId ? stats.auth_id || identificador : null;
+                    const nombreJugador = stats.nombre_display || stats.nombre || identificador;
+                    
+                    if (authId) {
+                        // Usar sistema basado en auth_id
+                        await dbFunctions.guardarJugadorPorAuth(authId, nombreJugador, stats);
+                        jugadoresGuardados.push(`${nombreJugador} (Auth: ${authId})`);
+                        console.log(`🔄 [AUTH-ID] Guardado: ${nombreJugador} -> ${authId}`);
+                    } else {
+                        // Fallback: usar sistema anterior por nombre
+                        await dbFunctions.guardarJugador(nombreJugador, stats);
+                        jugadoresGuardados.push(`${nombreJugador} (Nombre)`);
+                        console.log(`🔄 [NOMBRE] Guardado: ${nombreJugador}`);
+                    }
                 } catch (error) {
-                    console.error(`❌ [DB] Error guardando jugador ${nombre}:`, error);
+                    const errorInfo = {
+                        identificador: identificador,
+                        nombre: stats.nombre || 'N/A',
+                        auth_id: stats.auth_id || 'N/A',
+                        error: error.message
+                    };
+                    erroresDetallados.push(errorInfo);
+                    console.error(`❌ [DB] Error guardando jugador ${identificador}:`, error.message);
                 }
             }
             
-            console.log(`✅ [DB] ${jugadoresGuardados.length} jugadores guardados exitosamente`);
-            return true;
+            // Reporte final
+            const totalJugadores = Object.keys(datos.jugadores).length;
+            const exitosos = jugadoresGuardados.length;
+            const errores = erroresDetallados.length;
+            
+            console.log(`✅ [AUTH-ID] Guardado completado: ${exitosos}/${totalJugadores} jugadores`);
+            
+            if (errores > 0) {
+                console.warn(`⚠️ [AUTH-ID] ${errores} errores durante el guardado:`);
+                erroresDetallados.forEach((err, i) => {
+                    console.warn(`   ${i+1}. ${err.nombre} (ID: ${err.identificador}): ${err.error}`);
+                });
+            }
+            
+            return exitosos > 0;
         } catch (error) {
-            console.error('❌ [DB] Error en guardarEstadisticasGlobales:', error);
+            console.error('❌ [DB] Error crítico en guardarEstadisticasGlobales:', error);
             throw error;
         }
     },
@@ -859,6 +920,176 @@ const dbFunctions = {
         } catch (error) {
             console.error('❌ Error obteniendo estadísticas de inactividad:', error);
             throw error;
+        }
+    },
+    
+    // ====================== FUNCIONES PARA AUTH_ID SYSTEM ======================
+    
+    // Guardar/actualizar jugador por auth_id
+    guardarJugadorPorAuth: async (authId, nombreActual, stats) => {
+        try {
+            // Registrar historial de nombres
+            await dbFunctions.registrarNombreJugador(authId, nombreActual);
+            
+            const query = `INSERT INTO jugadores 
+                          (auth_id, nombre, nombre_display, partidos, victorias, derrotas, goles, asistencias, autogoles, 
+                           mejorRachaGoles, mejorRachaAsistencias, hatTricks, vallasInvictas, 
+                           tiempoJugado, promedioGoles, promedioAsistencias, fechaPrimerPartido, 
+                           fechaUltimoPartido, xp, nivel, codigoRecuperacion, fechaCodigoCreado, mvps, updated_at)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                          ON DUPLICATE KEY UPDATE
+                          nombre = VALUES(nombre), nombre_display = VALUES(nombre_display),
+                          partidos = VALUES(partidos), victorias = VALUES(victorias), derrotas = VALUES(derrotas),
+                          goles = VALUES(goles), asistencias = VALUES(asistencias), autogoles = VALUES(autogoles),
+                          mejorRachaGoles = VALUES(mejorRachaGoles), mejorRachaAsistencias = VALUES(mejorRachaAsistencias),
+                          hatTricks = VALUES(hatTricks), vallasInvictas = VALUES(vallasInvictas),
+                          tiempoJugado = VALUES(tiempoJugado), promedioGoles = VALUES(promedioGoles),
+                          promedioAsistencias = VALUES(promedioAsistencias), fechaPrimerPartido = VALUES(fechaPrimerPartido),
+                          fechaUltimoPartido = VALUES(fechaUltimoPartido), xp = VALUES(xp), nivel = VALUES(nivel),
+                          codigoRecuperacion = VALUES(codigoRecuperacion), fechaCodigoCreado = VALUES(fechaCodigoCreado),
+                          mvps = VALUES(mvps), updated_at = CURRENT_TIMESTAMP`;
+            
+            const result = await executeQuery(query, [
+                authId, nombreActual, nombreActual, stats.partidos, stats.victorias, stats.derrotas, stats.goles, 
+                stats.asistencias, stats.autogoles, stats.mejorRachaGoles, stats.mejorRachaAsistencias, 
+                stats.hatTricks, stats.vallasInvictas, stats.tiempoJugado, stats.promedioGoles, 
+                stats.promedioAsistencias, stats.fechaPrimerPartido, stats.fechaUltimoPartido, 
+                stats.xp ?? 40, stats.nivel ?? 1, stats.codigoRecuperacion ?? null, stats.fechaCodigoCreado ?? null,
+                stats.mvps ?? 0
+            ]);
+            
+            console.log(`✅ [AUTH-ID] Jugador guardado: ${nombreActual} (Auth: ${authId})`);
+            return result.insertId || result.affectedRows;
+        } catch (error) {
+            console.error('❌ Error guardando jugador por auth_id:', error);
+            throw error;
+        }
+    },
+    
+    // Obtener jugador por auth_id
+    obtenerJugadorPorAuth: async (authId) => {
+        const query = 'SELECT * FROM jugadores WHERE auth_id = ?';
+        try {
+            const results = await executeQuery(query, [authId]);
+            return results[0] || null;
+        } catch (error) {
+            console.error('❌ Error obteniendo jugador por auth_id:', error);
+            throw error;
+        }
+    },
+    
+    // Buscar jugador por auth_id o nombre (fallback)
+    buscarJugador: async (busqueda, tipoPreferido = 'auth') => {
+        try {
+            let jugador = null;
+            
+            if (tipoPreferido === 'auth' && busqueda) {
+                // Primero intentar por auth_id
+                jugador = await dbFunctions.obtenerJugadorPorAuth(busqueda);
+                if (jugador) {
+                    console.log(`🔍 [AUTH-ID] Jugador encontrado por auth: ${jugador.nombre_display || jugador.nombre}`);
+                    return jugador;
+                }
+            }
+            
+            // Fallback: buscar por nombre
+            jugador = await dbFunctions.obtenerJugador(busqueda);
+            if (jugador) {
+                console.log(`🔍 [NOMBRE] Jugador encontrado por nombre: ${jugador.nombre}`);
+                return jugador;
+            }
+            
+            console.log(`❌ Jugador no encontrado: ${busqueda}`);
+            return null;
+        } catch (error) {
+            console.error('❌ Error buscando jugador:', error);
+            return null;
+        }
+    },
+    
+    // Registrar historial de nombres de un jugador
+    registrarNombreJugador: async (authId, nombreUsado) => {
+        try {
+            const ahora = new Date();
+            const query = `INSERT INTO jugador_nombres_historial 
+                          (auth_id, nombre, primera_vez_usado, ultima_vez_usado, veces_usado)
+                          VALUES (?, ?, ?, ?, 1)
+                          ON DUPLICATE KEY UPDATE
+                          ultima_vez_usado = VALUES(ultima_vez_usado),
+                          veces_usado = veces_usado + 1`;
+            
+            await executeQuery(query, [authId, nombreUsado, ahora, ahora]);
+            console.log(`📝 [AUTH-ID] Nombre registrado: ${nombreUsado} -> ${authId}`);
+        } catch (error) {
+            console.error('❌ Error registrando nombre del jugador:', error);
+        }
+    },
+    
+    // Obtener historial de nombres de un jugador
+    obtenerHistorialNombres: async (authId) => {
+        try {
+            const query = `SELECT nombre, primera_vez_usado, ultima_vez_usado, veces_usado 
+                          FROM jugador_nombres_historial 
+                          WHERE auth_id = ? 
+                          ORDER BY ultima_vez_usado DESC`;
+            
+            const results = await executeQuery(query, [authId]);
+            return results;
+        } catch (error) {
+            console.error('❌ Error obteniendo historial de nombres:', error);
+            return [];
+        }
+    },
+    
+    // Migrar estadísticas de nombre a auth_id
+    migrarJugadorAAuth: async (nombreAnterior, authId) => {
+        try {
+            console.log(`🔄 [MIGRACIÓN] Iniciando migración: ${nombreAnterior} -> ${authId}`);
+            
+            // Verificar si ya existe un jugador con este auth_id
+            const jugadorExistente = await dbFunctions.obtenerJugadorPorAuth(authId);
+            if (jugadorExistente) {
+                console.log(`⚠️ [MIGRACIÓN] Ya existe jugador con auth_id ${authId}: ${jugadorExistente.nombre}`);
+                
+                // Solo registrar el nombre en el historial
+                await dbFunctions.registrarNombreJugador(authId, nombreAnterior);
+                return { migrado: false, razon: 'jugador_ya_existe', jugadorExistente };
+            }
+            
+            // Buscar jugador por nombre antiguo
+            const jugadorAntiguo = await dbFunctions.obtenerJugador(nombreAnterior);
+            if (!jugadorAntiguo) {
+                console.log(`❌ [MIGRACIÓN] No se encontró jugador con nombre ${nombreAnterior}`);
+                return { migrado: false, razon: 'jugador_no_encontrado' };
+            }
+            
+            // Actualizar el jugador con el auth_id
+            const query = `UPDATE jugadores 
+                          SET auth_id = ?, nombre_display = nombre
+                          WHERE nombre = ?`;
+            
+            const result = await executeQuery(query, [authId, nombreAnterior]);
+            
+            if (result.affectedRows > 0) {
+                // Registrar en el historial de nombres
+                await dbFunctions.registrarNombreJugador(authId, nombreAnterior);
+                
+                console.log(`✅ [MIGRACIÓN] Completada: ${nombreAnterior} -> ${authId}`);
+                return { 
+                    migrado: true, 
+                    jugadorMigrado: {
+                        nombre: nombreAnterior,
+                        authId: authId,
+                        stats: jugadorAntiguo
+                    }
+                };
+            } else {
+                console.error(`❌ [MIGRACIÓN] Error al actualizar jugador ${nombreAnterior}`);
+                return { migrado: false, razon: 'error_actualizacion' };
+            }
+        } catch (error) {
+            console.error('❌ Error en migración a auth_id:', error);
+            return { migrado: false, razon: 'error_sistema', error: error.message };
         }
     }
 };

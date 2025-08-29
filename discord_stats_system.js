@@ -180,7 +180,7 @@ class DiscordStatsSystem {
                     {
                         name: '\u200B',
                         value: '\u200B',
-                        inline: false
+                        inline: true
                     },
                     {
                         name: '📈 **TOP PARTIDOS JUGADOS**',
@@ -195,7 +195,7 @@ class DiscordStatsSystem {
                     {
                         name: '\u200B',
                         value: '\u200B',
-                        inline: false
+                        inline: true
                     },
                     {
                         name: '🎩 **TOP HAT-TRICKS**',
@@ -210,7 +210,7 @@ class DiscordStatsSystem {
                     {
                         name: '\u200B',
                         value: '\u200B',
-                        inline: false
+                        inline: true
                     },
                     {
                         name: '🌟 **TOP MVP**',
@@ -218,14 +218,14 @@ class DiscordStatsSystem {
                         inline: true
                     },
                     {
-                        name: '🏐 **BALÓN DE ORO (G+A)**',
+                        name: '<:bdo:1376300142084362300> **BALÓN DE ORO (G+A)**',
                         value: formatearBalonDeOro(topBalonDeOro),
                         inline: true
                     },
                     {
                         name: '\u200B',
                         value: '\u200B',
-                        inline: false
+                        inline: true
                     },
                     {
                         name: '📋 **ESTADÍSTICAS GENERALES**',

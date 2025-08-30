@@ -141,7 +141,19 @@ class DiscordStatsSystem {
             
             const lista = jugadores.map((jugador, index) => {
                 const posicion = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'][index] || `${index + 1}️⃣`;
-                const gaPorPartido = jugador.ga_por_partido ?? (jugador.partidos > 0 ? ((jugador.goles || 0) + (jugador.asistencias || 0)) / jugador.partidos : 0);
+                
+                // Calcular gaPorPartido de manera segura
+                let gaPorPartido = 0;
+                if (jugador.ga_por_partido !== null && jugador.ga_por_partido !== undefined) {
+                    gaPorPartido = Number(jugador.ga_por_partido);
+                } else if (jugador.partidos > 0) {
+                    gaPorPartido = ((jugador.goles || 0) + (jugador.asistencias || 0)) / jugador.partidos;
+                }
+                
+                // Validar que sea un número válido
+                if (isNaN(gaPorPartido)) {
+                    gaPorPartido = 0;
+                }
                 
                 // Formato compacto para balón de oro - mostrar promedio por partido
                 const texto = `${posicion} ${jugador.nombre} - ${gaPorPartido.toFixed(2)} `;

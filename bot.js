@@ -219,7 +219,20 @@ const crearTablas = async () => {
             benefit_type VARCHAR(50) NOT NULL,
             used_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             details TEXT
-        )`);      
+        )`);
+        
+        // Tabla para festejos personalizados de gol y asistencias
+        await executeQuery(`CREATE TABLE IF NOT EXISTS festejos_personalizados (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            player_name VARCHAR(255) NOT NULL,
+            auth_id VARCHAR(255),
+            mensaje_gol VARCHAR(50),
+            mensaje_asistencia VARCHAR(50),
+            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ultima_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_player (player_name),
+            FOREIGN KEY (player_name) REFERENCES jugadores(nombre) ON DELETE CASCADE
+        )`);
         
         console.log('✅ Tablas creadas correctamente en MySQL');
     } catch (err) {

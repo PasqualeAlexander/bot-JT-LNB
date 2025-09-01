@@ -609,7 +609,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGiyOZNjznrutBSNpw.KX6xZvuZhGk";
+const token = "thr1.AAAAAGi02czxcTy6HeEn6w.LoNbzKoU71k";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -710,6 +710,45 @@ const discordWebhookUrl = "https://discord.com/api/webhooks/1389450191396143265/
 
 // WEBHOOK PARA NOTIFICACIONES DE BAN/KICK
 const webhookBanKick = "https://discord.com/api/webhooks/1392211274888122529/c8c1N6c4pWCIL9WyO3GLOPafo_lcbl3ae1E6CoZc-hzVc54_za4yqdNg3wRLGFuTyDPm";
+
+// WEBHOOK PARA LOGS DE SALIDAS (pedido del usuario)
+const webhookLogsSalidas = "https://discord.com/api/webhooks/1411872670504587354/PnnoV1fg7V4FCK_oJTYORYK1MuJCZ9BBVvvhkDLeQX6tUrpCqeYZ0kHDItom915HReGk";
+
+// Función para enviar reporte de SALIDA al webhook de logs de salidas
+function enviarReporteSalidaDiscord({ nombre, authId, salaId, fechaHora, playerId }) {
+    try {
+        if (!webhookLogsSalidas) return;
+        
+        // El playerId ya se pasa como parámetro desde onPlayerLeave
+        const playerIdFinal = playerId || 'N/D';
+        
+        // Formatear fecha según el formato solicitado: dd/mm/yyyy hh:mm:ss
+        const fecha = new Date();
+        const fechaFormateada = fecha.toLocaleDateString('es-AR', {
+            day: '2-digit',
+            month: '2-digit', 
+            year: 'numeric'
+        }).replace(/\//g, '/') + ' ' + fecha.toLocaleTimeString('es-AR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        
+        // Usar nueva sintaxis solicitada
+        const emoji = "<:biggerx7:1378054762137915482>";
+        const contenido = `${emoji} \`[${fechaFormateada}] Name:️ ${nombre} | ID: (#${playerIdFinal}) | AuthID: ${authId || 'N/D'}\``;
+        
+        const payload = { content: contenido };
+        fetch(webhookLogsSalidas, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(() => {});
+    } catch (e) {
+        // Silencioso para no romper el flujo de salida
+    }
+}
 
 // Función throttle para limitar la frecuencia de ejecución
 function throttle(func, delay) {
@@ -6390,8 +6429,8 @@ function cambiarMapa(codigoMapa) {
                 room.setTimeLimit(duracionPartido); // 3 minutos
                 room.setScoreLimit(scoreLimitPartido); // 3 goles
             } else if (codigoMapa === "biggerx3") {
-                room.setTimeLimit(4); // 3 minutos
-                room.setScoreLimit(5); // Máximo 5 goles
+                room.setTimeLimit(3); // 3 minutos
+                room.setScoreLimit(3); // Máximo 3 goles
             } else if (codigoMapa === "biggerx5") {
                 room.setTimeLimit(5); // 5 minutos
                 room.setScoreLimit(4); // Máximo 4 goles
@@ -6456,7 +6495,7 @@ function iniciarAnunciosDiscord() {
     intervalDiscord = setInterval(() => {
         try {
             if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-                room.sendAnnouncement("━━━━━━━━━━━━━┓ LNB 🔥 Discord: 'discord.gg/nJRhZXRNCA' ┏━━━━━━━━━━━━━", null, parseInt(CELESTE_LNB, 16), "bold", 0);
+                room.sendAnnouncement("⚡¿Tenés equipo o querés armar uno para jugar BIGGER competitivo? 👉 Unite: discord.gg/nJRhZXRNCA", null, parseInt(CELESTE_LNB, 16), "bold", 0);
             }
         } catch (error) {
             // Error en anuncio de Discord
@@ -7197,6 +7236,119 @@ async function procesarComando(jugador, mensaje) {
             anunciarGeneral(`💬 📢 ${jugador.name.toUpperCase()}: ${mensajeNov} 📢`, "8A2BE2", "bold");
             break;
             
+        case "salidas":
+            // COMANDO OPTIMIZADO: Mostrar las últimas 30 personas que se fueron (máximo 3 páginas)
+            if (!esAdminBasico(jugador)) {
+                anunciarError("❌ Solo los administradores pueden ver el historial de salidas.", jugador);
+                return;
+            }
+            
+            // Obtener número de página (por defecto página 1, máximo 3)
+            let paginaSolicitada = 1;
+            if (args[1] && !isNaN(parseInt(args[1]))) {
+                paginaSolicitada = parseInt(args[1]);
+                if (paginaSolicitada < 1) {
+                    paginaSolicitada = 1;
+                } else if (paginaSolicitada > 3) {
+                    anunciarError("❌ Solo hay 3 páginas disponibles (máximo 30 salidas). Usa !salidas 1, !salidas 2 o !salidas 3", jugador);
+                    return;
+                }
+            }
+            
+            console.log(`🔍 DEBUG: Admin ${jugador.name} solicitó ver salidas - página ${paginaSolicitada}`);
+            
+            // Verificar si la función está disponible
+            if (typeof nodeObtenerUltimasSalidas === 'function') {
+                try {
+                    console.log(`🔄 DEBUG: Llamando a nodeObtenerUltimasSalidas con página ${paginaSolicitada}`);
+                    
+                    nodeObtenerUltimasSalidas(paginaSolicitada, 10).then(resultado => {
+                        console.log(`✅ DEBUG: Resultado recibido:`, resultado);
+                        
+                        if (!resultado.success) {
+                            anunciarError(`❌ Error al obtener historial de salidas: ${resultado.error}`, jugador);
+                            return;
+                        }
+                        
+                        const salidas = resultado.data;
+                        const total = resultado.total;
+                        const totalPaginas = Math.ceil(total / 10);
+                        
+                        console.log(`📊 DEBUG: Salidas encontradas: ${salidas.length}, Total: ${total}, Páginas: ${totalPaginas}`);
+                        
+                        if (salidas.length === 0) {
+                            if (paginaSolicitada === 1) {
+                                room.sendAnnouncement("📝 No hay registros de salidas disponibles.", jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+                            } else {
+                                room.sendAnnouncement(`📝 No hay más salidas en la página ${paginaSolicitada}.`, jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+                                room.sendAnnouncement(`💡 Total de páginas disponibles: ${totalPaginas}`, jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+                            }
+                            return;
+                        }
+                        
+                        // Crear formato compacto en una sola línea
+                        const salidasFormateadas = [];
+                        
+                        salidas.forEach((salida, index) => {
+                            // Emojis basados en el orden de posición en la página actual
+                            let emoji = "";
+                            if (paginaSolicitada === 1) {
+                                // Solo en la primera página usamos emojis especiales
+                                switch (index) {
+                                    case 0: emoji = "🥇"; break; // Último (más reciente)
+                                    case 1: emoji = "🥈"; break; // Anteúltimo  
+                                    case 2: emoji = "🥉"; break; // Tercero
+                                    case 3: emoji = "4️⃣"; break; // Cuarto
+                                    case 4: emoji = "5️⃣"; break; // Quinto
+                                    case 5: emoji = "6️⃣"; break; // Sexto
+                                    case 6: emoji = "7️⃣"; break; // Séptimo
+                                    case 7: emoji = "8️⃣"; break; // Octavo
+                                    case 8: emoji = "9️⃣"; break; // Noveno
+                                    case 9: emoji = "🔟"; break; // Décimo
+                                    default: emoji = "📤"; break;
+                                }
+                            } else {
+                                emoji = "📤"; // Para páginas posteriores usar emoji uniforme
+                            }
+                            
+                            // Formatear fecha solo hora:minuto
+                            const fecha = new Date(salida.fecha_salida);
+                            const horaFormateada = fecha.toLocaleString('es-AR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false // Formato 24 horas
+                            });
+                            
+                            // Crear formato compacto: emoji nombre[IDx]-hora
+                            const salidaFormateada = `${emoji} ${salida.nombre}[ID${salida.player_id}]-${horaFormateada}`;
+                            salidasFormateadas.push(salidaFormateada);
+                        });
+                        
+                        // Mostrar todo en una sola línea con nuevo formato
+                        const mensajeCompacto = `🚪 𝐇𝐢𝐬𝐭𝐨𝐫𝐢𝐚𝐥 [Pág.${paginaSolicitada}/${totalPaginas}] ➤ \n${salidasFormateadas.join(' | ')}`;
+                        room.sendAnnouncement(mensajeCompacto, jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+                        
+                        if (totalPaginas > 1) {
+                            room.sendAnnouncement(`💡 Usa !salidas ${paginaSolicitada + 1} para ver la siguiente página`, jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+                        }
+                        
+                        console.log(`✅ DEBUG: Comando !salidas completado exitosamente para ${jugador.name}`);
+                        
+                    }).catch(error => {
+                        console.error(`❌ ERROR en nodeObtenerUltimasSalidas:`, error);
+                        anunciarError(`❌ Error al consultar el historial de salidas: ${error.message}`, jugador);
+                    });
+                    
+                } catch (error) {
+                    console.error(`❌ ERROR ejecutando comando !salidas:`, error);
+                    anunciarError(`❌ Error interno al procesar comando !salidas`, jugador);
+                }
+            } else {
+                console.warn(`⚠️ DEBUG: Función nodeObtenerUltimasSalidas no está disponible`);
+                anunciarError("❌ Sistema de tracking de salidas no disponible", jugador);
+            }
+            break;
+
         case "cm":
         case "memide":
             let objetivo;
@@ -12857,6 +13009,56 @@ setTimeout(() => {
         }
         // ====================== FIN TRACKING INTEGRADO ======================
         
+        // ====================== CARGAR FESTEJOS PERSISTENTES ======================
+        // CORRECCIÓN CRÍTICA: Cargar festejos automáticamente al conectarse
+        try {
+            if (cargarFestejos && jugador.auth) {
+                console.log(`🎉 FESTEJOS: Cargando festejos persistentes para ${jugador.name} (${jugador.auth})`);
+                
+                cargarFestejos(jugador.auth, jugador.name).then(festejos => {
+                    if (festejos) {
+                        console.log(`✅ FESTEJOS: Festejos cargados para ${jugador.name}:`, {
+                            gol: festejos.gol || 'default',
+                            asistencia: festejos.asistencia || 'default'
+                        });
+                        
+                        // Los festejos ya están guardados en el cache del sistema persistente
+                        // No necesitamos hacer nada más, el sistema los usará automáticamente
+                        
+                        // Mensaje informativo opcional al jugador si tiene festejos personalizados
+                        if (festejos.gol || festejos.asistencia) {
+                            setTimeout(() => {
+                                const mensajes = [];
+                                if (festejos.gol) mensajes.push(`⚽ Gol: "${festejos.gol}"`);
+                                if (festejos.asistencia) mensajes.push(`🎯 Asistencia: "${festejos.asistencia}"`);
+                                
+                                room.sendAnnouncement(
+                                    `🎉 Festejos personalizados restaurados: ${mensajes.join(', ')}`,
+                                    jugador.id,
+                                    parseInt("00FF00", 16),
+                                    "normal",
+                                    0
+                                );
+                            }, 2500); // Delay para no saturar de mensajes al conectarse
+                        }
+                    } else {
+                        console.log(`ℹ️ FESTEJOS: Sin festejos personalizados para ${jugador.name}`);
+                    }
+                }).catch(error => {
+                    console.error(`❌ Error cargando festejos para ${jugador.name}:`, error);
+                });
+            } else {
+                if (!cargarFestejos) {
+                    console.warn(`⚠️ FESTEJOS: Función cargarFestejos no disponible`);
+                } else if (!jugador.auth) {
+                    console.warn(`⚠️ FESTEJOS: Jugador ${jugador.name} sin auth - no se pueden cargar festejos`);
+                }
+            }
+        } catch (error) {
+            console.error(`❌ Error en sistema de festejos persistentes para ${jugador.name}:`, error);
+        }
+        // ====================== FIN FESTEJOS PERSISTENTES ======================
+        
         // ====================== ENVIAR REPORTE DE CONEXIÓN AL WEBHOOK ======================
         try {
             console.log(`📤 WEBHOOK: Enviando reporte de conexión para ${jugador.name}`);
@@ -12930,6 +13132,16 @@ setTimeout(() => {
     room.onPlayerLeave = function(jugador) {
         const nombreOriginal = obtenerNombreOriginal(jugador);
         
+        // ====================== CAPTURAR AUTH ANTES DE LIMPIEZA ======================
+        // Obtener el auth guardado al momento de la conexión antes de que se elimine
+        const authGuardado = jugadoresUID.get(jugador.id);
+        const authFinal = jugador.auth || authGuardado || null;
+        console.log(`🔍 [AUTH LEAVE DEBUG] Jugador saliendo: ${nombreOriginal}`);
+        console.log(`🔍 [AUTH LEAVE DEBUG] - Auth directo: ${jugador.auth}`);
+        console.log(`🔍 [AUTH LEAVE DEBUG] - Auth guardado: ${authGuardado}`);
+        console.log(`🔍 [AUTH LEAVE DEBUG] - Auth final: ${authFinal}`);
+        // ====================== FIN CAPTURA AUTH ======================
+        
         // Solo mostrar mensaje de desconexión si NO se fue voluntariamente
         if (!jugadoresSaliendoVoluntariamente.has(jugador.id)) {
             anunciarGeneral(`👋 💨 ${nombreOriginal} se desconectó de la sala 💨`, "888888");
@@ -12988,6 +13200,46 @@ setTimeout(() => {
             console.error(`❌ Error limpiando conexiones IP para ${jugador.name}:`, error);
         }
         // ====================== FIN LIMPIEZA DE CONEXIÓN ======================
+        
+// ====================== REGISTRAR SALIDA DE JUGADOR ======================
+        // Registrar la salida del jugador en la base de datos para tracking
+        try {
+            if (typeof nodeRegistrarSalidaJugador === 'function') {
+                const authJugador = jugador.auth || null;
+                const razonSalida = jugadoresSaliendoVoluntariamente.has(jugador.id) ? 'Voluntaria' : 'Desconexión';
+                nodeRegistrarSalidaJugador(nombreOriginal, authJugador, jugador.id, razonSalida).then(() => {
+                    console.log(`📝 Salida registrada: ${nombreOriginal} (ID: ${jugador.id}) - ${razonSalida}`);
+                }).catch(error => {
+                    console.error(`❌ Error registrando salida de ${nombreOriginal}:`, error);
+                });
+            }
+        } catch (error) {
+            console.error(`❌ Error al registrar salida de ${nombreOriginal}:`, error);
+        }
+        // ====================== FIN REGISTRO DE SALIDA ======================
+
+        // ====================== WEBHOOK: LOG DE SALIDA ======================
+        try {
+            // Extraer ID de sala del enlace real (parámetro c=...)
+            let salaId = null;
+            try {
+                if (enlaceRealSala && typeof enlaceRealSala === 'string') {
+                    const match = enlaceRealSala.match(/[?&]c=([^&#]+)/);
+                    salaId = match ? match[1] : enlaceRealSala;
+                }
+            } catch (e) {}
+            const fechaHora = new Date().toLocaleString('es-AR', { hour12: false });
+            enviarReporteSalidaDiscord({
+                nombre: nombreOriginal,
+                authId: authFinal,
+                salaId,
+                fechaHora,
+                playerId: jugador.id
+            });
+        } catch (e) {
+            // No interrumpir flujo ante fallos del webhook
+        }
+        // ====================== FIN WEBHOOK: LOG DE SALIDA ======================
 
         // Registrar puntuación del partido en estadísticas globales
         try {

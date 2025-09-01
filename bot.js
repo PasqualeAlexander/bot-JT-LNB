@@ -234,6 +234,17 @@ const crearTablas = async () => {
             FOREIGN KEY (player_name) REFERENCES jugadores(nombre) ON DELETE CASCADE
         )`);
         
+        // Tabla para tracking de salidas de jugadores
+        await executeQuery(`CREATE TABLE IF NOT EXISTS salidas_jugadores (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nombre VARCHAR(255) NOT NULL,
+            auth_id VARCHAR(255),
+            player_id INT NOT NULL,
+            fecha_salida TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            razon_salida VARCHAR(255) DEFAULT 'Voluntaria',
+            INDEX idx_fecha_salida (fecha_salida)
+        )`);
+        
         console.log('✅ Tablas creadas correctamente en MySQL');
     } catch (err) {
         console.error('❌ Error creando tablas en MySQL:', err);
@@ -1580,7 +1591,7 @@ const roomConfig = {
     password: null,
     maxPlayers: 18,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGiyOZNjznrutBSNpw.KX6xZvuZhGk", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
+    token: "thr1.AAAAAGi02czxcTy6HeEn6w.LoNbzKoU71k", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
     geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };
@@ -1690,6 +1701,10 @@ const webhooks = {
         await page.exposeFunction('nodeDesactivarBaneo', dbFunctions.desactivarBaneo);
         await page.exposeFunction('nodeDesbanearJugadorNuevo', dbFunctions.desbanearJugadorNuevo);
         await page.exposeFunction('nodeObtenerBaneosActivos', dbFunctions.obtenerBaneosActivos);
+        
+        // Exponer funciones de tracking de salidas
+        await page.exposeFunction('nodeRegistrarSalidaJugador', dbFunctions.registrarSalidaJugador);
+        await page.exposeFunction('nodeObtenerUltimasSalidas', dbFunctions.obtenerUltimasSalidas);
 
         // Integrar sistemas compartidos
         await page.exposeFunction('cargarEstadisticasGlobales', dbFunctions.cargarEstadisticasGlobales);

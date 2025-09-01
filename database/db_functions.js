@@ -1091,6 +1091,75 @@ const dbFunctions = {
             console.error('❌ Error en migración a auth_id:', error);
             return { migrado: false, razon: 'error_sistema', error: error.message };
         }
+    },
+    
+    // ====================== FUNCIONES PARA TRACKING DE SALIDAS ======================
+    
+    // Registrar salida de jugador
+    registrarSalidaJugador: async (nombre, authId, playerId, razon = 'Voluntaria') => {
+        try {
+            const query = `INSERT INTO salidas_jugadores 
+                          (nombre, auth_id, player_id, razon_salida)
+                          VALUES (?, ?, ?, ?)`;
+            
+            const result = await executeQuery(query, [nombre, authId, playerId, razon]);
+            console.log(`📝 Salida registrada: ${nombre} (ID: ${playerId})`);
+            return result.insertId;
+        } catch (error) {
+            console.error('❌ Error registrando salida de jugador:', error);
+            throw error;
+        }
+    },
+    
+    // Obtener últimas salidas con paginación
+    obtenerUltimasSalidas: async (pagina = 1, porPagina = 10) => {
+        try {
+            // Asegurar que los parámetros sean números enteros
+            const paginaInt = parseInt(pagina) || 1;
+            const porPaginaInt = parseInt(porPagina) || 10;
+            const offset = (paginaInt - 1) * porPaginaInt;
+            
+            console.log(`🔍 DEBUG: obtenerUltimasSalidas - página: ${paginaInt}, porPagina: ${porPaginaInt}, offset: ${offset}`);
+            
+            // Obtener el total de registros para paginación
+            const countQuery = `SELECT COUNT(*) as total FROM salidas_jugadores`;
+            const countResult = await executeQuery(countQuery, []);
+            const total = countResult[0].total;
+            
+            console.log(`🔍 DEBUG: Total de registros encontrados: ${total}`);
+            
+            // Obtener los registros de la página actual
+            // Usar LIMIT con números enteros directamente en lugar de parámetros preparados
+            const query = `SELECT nombre, player_id, fecha_salida, razon_salida 
+                          FROM salidas_jugadores 
+                          ORDER BY fecha_salida DESC 
+                          LIMIT ${porPaginaInt} OFFSET ${offset}`;
+            
+            console.log(`🔍 DEBUG: Ejecutando query: ${query}`);
+            
+            const results = await executeQuery(query, []);
+            
+            console.log(`🔍 DEBUG: Resultados obtenidos: ${results.length} registros`);
+            
+            return {
+                success: true,
+                data: results,
+                total: total,
+                pagina: paginaInt,
+                porPagina: porPaginaInt
+            };
+        } catch (error) {
+            console.error('❌ Error obteniendo últimas salidas:', error);
+            console.error('❌ Stack trace:', error.stack);
+            return {
+                success: false,
+                error: error.message,
+                data: [],
+                total: 0,
+                pagina: parseInt(pagina) || 1,
+                porPagina: parseInt(porPagina) || 10
+            };
+        }
     }
 };
 

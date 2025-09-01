@@ -1,4 +1,4 @@
-/* 
+﻿/* 
 * ██████╗  ██████╗ ████████╗   ██╗     ███╗   ██╗██████╗         ██╗████████╗
 * ██╔══██╗██╔═══██╗╚══██╔══╝   ██║     ████╗  ██║██╔══██╗        ██║╚══██╔══╝
 * ██████╔╝██║   ██║   ██║      ██║     ██╔██╗ ██║██████╔╝        ██║   ██║   
@@ -609,7 +609,7 @@ const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGi1InIy8ORFz62k1g.EEdF-FaFj6M";
+const token = "thr1.AAAAAGi02czxcTy6HeEn6w.LoNbzKoU71k";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -737,7 +737,7 @@ function enviarReporteSalidaDiscord({ nombre, authId, salaId, fechaHora, playerI
         
         // Usar nueva sintaxis solicitada
         const emoji = "<:biggerx7:1378054762137915482>";
-        const contenido = `<:biggerx7:1378054762137915482> \`\`\`[🕒 ${fechaFormateada}] 👤 ${nombre} | 🆔 #${playerIdFinal} | 🔑 AuthID: ${authId || 'N/D'}\`\`\``;
+        const contenido = `${emoji} \`[🕒 ${fechaFormateada}] 👤 ${nombre} | 🆔 #${playerIdFinal} | 🔑 AuthID: ${authId || 'N/D'}\`;
         
         const payload = { content: contenido };
         fetch(webhookLogsSalidas, {

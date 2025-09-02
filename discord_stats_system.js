@@ -81,7 +81,7 @@ class DiscordStatsSystem {
                 dbFunctions.obtenerTopJugadores('hatTricks', 10),
                 dbFunctions.obtenerTopJugadores('vallasInvictas', 10),
                 dbFunctions.obtenerTopJugadores('mvps', 10),
-                executeQuery("SELECT nombre, goles, asistencias, partidos, ROUND((goles + asistencias) / partidos, 2) AS ga_por_partido FROM jugadores WHERE partidos > 0 ORDER BY ga_por_partido DESC LIMIT 10"),
+                executeQuery("SELECT nombre, goles, asistencias, partidos, ROUND((goles + asistencias) / partidos, 2) AS ga_por_partido FROM jugadores WHERE partidos > 100 ORDER BY ga_por_partido DESC LIMIT 10"),
                 executeQuery('SELECT COUNT(*) as total FROM jugadores WHERE partidos > 0'),
                 executeQuery('SELECT * FROM partidos ORDER BY created_at DESC LIMIT 5')
             ]);
@@ -230,7 +230,7 @@ class DiscordStatsSystem {
                         inline: true
                     },
                     {
-                        name: '<:bdo:1376300142084362300> **BALÓN DE ORO (G+A)/P**',
+                        name: '<:bdo:1376300142084362300> **BALÓN DE ORO (G+A)/P +100PJ**',
                         value: formatearBalonDeOro(topBalonDeOro),
                         inline: true
                     },

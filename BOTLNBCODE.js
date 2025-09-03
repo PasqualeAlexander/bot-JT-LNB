@@ -5661,6 +5661,43 @@ function mezclarEquiposAleatoriamenteFinPartido() {
         return;
     }
     
+    // CORRECCIÓN CRÍTICA: Verificar cambio de mapa ANTES de mover jugadores
+    const jugadoresActivos = jugadoresEnEquipos.length;
+    let requiereCambioMapa = false;
+    let nuevoMapa = null;
+    
+    console.log(`🔍 DEBUG: Verificando cambio de mapa pre-mezcla - Jugadores activos: ${jugadoresActivos}, Mapa actual: ${mapaActual}`);
+    
+    // Detectar si se necesita cambio de mapa basado en la cantidad de jugadores
+    if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
+        requiereCambioMapa = true;
+        nuevoMapa = "biggerx7";
+        console.log(`🎯 DEBUG: Se requiere cambio de x5 a x7 con ${jugadoresActivos} jugadores`);
+    } else if (mapaActual === "biggerx3" && jugadoresActivos >= 9) {
+        requiereCambioMapa = true;
+        nuevoMapa = "biggerx5";
+        console.log(`🎯 DEBUG: Se requiere cambio de x3 a x5 con ${jugadoresActivos} jugadores`);
+    } else if (mapaActual === "biggerx1" && jugadoresActivos >= 5) {
+        requiereCambioMapa = true;
+        nuevoMapa = "biggerx3";
+        console.log(`🎯 DEBUG: Se requiere cambio de x1 a x3 con ${jugadoresActivos} jugadores`);
+    }
+    
+    // Si se requiere cambio de mapa, hacerlo ANTES de mezclar equipos
+    if (requiereCambioMapa && nuevoMapa) {
+        console.log(`🗺️ DEBUG: Cambiando mapa ANTES de mezclar equipos: ${mapaActual} -> ${nuevoMapa}`);
+        
+        const mapaAnterior = mapaActual;
+        if (cambiarMapa(nuevoMapa)) {
+            console.log(`✅ DEBUG: Cambio de mapa exitoso: ${mapaAnterior} -> ${nuevoMapa}`);
+            const formatoAnterior = mapaAnterior === "biggerx5" ? "x4" : mapaAnterior === "biggerx3" ? "x3" : "x1";
+            const formatoNuevo = nuevoMapa === "biggerx7" ? "x7" : nuevoMapa === "biggerx5" ? "x4" : "x3";
+            anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de ${formatoAnterior} a ${formatoNuevo}`);
+        } else {
+            console.log(`❌ DEBUG: Fallo al cambiar mapa, continuando con mezcla en mapa actual`);
+        }
+    }
+    
     // Paso 1: Mover SOLO a los jugadores que están en equipos a espectadores temporalmente
     anunciarGeneral("🔄 ⚡ MEZCLANDO EQUIPOS PARA PRÓXIMO PARTIDO... ⚡ 🔄", "FFD700", "bold");
     
@@ -5668,7 +5705,11 @@ function mezclarEquiposAleatoriamenteFinPartido() {
     const idsJugadoresAMezclar = jugadoresEnEquipos.map(j => j.id);
     console.log(`📋 DEBUG mezcla fin partido: IDs a mezclar: [${idsJugadoresAMezclar.join(', ')}]`);
     
+    // CORRECCIÓN: Marcar todos los movimientos como iniciados por bot para evitar mensajes duplicados
     jugadoresEnEquipos.forEach(jugador => {
+        if (movimientoIniciadorPorBot) {
+            movimientoIniciadorPorBot.add(jugador.id);
+        }
         console.log(`➡️ DEBUG fin partido: Moviendo ${jugador.name} (ID: ${jugador.id}) a espectadores`);
         room.setPlayerTeam(jugador.id, 0);
     });
@@ -6103,7 +6144,6 @@ function verificarCambioMapaPostPartido() {
         cambioMapaEnProceso = true;
         if (cambiarMapa("biggerx7")) {
             anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x4 a x7`);
-            anunciarInfo("⚡ El bot ha detectado suficientes jugadores para una experiencia x7 más emocionante!");
             
             // Asegurar que el cambio se complete correctamente
             setTimeout(() => {

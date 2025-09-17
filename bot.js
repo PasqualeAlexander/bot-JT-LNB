@@ -1586,12 +1586,12 @@ const dbFunctionsOld = {
 
 // Configuración del bot (igual que el original)
 const roomConfig = {
-    roomName: "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡",
+    roomName: "⚡🔹 ❰LNB❱ | JUEGAN TODOS | BIGGER X7 🔹⚡",
     playerName: "",
     password: null,
     maxPlayers: 18,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGi3ujbt18mxNCZx5Q.yd4zNC0ZVNo", // ⚠️ NECESITA SER ACTUALIZADO CON UN TOKEN VÁLIDO
+    token: "thr1.AAAAAGjKJJHcLid5W2qkqw.JWFfzb-LipA", // Token actualizado
     geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };

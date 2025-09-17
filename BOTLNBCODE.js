@@ -605,11 +605,11 @@ async function registrarJugador(nombre) {
 
 // ==================== CONFIGURACIÓN DE LA SALA ====================
 // Variables de configuración (estas deben coincidir con bot.js)
-const roomName = "⚡🔹 LNB | JUEGAN TODOS | BIGGER X7 🔹⚡";
+const roomName = "⚡🔹 ❰LNB❱ | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGi3ujbt18mxNCZx5Q.yd4zNC0ZVNo";
+const token = "thr1.AAAAAGjKJJHcLid5W2qkqw.JWFfzb-LipA";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -1044,7 +1044,7 @@ const posicionEsperando = {x: 0, y: 0};
 const posicionAFK = {x: 200, y: 0};
 
 // CONFIGURACIÓN DEL BOT
-const adminPassword = "lnbnotgenio";
+const adminPassword = "LnbAB17";
 const duracionPartido = 3; // 3 minutos
 const scoreLimitPartido = 3; // 3 goles
 const guardarReplaysEnPC = false; // ❌ DESACTIVADO - No descargar replays automáticamente en PC
@@ -1155,7 +1155,7 @@ const PERMISOS = {
 // Contraseñas para roles especiales
 const ROLE_PASSWORDS = {
     SUPER_ADMIN: "1708CRL",
-    ADMIN_FULL: "AdmFullRRIB", 
+    ADMIN_FULL: "LnbAB17", 
     ADMIN_BASICO: "AdmBase2k251708"
 };
 
@@ -4851,6 +4851,27 @@ function balanceInteligente(razon = "balance automático") {
 
     console.log(`⚖️ DEBUG balanceInteligente (${razon}): Rojo=${jugadoresRed.length}, Azul=${jugadoresBlue.length}, Total=${totalJugadoresEnEquipos}, Diferencia=${diferencia}`);
     
+    // CASO ESPECIAL: Training con 1 jugador - mantener en equipo rojo
+    if (mapaActual === "training" && totalJugadoresEnEquipos === 1) {
+        console.log(`🎯 DEBUG: Training con 1 jugador detectado`);
+        const unicoJugador = jugadoresRed.length === 1 ? jugadoresRed[0] : jugadoresBlue[0];
+        
+        if (unicoJugador && unicoJugador.team !== 1) {
+            console.log(`🔴 DEBUG: Moviendo único jugador ${unicoJugador.name} al equipo rojo para training`);
+            
+            // Permitir movimiento por sistema automático
+            if (movimientoPermitidoPorComando) {
+                movimientoPermitidoPorComando.add(unicoJugador.id);
+            }
+            
+            room.setPlayerTeam(unicoJugador.id, 1);
+            anunciarInfo(`🔴 ${unicoJugador.name} movido al equipo rojo para entrenar`, unicoJugador);
+        } else {
+            console.log(`✅ DEBUG: Único jugador ya está en equipo rojo para training`);
+        }
+        return; // No ejecutar balance normal en training con 1 jugador
+    }
+    
     // Si no hay jugadores en equipos, no hacer nada
     if (totalJugadoresEnEquipos === 0) {
         console.log(`❌ DEBUG: No hay jugadores en equipos para balancear`);
@@ -6137,9 +6158,9 @@ function verificarCambioMapaPostPartido() {
     
     console.log(`🏁 DEBUG: Verificando cambio de mapa post-partido con ${jugadoresActivos} jugadores activos`);
     
-// CAMBIO ESPECÍFICO: De biggerx5 (x4) a biggerx7 si hay 12 o más jugadores
-    if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
-        console.log(`📈 DEBUG: Cambiando de x5 a x7 después del partido (${jugadoresActivos} >= 12 jugadores)`);
+// CAMBIO ESPECÍFICO: De biggerx5 (x4) a biggerx7 si hay más de 9 jugadores activos
+    if (mapaActual === "biggerx5" && jugadoresActivos > 9) {
+        console.log(`📈 DEBUG: Cambiando de x5 a x7 después del partido (${jugadoresActivos} > 9 jugadores)`);
         
         cambioMapaEnProceso = true;
         if (cambiarMapa("biggerx7")) {
@@ -6432,6 +6453,27 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados. Cambiando a ${nombreMapa}...`);
             
             setTimeout(() => {
+                // CASO ESPECIAL: Mover único jugador al equipo rojo en training
+                if (mapaRequerido === "training" && jugadoresActivos === 1) {
+                    console.log(`🎯 DEBUG: Aplicando lógica especial para training con 1 jugador`);
+                    const jugadores = room.getPlayerList().filter(j => j.team === 1 || j.team === 2);
+                    if (jugadores.length === 1) {
+                        const jugador = jugadores[0];
+                        if (jugador.team !== 1) {
+                            // Permitir movimiento por sistema automático
+                            if (movimientoPermitidoPorComando) {
+                                movimientoPermitidoPorComando.add(jugador.id);
+                            }
+                            
+                            room.setPlayerTeam(jugador.id, 1); // Mover al equipo rojo
+                            console.log(`🔴 DEBUG: Jugador ${jugador.name} movido al equipo rojo para training`);
+                            anunciarInfo(`🔴 ${jugador.name} movido al equipo rojo para entrenar`, jugador);
+                        } else {
+                            console.log(`✅ DEBUG: Jugador ${jugador.name} ya está en el equipo rojo`);
+                        }
+                    }
+                }
+                
                 autoBalanceEquipos();
                 verificarAutoStart();
                 setTimeout(() => { 

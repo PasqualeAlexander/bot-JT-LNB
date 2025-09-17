@@ -5628,7 +5628,7 @@ function verificarAutoStart() {
             
             if (totalActuales >= minActual && Math.abs(redActuales - blueActuales) <= 1 && !partidoEnCurso) {
                 console.log(`🚀 DEBUG: ¡Iniciando partido!`);
-                anunciarGeneral(`🚀 ⭐ ¡INICIANDO PARTIDO AUTOMÁTICAMENTE! ⭐ 🚀`, "00FF00", "bold");
+                // Mensaje de inicio automático eliminado
                 room.startGame();
                 // Resetear la variable para permitir el mensaje en el próximo partido
                 mensajeAutoStartMostrado = false;
@@ -5720,7 +5720,7 @@ function mezclarEquiposAleatoriamenteFinPartido() {
     }
     
     // Paso 1: Mover SOLO a los jugadores que están en equipos a espectadores temporalmente
-    anunciarGeneral("🔄 ⚡ MEZCLANDO EQUIPOS PARA PRÓXIMO PARTIDO... ⚡ 🔄", "FFD700", "bold");
+    // Mensaje de mezclado eliminado
     
     // Guardar los IDs de los jugadores que vamos a mezclar
     const idsJugadoresAMezclar = jugadoresEnEquipos.map(j => j.id);
@@ -11500,7 +11500,7 @@ function enviarInforme(payload, debeEnviarReplay) {
         })
         .then(response => {
             if (response.ok) {
-                anunciarExito("📤 Informe de estadísticas enviado a Discord");
+                // No enviar mensaje individual de informe
                 
                 // Si debe enviar replay, enviarlo después del informe
                 if (debeEnviarReplay && replayData && typeof FormData !== 'undefined') {
@@ -11509,6 +11509,8 @@ function enviarInforme(payload, debeEnviarReplay) {
                     }, 1000); // Reducir espera entre informe y replay
                 } else {
                     reporteEnviado = true; // Marcar como completado si no hay replay
+                    // Enviar mensaje unificado cuando no hay replay
+                    anunciarExito("📤🎬 Informe de estadísticas y Replay enviados a Discord exitosamente");
                     liberarBloqueoReplay("Informe enviado sin replay");
                 }
             } else {
@@ -11557,7 +11559,7 @@ function enviarReplay() {
         .then(response => {
             if (response.ok) {
                 reporteEnviado = true; // Marcar como completado
-                anunciarExito("🎬 Replay enviado a Discord exitosamente");
+                anunciarExito("📤🎬 Informe de estadísticas y Replay enviados a Discord exitosamente");
                 liberarBloqueoReplay("Replay enviado exitosamente");
             } else {
                 anunciarError("❌ Error al enviar replay a Discord", null);

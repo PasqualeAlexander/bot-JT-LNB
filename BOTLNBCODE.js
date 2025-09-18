@@ -159,6 +159,9 @@ let guardarFestejo = null;
 let obtenerMensajeFestejo = null;
 let tieneFestejos = null;
 let limpiarFestejos = null;
+let inicializarSistemaFestejos = null;
+let migrarFestivoTemporal = null;
+
 if (isNode) {
     try {
         const festejosModule = require('./festejos_persistent_system.js');
@@ -167,6 +170,37 @@ if (isNode) {
         obtenerMensajeFestejo = festejosModule.obtenerMensajeFestejo;
         tieneFestejos = festejosModule.tieneFestejos;
         limpiarFestejos = festejosModule.limpiarFestejos;
+        inicializarSistemaFestejos = festejosModule.inicializarSistemaFestejos;
+        
+        // Inicializar el sistema automáticamente al importar
+        if (inicializarSistemaFestejos) {
+            sistemaFestejosPersistente = inicializarSistemaFestejos();
+            console.log('✅ Sistema de festejos persistentes inicializado automáticamente');
+        }
+        
+        // Función para migrar mensajes temporales al sistema persistente
+        migrarFestivoTemporal = async function(auth_id, player_name, mensajeGol = null, mensajeAsistencia = null) {
+            if (guardarFestejo && auth_id) {
+                try {
+                    let resultados = { gol: null, asistencia: null };
+                    
+                    if (mensajeGol) {
+                        resultados.gol = await guardarFestejo(auth_id, player_name, 'gol', mensajeGol);
+                    }
+                    
+                    if (mensajeAsistencia) {
+                        resultados.asistencia = await guardarFestejo(auth_id, player_name, 'asistencia', mensajeAsistencia);
+                    }
+                    
+                    return resultados;
+                } catch (error) {
+                    console.error('❌ Error en migración de festejos:', error);
+                    return { error: error.message };
+                }
+            }
+            return null;
+        };
+        
         console.log('✅ Sistema de festejos persistentes importado correctamente');
     } catch (error) {
         console.warn('⚠️ No se pudo importar el sistema de festejos persistentes:', error.message);
@@ -666,7 +700,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjLh9EVNmrT3zLCZA.flkAnu0l6OM";
+const token = "thr1.AAAAAGjMIKrsovc2px-h9Q.dz2jBgrxAt4";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -7355,20 +7389,74 @@ async function procesarComando(jugador, mensaje) {
             break;
             
         case "ver_mensajes":
-            const misMessagess = mensajesPersonalizados.get(jugador.id);
-            if (misMessagess) {
-                const msgGol = misMessagess.gol || "No configurado";
-                const msgAsist = misMessagess.asistencia || "No configurado";
-                room.sendAnnouncement(`⚽ Mensaje de gol: "${msgGol}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
-                room.sendAnnouncement(`🎯 Mensaje de asistencia: "${msgAsist}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
-            } else {
-                room.sendAnnouncement("❌ No tienes mensajes personalizados configurados", jugador.id, parseInt("FF0000", 16), "normal", 0);
+            // Usar sistema persistente primero, y fallback al temporal
+            try {
+                let mensajesEncontrados = false;
+                
+                // 1. Intentar obtener del sistema persistente
+                if (obtenerMensajeFestejo && jugador.auth) {
+                    const msgGolPersistente = obtenerMensajeFestejo(jugador.auth, 'gol');
+                    const msgAsistPersistente = obtenerMensajeFestejo(jugador.auth, 'asistencia');
+                    
+                    if (msgGolPersistente || msgAsistPersistente) {
+                        mensajesEncontrados = true;
+                        room.sendAnnouncement(`⚽ Mensaje de gol: "${msgGolPersistente || 'No configurado'}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
+                        room.sendAnnouncement(`🎯 Mensaje de asistencia: "${msgAsistPersistente || 'No configurado'}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
+                        room.sendAnnouncement(`📝 Tus mensajes están guardados con persistencia`, jugador.id, parseInt(COLORES.EXITO, 16), "normal", 0);
+                    }
+                }
+                
+                // 2. Si no se encuentran en el sistema persistente, verificar el temporal
+                if (!mensajesEncontrados) {
+                    const misMessagess = mensajesPersonalizados.get(jugador.id);
+                    if (misMessagess) {
+                        const msgGol = misMessagess.gol || "No configurado";
+                        const msgAsist = misMessagess.asistencia || "No configurado";
+                        room.sendAnnouncement(`⚽ Mensaje de gol: "${msgGol}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
+                        room.sendAnnouncement(`🎯 Mensaje de asistencia: "${msgAsist}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
+                        
+                        // Si el jugador tiene auth, sugerir migración
+                        if (jugador.auth) {
+                            room.sendAnnouncement(`💡 Usa !festejo para hacer que tus mensajes sean persistentes`, jugador.id, parseInt(COLORES.INFO, 16), "normal", 0);
+                        }
+                    } else {
+                        room.sendAnnouncement("❌ No tienes mensajes personalizados configurados", jugador.id, parseInt("FF0000", 16), "normal", 0);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error en ver_mensajes:', error);
+                room.sendAnnouncement("❌ Error al obtener tus mensajes", jugador.id, parseInt("FF0000", 16), "normal", 0);
             }
             break;
             
         case "limpiar_mensajes":
-            mensajesPersonalizados.delete(jugador.id);
-            anunciarExito("🧹 Mensajes personalizados eliminados");
+            try {
+                let resultadoLimpieza = false;
+                
+                // 1. Limpiar mensajes del sistema temporal (en memoria)
+                mensajesPersonalizados.delete(jugador.id);
+                resultadoLimpieza = true;
+                
+                // 2. Limpiar mensajes del sistema persistente si está disponible
+                if (limpiarFestejos && jugador.auth) {
+                    limpiarFestejos(jugador.auth, jugador.name).then(resultado => {
+                        if (resultado && resultado.success) {
+                            anunciarExito(`🧹 Mensajes personalizados eliminados completamente (persistencia + memoria)`, jugador);
+                        } else {
+                            anunciarExito(`🧹 Mensajes eliminados solo de la memoria`, jugador);
+                        }
+                    }).catch(error => {
+                        console.error('❌ Error en limpiar_mensajes (persistente):', error);
+                        anunciarExito(`🧹 Mensajes eliminados solo de la memoria (error en sistema persistente)`, jugador);
+                    });
+                } else {
+                    // Si no hay sistema persistente disponible o no hay auth
+                    anunciarExito(`🧹 Mensajes personalizados eliminados de la memoria`, jugador);
+                }
+            } catch (error) {
+                console.error('❌ Error en limpiar_mensajes:', error);
+                anunciarError("❌ Error al limpiar tus mensajes", jugador);
+            }
             break;
             
         case "ship":
@@ -13245,8 +13333,8 @@ setTimeout(() => {
             if (cargarFestejos && jugador.auth) {
                 console.log(`🎉 FESTEJOS: Cargando festejos persistentes para ${jugador.name} (${jugador.auth})`);
                 
-                cargarFestejos(jugador.auth, jugador.name).then(festejos => {
-                    if (festejos) {
+                cargarFestejos(jugador.auth, jugador.name).then(async festejos => {
+                    if (festejos && (festejos.gol || festejos.asistencia)) {
                         console.log(`✅ FESTEJOS: Festejos cargados para ${jugador.name}:`, {
                             gol: festejos.gol || 'default',
                             asistencia: festejos.asistencia || 'default'
@@ -13255,24 +13343,73 @@ setTimeout(() => {
                         // Los festejos ya están guardados en el cache del sistema persistente
                         // No necesitamos hacer nada más, el sistema los usará automáticamente
                         
-                        // Mensaje informativo opcional al jugador si tiene festejos personalizados
-                        if (festejos.gol || festejos.asistencia) {
-                            setTimeout(() => {
-                                const mensajes = [];
-                                if (festejos.gol) mensajes.push(`⚽ Gol: "${festejos.gol}"`);
-                                if (festejos.asistencia) mensajes.push(`🎯 Asistencia: "${festejos.asistencia}"`);
-                                
-                                room.sendAnnouncement(
-                                    `🎉 Festejos personalizados restaurados: ${mensajes.join(', ')}`,
-                                    jugador.id,
-                                    parseInt("00FF00", 16),
-                                    "normal",
-                                    0
-                                );
-                            }, 2500); // Delay para no saturar de mensajes al conectarse
-                        }
+                        // Mensaje informativo al jugador si tiene festejos personalizados
+                        setTimeout(() => {
+                            const mensajes = [];
+                            if (festejos.gol) mensajes.push(`⚽ Gol: "${festejos.gol}"`);
+                            if (festejos.asistencia) mensajes.push(`🎯 Asistencia: "${festejos.asistencia}"`);
+                            
+                            room.sendAnnouncement(
+                                `🎉 Festejos personalizados restaurados: ${mensajes.join(', ')}`,
+                                jugador.id,
+                                parseInt("00FF00", 16),
+                                "normal",
+                                0
+                            );
+                        }, 2500); // Delay para no saturar de mensajes al conectarse
                     } else {
-                        console.log(`ℹ️ FESTEJOS: Sin festejos personalizados para ${jugador.name}`);
+                        console.log(`ℹ️ FESTEJOS: Sin festejos persistentes para ${jugador.name}`);
+                        
+                        // ==================== MIGRACIÓN AUTOMÁTICA ====================
+                        // Si no hay festejos persistentes, verificar si hay temporales para migrar
+                        const mensajesTemporales = mensajesPersonalizados.get(jugador.id);
+                        if (mensajesTemporales && migrarFestivoTemporal) {
+                            console.log(`🔄 MIGRACIÓN: Encontrados mensajes temporales para ${jugador.name}, iniciando migración...`);
+                            
+                            try {
+                                const resultadoMigracion = await migrarFestivoTemporal(
+                                    jugador.auth,
+                                    jugador.name,
+                                    mensajesTemporales.gol,
+                                    mensajesTemporales.asistencia
+                                );
+                                
+                                if (resultadoMigracion && !resultadoMigracion.error) {
+                                    console.log(`✅ MIGRACIÓN: Festejos migrados exitosamente para ${jugador.name}`);
+                                    
+                                    // Limpiar mensajes temporales después de migración exitosa
+                                    mensajesPersonalizados.delete(jugador.id);
+                                    
+                                    // Notificar al jugador sobre la migración
+                                    setTimeout(() => {
+                                        const mensajes = [];
+                                        if (mensajesTemporales.gol) mensajes.push(`⚽ Gol: "${mensajesTemporales.gol}"`);
+                                        if (mensajesTemporales.asistencia) mensajes.push(`🎯 Asistencia: "${mensajesTemporales.asistencia}"`);
+                                        
+                                        room.sendAnnouncement(
+                                            `🔄 Tus festejos han sido migrados al sistema persistente: ${mensajes.join(', ')}`,
+                                            jugador.id,
+                                            parseInt(COLORES.DORADO, 16),
+                                            "bold",
+                                            0
+                                        );
+                                        
+                                        room.sendAnnouncement(
+                                            `💾 Ahora tus mensajes se guardarán automáticamente entre desconexiones`,
+                                            jugador.id,
+                                            parseInt(COLORES.INFO, 16),
+                                            "normal",
+                                            0
+                                        );
+                                    }, 3000);
+                                } else {
+                                    console.error(`❌ MIGRACIÓN: Error migrando festejos para ${jugador.name}:`, resultadoMigracion?.error);
+                                }
+                            } catch (error) {
+                                console.error(`❌ MIGRACIÓN: Error en proceso de migración para ${jugador.name}:`, error);
+                            }
+                        }
+                        // ==================== FIN MIGRACIÓN AUTOMÁTICA ====================
                     }
                 }).catch(error => {
                     console.error(`❌ Error cargando festejos para ${jugador.name}:`, error);

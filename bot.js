@@ -30,6 +30,19 @@ const dbFunctions = require('./database/db_functions');
 // Importar sistema de roles persistentes
 const { rolesPersistentSystem } = require('./roles_persistent_system');
 
+// Importar sistema de festejos persistentes
+const festejosModule = require('./festejos_persistent_system');
+const { inicializarSistemaFestejos, cargarFestejos, guardarFestejo, obtenerMensajeFestejo, tieneFestejos, limpiarFestejos } = festejosModule;
+
+// Inicializar el sistema de festejos
+let sistemaFestejosPersistente = null;
+try {
+    sistemaFestejosPersistente = inicializarSistemaFestejos();
+    console.log('✅ Sistema de festejos persistentes inicializado');
+} catch (error) {
+    console.warn('⚠️ No se pudo inicializar el sistema de festejos:', error.message);
+}
+
 // Importar sistema de estadísticas Discord
 let discordStatsSystem = null;
 try {
@@ -1781,6 +1794,67 @@ const webhooks = {
                 console.error('❌ Error en nodeGetAllRoles:', error);
                 return [];
             }
+
+        // Exponer funciones del sistema de festejos persistentes
+        await page.exposeFunction('nodeCargarFestejos', async (authId, playerName) => {
+            try {
+                console.log('🎉 nodeCargarFestejos llamado:', authId, playerName);
+                const result = await cargarFestejos(authId, playerName);
+                console.log('🎉 nodeCargarFestejos resultado:', result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeCargarFestejos:', error);
+                return null;
+            }
+        });
+        
+        await page.exposeFunction('nodeGuardarFestejo', async (authId, playerName, tipo, mensaje) => {
+            try {
+                console.log('💾 nodeGuardarFestejo llamado:', authId, playerName, tipo, mensaje);
+                const result = await guardarFestejo(authId, playerName, tipo, mensaje);
+                console.log('💾 nodeGuardarFestejo resultado:', result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeGuardarFestejo:', error);
+                return { ok: false, error: error.message };
+            }
+        });
+        
+        await page.exposeFunction('nodeObtenerMensajeFestejo', async (authId, tipo) => {
+            try {
+                console.log('🎯 nodeObtenerMensajeFestejo llamado:', authId, tipo);
+                const result = obtenerMensajeFestejo(authId, tipo);
+                console.log('🎯 nodeObtenerMensajeFestejo resultado:', result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeObtenerMensajeFestejo:', error);
+                return null;
+            }
+        });
+        
+        await page.exposeFunction('nodeTieneFestejos', async (authId) => {
+            try {
+                console.log('🔍 nodeTieneFestejos llamado:', authId);
+                const result = tieneFestejos(authId);
+                console.log('🔍 nodeTieneFestejos resultado:', result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeTieneFestejos:', error);
+                return false;
+            }
+        });
+        
+        await page.exposeFunction('nodeLimpiarFestejos', async (authId, playerName, tipo) => {
+            try {
+                console.log('🧹 nodeLimpiarFestejos llamado:', authId, playerName, tipo);
+                const result = await limpiarFestejos(authId, playerName, tipo);
+                console.log('🧹 nodeLimpiarFestejos resultado:', result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error en nodeLimpiarFestejos:', error);
+                return { ok: false, error: error.message };
+            }
+        });
         });
         
         await page.exposeFunction('nodeGetRoleStats', async () => {

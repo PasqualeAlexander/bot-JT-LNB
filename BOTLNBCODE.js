@@ -605,7 +605,7 @@ async function registrarJugador(nombre) {
 
 // ==================== CONFIGURACIÓN DE LA SALA ====================
 // Variables de configuración (estas deben coincidir con bot.js)
-const roomName = "⚡🔹 ❰LNB❱ | JUEGAN TODOS | BIGGER X7 🔹⚡";
+const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;

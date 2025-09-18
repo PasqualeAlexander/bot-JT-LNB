@@ -12200,14 +12200,6 @@ function enviarPuntuacionesPrivadas() {
                 "bold",
                 0
             );
-            
-            room.sendAnnouncement(
-                `═══════════════════════════════════════════════════════`,
-                jugadorConectado.id,
-                parseInt(COLORES.DORADO, 16),
-                "bold",
-                0
-            );
         }
     });
 }

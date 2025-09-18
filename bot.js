@@ -1604,7 +1604,7 @@ const roomConfig = {
     password: null,
     maxPlayers: 18,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGjMIKrsovc2px-h9Q.dz2jBgrxAt4", // Token actualizado
+    token: "thr1.AAAAAGjMixR7nX49ACAsVQ.--gqBG1WaNI", // Token actualizado
     geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };

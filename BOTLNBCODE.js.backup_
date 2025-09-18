@@ -185,11 +185,11 @@ if (isNode) {
                     let resultados = { gol: null, asistencia: null };
                     
                     if (mensajeGol) {
-                        resultados.gol = await guardarFestejo(auth_id, player_name, 'gol', mensajeGol);
+                        resultados.gol = await nodeGuardarFestejo(auth_id, player_name, 'gol', mensajeGol);
                     }
                     
                     if (mensajeAsistencia) {
-                        resultados.asistencia = await guardarFestejo(auth_id, player_name, 'asistencia', mensajeAsistencia);
+                        resultados.asistencia = await nodeGuardarFestejo(auth_id, player_name, 'asistencia', mensajeAsistencia);
                     }
                     
                     return resultados;
@@ -7302,7 +7302,7 @@ async function procesarComando(jugador, mensaje) {
                     // USAR SISTEMA PERSISTENTE: Obtener mensaje actual usando auth
                     let mensajeActual = "¡GOOOOOL!";
                     if (obtenerMensajeFestejo && jugador.auth) {
-                        const mensajePersistente = obtenerMensajeFestejo(jugador.auth, 'gol');
+                        const mensajePersistente = nodeObtenerMensajeFestejo(jugador.auth, 'gol');
                         if (mensajePersistente) {
                             mensajeActual = mensajePersistente;
                         }
@@ -7318,7 +7318,7 @@ async function procesarComando(jugador, mensaje) {
                     // USAR SISTEMA PERSISTENTE: Guardar mensaje usando auth
                     if (guardarFestejo && jugador.auth) {
                         try {
-                            const resultado = await guardarFestejo(jugador.auth, jugador.name || 'Desconocido', 'gol', mensaje);
+                            const resultado = await nodeGuardarFestejo(jugador.auth, jugador.name || 'Desconocido', 'gol', mensaje);
                             if (resultado.success) {
                                 room.sendAnnouncement(`⚽ Mensaje de gol configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
                                 console.log(`💾 [FESTEJOS] Mensaje de gol guardado para jugador ${jugador.name} (${jugador.auth}): "${mensaje}"`);
@@ -7345,7 +7345,7 @@ async function procesarComando(jugador, mensaje) {
                     // USAR SISTEMA PERSISTENTE: Obtener mensaje actual usando auth
                     let mensajeActual = "¡Qué asistencia!";
                     if (obtenerMensajeFestejo && jugador.auth) {
-                        const mensajePersistente = obtenerMensajeFestejo(jugador.auth, 'asistencia');
+                        const mensajePersistente = nodeObtenerMensajeFestejo(jugador.auth, 'asistencia');
                         if (mensajePersistente) {
                             mensajeActual = mensajePersistente;
                         }
@@ -7361,7 +7361,7 @@ async function procesarComando(jugador, mensaje) {
                     // USAR SISTEMA PERSISTENTE: Guardar mensaje usando auth
                     if (guardarFestejo && jugador.auth) {
                         try {
-                            const resultado = await guardarFestejo(jugador.auth, jugador.name || 'Desconocido', 'asistencia', mensaje);
+                            const resultado = await nodeGuardarFestejo(jugador.auth, jugador.name || 'Desconocido', 'asistencia', mensaje);
                             if (resultado.success) {
                                 room.sendAnnouncement(`🎯 Mensaje de asistencia configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
                                 console.log(`💾 [FESTEJOS] Mensaje de asistencia guardado para jugador ${jugador.name} (${jugador.auth}): "${mensaje}"`);
@@ -7395,8 +7395,8 @@ async function procesarComando(jugador, mensaje) {
                 
                 // 1. Intentar obtener del sistema persistente
                 if (obtenerMensajeFestejo && jugador.auth) {
-                    const msgGolPersistente = obtenerMensajeFestejo(jugador.auth, 'gol');
-                    const msgAsistPersistente = obtenerMensajeFestejo(jugador.auth, 'asistencia');
+                    const msgGolPersistente = nodeObtenerMensajeFestejo(jugador.auth, 'gol');
+                    const msgAsistPersistente = nodeObtenerMensajeFestejo(jugador.auth, 'asistencia');
                     
                     if (msgGolPersistente || msgAsistPersistente) {
                         mensajesEncontrados = true;
@@ -11146,7 +11146,7 @@ function registrarGol(goleador, equipo, asistente) {
             // USAR SISTEMA PERSISTENTE: Obtener mensaje de gol del sistema persistente
             let mensajeGolPersonalizado = null;
             if (obtenerMensajeFestejo && goleador.auth) {
-                mensajeGolPersonalizado = obtenerMensajeFestejo(goleador.auth, 'gol');
+                mensajeGolPersonalizado = nodeObtenerMensajeFestejo(goleador.auth, 'gol');
             }
             // Fallback al sistema temporal si no está disponible el persistente
             if (!mensajeGolPersonalizado) {
@@ -11172,7 +11172,7 @@ function registrarGol(goleador, equipo, asistente) {
                 // USAR SISTEMA PERSISTENTE: Obtener mensaje de asistencia del sistema persistente
                 let mensajeAsistenciaPersonalizado = null;
                 if (obtenerMensajeFestejo && asistente && asistente.auth) {
-                    mensajeAsistenciaPersonalizado = obtenerMensajeFestejo(asistente.auth, 'asistencia');
+                    mensajeAsistenciaPersonalizado = nodeObtenerMensajeFestejo(asistente.auth, 'asistencia');
                 }
                 // Fallback al sistema temporal si no está disponible el persistente
                 if (!mensajeAsistenciaPersonalizado) {
@@ -13333,7 +13333,7 @@ setTimeout(() => {
             if (cargarFestejos && jugador.auth) {
                 console.log(`🎉 FESTEJOS: Cargando festejos persistentes para ${jugador.name} (${jugador.auth})`);
                 
-                cargarFestejos(jugador.auth, jugador.name).then(async festejos => {
+                nodeCargarFestejos(jugador.auth, jugador.name).then(async festejos => {
                     if (festejos && (festejos.gol || festejos.asistencia)) {
                         console.log(`✅ FESTEJOS: Festejos cargados para ${jugador.name}:`, {
                             gol: festejos.gol || 'default',

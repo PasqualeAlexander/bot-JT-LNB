@@ -609,7 +609,7 @@ const roomName = "⚡🔹 ❰LNB❱ | JUEGAN TODOS | BIGGER X7 🔹⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjKJJHcLid5W2qkqw.JWFfzb-LipA";
+const token = "thr1.AAAAAGjLN0fNXT7B3h1l0A.t0gesN0_wmk";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -6013,16 +6013,62 @@ function verificarAutoStop(jugadorDesconectado = null) {
     }
 }
 
-// MOVIMIENTO AUTOMÁTICO A ESPECTADORES POR INACTIVIDAD
+// ==================== SISTEMA OPTIMIZADO DE INTERVALOS DINÁMICOS ====================
+let intervaloActualAFK = 15000; // Intervalo inicial: 15 segundos (optimizado para VPS 1vCPU)
+let ultimaVerificacionJugadores = 0;
+let cacheJugadoresCount = 0;
+
+// FUNCIÓN OPTIMIZADA: Calcula intervalos según carga de jugadores
+function calcularIntervaloOptimo(numeroJugadores) {
+    if (numeroJugadores === 0) return 30000;      // 30s - sala vacía (pausa casi total)
+    if (numeroJugadores <= 6) return 20000;      // 20s - pocos jugadores
+    if (numeroJugadores <= 12) return 15000;     // 15s - carga media
+    if (numeroJugadores <= 18) return 12000;     // 12s - carga alta
+    return 10000;                                 // 10s - sala llena (mínimo para estabilidad)
+}
+
+// FUNCIÓN OPTIMIZADA: Actualiza intervalo dinámicamente
+function actualizarIntervaloAFK(numeroJugadores) {
+    const nuevoIntervalo = calcularIntervaloOptimo(numeroJugadores);
+    
+    if (nuevoIntervalo !== intervaloActualAFK) {
+        console.log(`⚡ OPTIMIZACIÓN: Cambiando intervalo AFK de ${intervaloActualAFK/1000}s a ${nuevoIntervalo/1000}s (${numeroJugadores} jugadores)`);
+        intervaloActualAFK = nuevoIntervalo;
+        
+        // Reiniciar intervalo con nueva frecuencia
+        if (intervalAFK) {
+            clearInterval(intervalAFK);
+        }
+        intervalAFK = setInterval(verificarInactividad, nuevoIntervalo);
+    }
+}
+
+// MOVIMIENTO AUTOMÁTICO A ESPECTADORES POR INACTIVIDAD - VERSIÓN OPTIMIZADA
 function verificarInactividad() {
     const ahora = Date.now();
     const jugadoresConectados = room.getPlayerList();
     const numeroJugadores = jugadoresConectados.length;
+    
+    // OPTIMIZACIÓN 1: Pausar si no hay jugadores
+    if (numeroJugadores === 0) {
+        console.log("💤 Sala vacía - pausando verificación AFK");
+        return;
+    }
+    
+    // OPTIMIZACIÓN 2: Actualizar intervalo dinámicamente solo si cambió significativamente
+    if (Math.abs(numeroJugadores - cacheJugadoresCount) >= 2) {
+        actualizarIntervaloAFK(numeroJugadores);
+        cacheJugadoresCount = numeroJugadores;
+    }
+    
     const salaLlena = numeroJugadores >= maxPlayers;
-
     const TIEMPO_AFK_KICK_SALA_LLENA = 5 * 60 * 1000; // 5 minutos
     const TIEMPO_AFK_KICK_MENOS_18 = 12 * 60 * 1000; // 12 minutos
 
+    // OPTIMIZACIÓN 3: Batch processing - agrupar operaciones
+    const jugadoresParaProcesar = [];
+    const jugadoresParaActualizar = [];
+    
     jugadoresConectados.forEach(jugador => {
         const infoAFK = jugadoresAFK.get(jugador.id);
         const stats = estadisticasPartido.jugadores[jugador.id];
@@ -6034,9 +6080,12 @@ function verificarInactividad() {
             const { ultimaActividad, posicionAnterior } = infoAFK;
             const dx = jugador.position.x - posicionAnterior.x;
             const dy = jugador.position.y - posicionAnterior.y;
-            const distancia = Math.sqrt(dx * dx + dy * dy);
+            
+            // OPTIMIZACIÓN CRÍTICA: Eliminar Math.sqrt costoso usando distancia al cuadrado
+            const distanciaCuadrada = dx * dx + dy * dy;
+            const MINIMO_MOVIMIENTO_AFK_CUADRADO = MINIMO_MOVIMIENTO_AFK * MINIMO_MOVIMIENTO_AFK;
 
-            if (distancia < MINIMO_MOVIMIENTO_AFK) {
+            if (distanciaCuadrada < MINIMO_MOVIMIENTO_AFK_CUADRADO) {
                 enviarAdvertenciaAFK(jugador);
 
                 let tiempoParaAccion = null;
@@ -6055,81 +6104,67 @@ function verificarInactividad() {
                 }
 
                 if (ahora - ultimaActividad > tiempoParaAccion) {
-                    if (accion === 'expulsar') {
-                        room.kickPlayer(jugador.id, motivo, false);
-                        anunciarAdvertencia(`🚫 ${jugador.name} fue expulsado. Motivo: ${motivo}`, null);
-                    } else if (accion === 'mover') {
-                        // CORRECCIÓN: Marcar el movimiento como iniciado por el bot para evitar conflictos
-                        movimientoIniciadorPorBot.add(jugador.id);
-                        room.setPlayerTeam(jugador.id, 0);
-                        anunciarAdvertencia(`💤 ${jugador.name} ha sido movido a espectadores por inactividad`, null);
-                        
-                        // Enviar mensaje privado al jugador explicando cómo volver
-                        setTimeout(() => {
-                            const jugadorActual = room.getPlayerList().find(j => j.id === jugador.id);
-                            if (jugadorActual) {
-                                room.sendAnnouncement(
-                                    "💤 Has sido movido a espectadores por inactividad",
-                                    jugador.id,
-                                    parseInt("FFA500", 16),
-                                    "bold",
-                                    0
-                                );
-                                room.sendAnnouncement(
-                                    "💡 COMANDOS ÚTILES:",
-                                    jugador.id,
-                                    parseInt("87CEEB", 16),
-                                    "bold",
-                                    0
-                                );
-                                room.sendAnnouncement(
-                                    "🔙 !back - Para volver automáticamente a un equipo",
-                                    jugador.id,
-                                    parseInt("00FF00", 16),
-                                    "normal",
-                                    0
-                                );
-                                room.sendAnnouncement(
-                                    "💤 !afk - Para ir a espectadores voluntariamente",
-                                    jugador.id,
-                                    parseInt("888888", 16),
-                                    "normal",
-                                    0
-                                );
-                                room.sendAnnouncement(
-                                    "📋 !ayuda - Para ver todos los comandos disponibles",
-                                    jugador.id,
-                                    parseInt("87CEEB", 16),
-                                    "normal",
-                                    0
-                                );
-                            }
-                        }, 1000);
-                    }
-
-                    jugadoresAFK.delete(jugador.id);
-                    advertenciasAFK.delete(jugador.id);
-
-                setTimeout(() => {
-                    autoBalanceEquipos();
-                    verificarAutoStart();
-                    verificarAutoStop(jugador);
-                }, 500);
-                
-                // CORRECCIÓN ADICIONAL: Segunda llamada para asegurar el balance correcto
-                setTimeout(() => {
-                    console.log(`🔄 DEBUG: Segunda llamada de balance/autostart después de desconectar ${jugador.name}`);
-                    autoBalanceEquipos();
-                    verificarAutoStart();
-                }, 1000);
+                    // OPTIMIZACIÓN: Agregar a batch para procesamiento
+                    jugadoresParaProcesar.push({
+                        jugador,
+                        accion,
+                        motivo
+                    });
                 }
             } else {
-                jugadoresAFK.set(jugador.id, { ultimaActividad: ahora, posicionAnterior: { ...jugador.position } });
-                advertenciasAFK.delete(jugador.id);
+                jugadoresParaActualizar.push(jugador);
             }
         } else if (jugador.position) {
             jugadoresAFK.set(jugador.id, { ultimaActividad: ahora, posicionAnterior: { ...jugador.position } });
         }
+    });
+    
+    // OPTIMIZACIÓN 4: Batch processing - procesar todos los jugadores AFK de una vez
+    if (jugadoresParaProcesar.length > 0) {
+        console.log(`⚡ BATCH AFK: Procesando ${jugadoresParaProcesar.length} jugadores AFK`);
+        
+        jugadoresParaProcesar.forEach(({jugador, accion, motivo}) => {
+            if (accion === 'expulsar') {
+                room.kickPlayer(jugador.id, motivo, false);
+                anunciarAdvertencia(`🚫 ${jugador.name} fue expulsado. Motivo: ${motivo}`, null);
+            } else if (accion === 'mover') {
+                movimientoIniciadorPorBot.add(jugador.id);
+                room.setPlayerTeam(jugador.id, 0);
+                anunciarAdvertencia(`💤 ${jugador.name} ha sido movido a espectadores por inactividad`, null);
+                
+                // OPTIMIZACIÓN: Mensaje único agrupado para reducir spam
+                setTimeout(() => {
+                    const jugadorActual = room.getPlayerList().find(j => j.id === jugador.id);
+                    if (jugadorActual) {
+                        room.sendAnnouncement(
+                            `💤 Movido por inactividad. Usa !back para volver o !ayuda para comandos`,
+                            jugador.id,
+                            parseInt("FFA500", 16),
+                            "bold",
+                            0
+                        );
+                    }
+                }, 1000);
+            }
+            
+            jugadoresAFK.delete(jugador.id);
+            advertenciasAFK.delete(jugador.id);
+        });
+        
+        // OPTIMIZACIÓN: Una sola llamada de balance/autostart después de procesar todos
+        setTimeout(() => {
+            autoBalanceEquipos();
+            verificarAutoStart();
+            if (jugadoresParaProcesar.some(j => j.accion === 'expulsar')) {
+                verificarAutoStop();
+            }
+        }, 500);
+    }
+    
+    // OPTIMIZACIÓN 5: Actualizar jugadores activos en batch
+    jugadoresParaActualizar.forEach(jugador => {
+        jugadoresAFK.set(jugador.id, { ultimaActividad: ahora, posicionAnterior: { ...jugador.position } });
+        advertenciasAFK.delete(jugador.id);
     });
 }
 
@@ -6152,15 +6187,48 @@ let ultimoLogCambioEnProceso = 0;
 const INTERVALO_LOG_CAMBIO_PROCESO = 120000; // Solo loguear "cambio en proceso" cada 2 minutos
 
 // FUNCIÓN PARA VERIFICAR CAMBIO DE MAPA DESPUÉS DEL PARTIDO
+// 🔄 IMPLEMENTA HISTÉRESIS PARA EVITAR CICLOS INFINITOS DE REINICIO:
+//
+// ✨ PROBLEMA SOLUCIONADO: Evita que jugadores entrando/saliendo en los umbrales exactos
+//    (ej: 7, 10 jugadores) causen reinicios constantes del partido.
+//
+// 🎯 SOLUCIÓN: Usa umbrales diferentes para subir vs bajar de mapa:
+//    • Para SUBIR de mapa: Umbrales normales (3->x3, 7->x4, 10->x7)
+//    • Para BAJAR de mapa: Umbrales con tolerancia (< 2->x1, < 5->x3, < 8->x4)
+//
+// ⚙️ EJEMPLO: Tienes x4 con 7 jugadores y alguien sale/entra repetidamente:
+//    ✅ SIN histéresis: 7 jugadores -> mantiene x4, 6 jugadores -> cambia a x3, 7 jugadores -> cambia a x4 (BUCLE!)
+//    ✅ CON histéresis: 7 jugadores -> mantiene x4, 6 jugadores -> mantiene x4, 4 jugadores -> cambia a x3
 function verificarCambioMapaPostPartido() {
     // Contar jugadores activos (en equipos 1 y 2, no espectadores)
     const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
     
     console.log(`🏁 DEBUG: Verificando cambio de mapa post-partido con ${jugadoresActivos} jugadores activos`);
     
-// CAMBIO ESPECÍFICO: De biggerx5 (x4) a biggerx7 si hay más de 9 jugadores activos
-    if (mapaActual === "biggerx5" && jugadoresActivos > 9) {
-        console.log(`📈 DEBUG: Cambiando de x5 a x7 después del partido (${jugadoresActivos} > 9 jugadores)`);
+    // CAMBIO CON HISTÉRESIS: De biggerx7 a biggerx5 si hay menos de 8 jugadores activos (tolerancia)
+    if (mapaActual === "biggerx7" && jugadoresActivos < 8) {
+        console.log(`📉 DEBUG: Cambiando de x7 a x5 post-partido con histéresis (${jugadoresActivos} < 8 jugadores)`);
+        
+        cambioMapaEnProceso = true;
+        if (cambiarMapa("biggerx5")) {
+            anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x7 a x4`);
+            
+            // Asegurar que el cambio se complete correctamente
+            setTimeout(() => {
+                autoBalanceEquipos();
+                verificarAutoStart();
+                cambioMapaEnProceso = false;
+            }, 1000);
+        } else {
+            console.error(`❌ Error al cambiar de x7 a x5 con ${jugadoresActivos} jugadores`);
+            cambioMapaEnProceso = false;
+        }
+        return;
+    }
+    
+// CAMBIO CON HISTÉRESIS: De biggerx5 (x4) a biggerx7 si hay 10 o más jugadores activos
+    if (mapaActual === "biggerx5" && jugadoresActivos >= 10) {
+        console.log(`📈 DEBUG: Cambiando de x5 a x7 post-partido (${jugadoresActivos} >= 10 jugadores)`);
         
         cambioMapaEnProceso = true;
         if (cambiarMapa("biggerx7")) {
@@ -6179,22 +6247,86 @@ function verificarCambioMapaPostPartido() {
         return;
     }
     
-    // CAMBIO ADICIONAL: De biggerx3 a biggerx5 si hay 8-11 jugadores
-    if (mapaActual === "biggerx3" && jugadoresActivos >= 8 && jugadoresActivos < 12) {
-        console.log(`📈 DEBUG: Cambiando de x3 a x5 después del partido (${jugadoresActivos} jugadores)`);
+    // CAMBIO CON HISTÉRESIS: De biggerx5 a biggerx3 si hay menos de 5 jugadores activos (tolerancia)
+    if (mapaActual === "biggerx5" && jugadoresActivos < 5) {
+        console.log(`📉 DEBUG: Cambiando de x5 a x3 post-partido con histéresis (${jugadoresActivos} < 5 jugadores)`);
         
-        if (cambiarMapa("biggerx5")) {
-            anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando a x4`);
+        cambioMapaEnProceso = true;
+        if (cambiarMapa("biggerx3")) {
+            anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x4 a x3`);
+            
+            // Asegurar que el cambio se complete correctamente
+            setTimeout(() => {
+                autoBalanceEquipos();
+                verificarAutoStart();
+                cambioMapaEnProceso = false;
+            }, 1000);
+        } else {
+            console.error(`❌ Error al cambiar de x5 a x3 con ${jugadoresActivos} jugadores`);
+            cambioMapaEnProceso = false;
         }
         return;
     }
     
-    // CAMBIO ADICIONAL: De biggerx1 a biggerx3 si hay 5-7 jugadores
-    if (mapaActual === "biggerx1" && jugadoresActivos >= 5 && jugadoresActivos < 8) {
-        console.log(`📈 DEBUG: Cambiando de x1 a x3 después del partido (${jugadoresActivos} jugadores)`);
+    // CAMBIO CON HISTÉRESIS: De biggerx3 a biggerx5 si hay 7-9 jugadores
+    if (mapaActual === "biggerx3" && jugadoresActivos >= 7 && jugadoresActivos < 10) {
+        console.log(`📈 DEBUG: Cambiando de x3 a x5 post-partido (${jugadoresActivos} jugadores)`);
         
+        cambioMapaEnProceso = true;
+        if (cambiarMapa("biggerx5")) {
+            anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando a x4`);
+            
+            // Asegurar que el cambio se complete correctamente
+            setTimeout(() => {
+                autoBalanceEquipos();
+                verificarAutoStart();
+                cambioMapaEnProceso = false;
+            }, 1000);
+        } else {
+            console.error(`❌ Error al cambiar de x3 a x5 con ${jugadoresActivos} jugadores`);
+            cambioMapaEnProceso = false;
+        }
+        return;
+    }
+    
+    // CAMBIO CON HISTÉRESIS: De biggerx3 a biggerx1 si hay menos de 2 jugadores activos (tolerancia)
+    if (mapaActual === "biggerx3" && jugadoresActivos < 2) {
+        console.log(`📉 DEBUG: Cambiando de x3 a x1 post-partido con histéresis (${jugadoresActivos} < 2 jugadores)`);
+        
+        cambioMapaEnProceso = true;
+        if (cambiarMapa("biggerx1")) {
+            anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x3 a x1`);
+            
+            // Asegurar que el cambio se complete correctamente
+            setTimeout(() => {
+                autoBalanceEquipos();
+                verificarAutoStart();
+                cambioMapaEnProceso = false;
+            }, 1000);
+        } else {
+            console.error(`❌ Error al cambiar de x3 a x1 con ${jugadoresActivos} jugadores`);
+            cambioMapaEnProceso = false;
+        }
+        return;
+    }
+    
+    // CAMBIO CON HISTÉRESIS: De biggerx1 a biggerx3 si hay 3-6 jugadores
+    if (mapaActual === "biggerx1" && jugadoresActivos >= 3 && jugadoresActivos <= 6) {
+        console.log(`📈 DEBUG: Cambiando de x1 a x3 post-partido (${jugadoresActivos} jugadores)`);
+        
+        cambioMapaEnProceso = true;
         if (cambiarMapa("biggerx3")) {
             anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando a x3`);
+            
+            // Asegurar que el cambio se complete correctamente
+            setTimeout(() => {
+                autoBalanceEquipos();
+                verificarAutoStart();
+                cambioMapaEnProceso = false;
+            }, 1000);
+        } else {
+            console.error(`❌ Error al cambiar de x1 a x3 con ${jugadoresActivos} jugadores`);
+            cambioMapaEnProceso = false;
         }
         return;
     }
@@ -6202,9 +6334,41 @@ function verificarCambioMapaPostPartido() {
     console.log(`✅ DEBUG: No se necesita cambio de mapa post-partido (${jugadoresActivos} jugadores en ${mapaActual})`);
 }
 
-// FUNCIÓN PARA DETECTAR CAMBIO DE MAPA
+// ==================== SISTEMA OPTIMIZADO PARA DETECTAR CAMBIO DE MAPA ====================
+let intervaloActualMapa = 30000; // 30s inicial (optimizado para VPS)
+let ultimoCountJugadoresMapa = 0;
+let ultimaVerificacionMapa = 0;
+
+// FUNCIÓN OPTIMIZADA: Calcula intervalo según estado del juego
+function calcularIntervaloMapa(partidoEnCurso, numeroJugadores) {
+    if (numeroJugadores === 0) return 60000;          // 60s - sala vacía
+    if (!partidoEnCurso && numeroJugadores <= 4) return 45000;  // 45s - sin partido, pocos jugadores
+    if (!partidoEnCurso) return 30000;                // 30s - sin partido
+    if (partidoEnCurso && numeroJugadores >= 12) return 20000; // 20s - partido activo, muchos jugadores
+    return 25000;                                     // 25s - partido activo, jugadores normales
+}
+
+// FUNCIÓN OPTIMIZADA: Actualiza intervalo de detección de mapa
+function actualizarIntervaloMapa(partidoEnCurso, numeroJugadores) {
+    const nuevoIntervalo = calcularIntervaloMapa(partidoEnCurso, numeroJugadores);
+    
+    if (Math.abs(nuevoIntervalo - intervaloActualMapa) >= 5000) { // Solo cambiar si la diferencia es significativa
+        console.log(`⚡ OPTIMIZACIÓN MAPA: Cambiando intervalo de ${intervaloActualMapa/1000}s a ${nuevoIntervalo/1000}s (Partido: ${partidoEnCurso}, Jugadores: ${numeroJugadores})`);
+        intervaloActualMapa = nuevoIntervalo;
+        
+        // Reiniciar intervalo con nueva frecuencia (si existe)
+        const intervalos = setInterval(() => {}, 1);
+        const intervalId = intervalos - 1;
+        if (intervalId > 0) {
+            clearInterval(intervalId);
+            setInterval(detectarCambioMapa, nuevoIntervalo);
+        }
+    }
+}
+
+// FUNCIÓN OPTIMIZADA PARA DETECTAR CAMBIO DE MAPA
 function detectarCambioMapa() {
-    // Si ya hay un cambio de mapa en proceso, no ejecutar otro
+    // OPTIMIZACIÓN 1: Si ya hay un cambio de mapa en proceso, no ejecutar otro
     if (cambioMapaEnProceso) {
         const ahora = Date.now();
         if (ahora - ultimoLogCambioEnProceso > INTERVALO_LOG_CAMBIO_PROCESO) {
@@ -6214,7 +6378,7 @@ function detectarCambioMapa() {
         return;
     }
     
-    // Si el mapa inicial no se ha aplicado correctamente, forzar la aplicación
+    // OPTIMIZACIÓN 2: Si el mapa inicial no se ha aplicado correctamente, forzar la aplicación
     if (!mapaRealmenteAplicado) {
         console.log(`🔧 DEBUG: Mapa inicial no aplicado correctamente, forzando aplicación de ${mapaActual}`);
         if (cambiarMapa(mapaActual)) {
@@ -6226,8 +6390,23 @@ function detectarCambioMapa() {
         return;
     }
     
-    // Contar SOLO jugadores activos (en equipos 1 y 2, no espectadores)
+    // OPTIMIZACIÓN 3: Cache de jugadores activos y verificación temprana
     const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+    const ahora = Date.now();
+    
+    // OPTIMIZACIÓN 4: Actualizar intervalo dinámicamente solo cuando sea necesario
+    if (Math.abs(jugadoresActivos - ultimoCountJugadoresMapa) >= 2 || 
+        (ahora - ultimaVerificacionMapa) > 60000) { // Cada minuto o cambio significativo
+        actualizarIntervaloMapa(partidoEnCurso, jugadoresActivos);
+        ultimoCountJugadoresMapa = jugadoresActivos;
+        ultimaVerificacionMapa = ahora;
+    }
+    
+    // OPTIMIZACIÓN 5: Pausa cuando la sala está vacía
+    if (jugadoresActivos === 0) {
+        console.log("💤 Sala vacía - pausando detección de cambio de mapa");
+        return;
+    }
     
 const ahora = Date.now();
 if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresActivos !== ultimoEstadoLogeado.jugadores || mapaActual !== ultimoEstadoLogeado.mapa || partidoEnCurso !== ultimoEstadoLogeado.partido) {
@@ -6244,16 +6423,16 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
     if (partidoEnCurso) {
         console.log(`⚽ DEBUG: Partido en curso, verificando cambios de mapa necesarios...`);
         
-        // CAMBIOS A MAPAS MENORES (cuando bajan jugadores)
-        // Cambiar de biggerx7 a biggerx5 si hay menos de 10 jugadores
-        if (mapaActual === "biggerx7" && jugadoresActivos < 10) {
+        // CAMBIOS A MAPAS MENORES (cuando bajan jugadores) - CON HISTÉRESIS PARA EVITAR OSCILACIONES
+        // Cambiar de biggerx7 a biggerx5 si hay menos de 8 jugadores (tolerancia de 2)
+        if (mapaActual === "biggerx7" && jugadoresActivos < 8) {
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
-            console.log(`📉 DEBUG: Cambiando de x7 a x5 (${jugadoresActivos} < 10)`);
+            console.log(`📉 DEBUG: Cambiando de x7 a x5 con histéresis (${jugadoresActivos} < 8)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx5");
-            anunciarInfo(`🔄 Menos de 10 jugadores durante partido (${jugadoresActivos}). Cambiando de x7 a x5...`);
+            anunciarInfo(`🔄 Menos de 8 jugadores durante partido (${jugadoresActivos}). Cambiando de x7 a x4...`);
             
             setTimeout(() => {
                 autoBalanceEquipos();
@@ -6266,15 +6445,15 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             return;
         }
         
-        // Cambiar de biggerx5 a biggerx3 si hay menos de 6 jugadores
-        if (mapaActual === "biggerx5" && jugadoresActivos < 6) {
+        // Cambiar de biggerx5 a biggerx3 si hay menos de 5 jugadores (tolerancia de 2)
+        if (mapaActual === "biggerx5" && jugadoresActivos < 5) {
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
-            console.log(`📉 DEBUG: Cambiando de x5 a x3 (${jugadoresActivos} < 6)`);
+            console.log(`📉 DEBUG: Cambiando de x5 a x3 con histéresis (${jugadoresActivos} < 5)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx3");
-            anunciarInfo(`🔄 Menos de 6 jugadores durante partido (${jugadoresActivos}). Cambiando de x5 a x3...`);
+            anunciarInfo(`🔄 Menos de 5 jugadores durante partido (${jugadoresActivos}). Cambiando de x4 a x3...`);
             
             setTimeout(() => {
                 autoBalanceEquipos();
@@ -6330,11 +6509,11 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             return;
         }
         
-        // Cambiar de biggerx1 a biggerx3 si hay 5 o más jugadores
-        if (mapaActual === "biggerx1" && jugadoresActivos >= 5) {
+        // Cambiar de biggerx1 a biggerx3 si hay 3 o más jugadores
+        if (mapaActual === "biggerx1" && jugadoresActivos >= 3) {
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
-            console.log(`📈 DEBUG: Cambiando de x1 a x3 durante partido (${jugadoresActivos} >= 5)`);
+            console.log(`📈 DEBUG: Cambiando de x1 a x3 durante partido (${jugadoresActivos} >= 3)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx3");
@@ -6351,11 +6530,11 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             return;
         }
         
-        // Cambiar de biggerx3 a biggerx5 si hay 9 o más jugadores
-        if (mapaActual === "biggerx3" && jugadoresActivos >= 9) {
+        // Cambiar de biggerx3 a biggerx5 si hay 7 o más jugadores
+        if (mapaActual === "biggerx3" && jugadoresActivos >= 7) {
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
-            console.log(`📈 DEBUG: Cambiando de x3 a x5 durante partido (${jugadoresActivos} >= 9)`);
+            console.log(`📈 DEBUG: Cambiando de x3 a x5 durante partido (${jugadoresActivos} >= 7)`);
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx5");
@@ -6398,25 +6577,58 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
     // FUERA DE PARTIDO: Cambiar mapas según cantidad de jugadores
     console.log(`🔄 DEBUG: Fuera de partido, verificando cambio de mapa necesario...`);
     
-    // LÓGICA ACTUALIZADA DE CAMBIO DE MAPA:
-    // 1 jugador: training (LNB Training x1)
-    // 2-4 jugadores: biggerx1 (Bigger x1 LNB)  
-    // 5-7 jugadores: biggerx3
-    // 8-11 jugadores: biggerx5
-    // 12+ jugadores: biggerx7
+    // LÓGICA CON HISTÉRESIS PARA EVITAR OSCILACIONES:
+    // - Para subir de mapa: usar umbrales normales
+    // - Para bajar de mapa: usar umbrales con tolerancia (más restrictivos)
+    //
+    // Umbrales para SUBIR:      Umbrales para BAJAR:
+    // 1: training               < 1: training
+    // 2: x1                     < 2: x1 
+    // 3-6: x3                   < 2: x3 -> x1 (tolerancia)
+    // 7-9: x4                   < 5: x4 -> x3 (tolerancia)
+    // 10+: x7                   < 8: x7 -> x4 (tolerancia)
     
     let mapaRequerido = null;
     
-    if (jugadoresActivos === 1) {
-        mapaRequerido = "training";
-    } else if (jugadoresActivos >= 2 && jugadoresActivos <= 4) {
-        mapaRequerido = "biggerx1";
-    } else if (jugadoresActivos >= 5 && jugadoresActivos <= 7) {
-        mapaRequerido = "biggerx3";
-    } else if (jugadoresActivos >= 8 && jugadoresActivos <= 11) {
-        mapaRequerido = "biggerx5";
-    } else if (jugadoresActivos >= 12) {
-        mapaRequerido = "biggerx7";
+    // Lógica con histéresis según mapa actual
+    if (mapaActual === "biggerx7") {
+        // Desde x7: solo bajar si hay menos de 8 jugadores (tolerancia)
+        if (jugadoresActivos < 8) {
+            mapaRequerido = jugadoresActivos >= 3 ? "biggerx5" : (jugadoresActivos >= 2 ? "biggerx1" : "training");
+        } else {
+            mapaRequerido = "biggerx7"; // Mantener x7
+        }
+    } else if (mapaActual === "biggerx5") {
+        // Desde x4: subir a x7 si hay 10+, bajar a x3 si hay menos de 5 (tolerancia)
+        if (jugadoresActivos >= 10) {
+            mapaRequerido = "biggerx7";
+        } else if (jugadoresActivos < 5) {
+            mapaRequerido = jugadoresActivos >= 2 ? "biggerx1" : "training";
+        } else {
+            mapaRequerido = "biggerx5"; // Mantener x4
+        }
+    } else if (mapaActual === "biggerx3") {
+        // Desde x3: subir a x4 si hay 7+, bajar a x1 si hay menos de 2 (tolerancia)
+        if (jugadoresActivos >= 7) {
+            mapaRequerido = jugadoresActivos >= 10 ? "biggerx7" : "biggerx5";
+        } else if (jugadoresActivos < 2) {
+            mapaRequerido = "biggerx1";
+        } else {
+            mapaRequerido = "biggerx3"; // Mantener x3
+        }
+    } else {
+        // Desde otros mapas (x1, training): usar lógica normal de subida
+        if (jugadoresActivos === 1) {
+            mapaRequerido = "training";
+        } else if (jugadoresActivos === 2) {
+            mapaRequerido = "biggerx1";
+        } else if (jugadoresActivos >= 3 && jugadoresActivos <= 6) {
+            mapaRequerido = "biggerx3";
+        } else if (jugadoresActivos >= 7 && jugadoresActivos <= 9) {
+            mapaRequerido = "biggerx5";
+        } else if (jugadoresActivos >= 10) {
+            mapaRequerido = "biggerx7";
+        }
     }
     
     // DEPURACIÓN DETALLADA PARA EL CASO TRAINING -> BIGGERX1
@@ -14696,14 +14908,14 @@ function inicializar() {
     // Configuración inicial de la sala
     room.setKickRateLimit(2, 1, 0); // Límite de kicks (configurado al inicio)
     
-    // Iniciar verificación de inactividad después de crear la sala
-    intervalAFK = setInterval(verificarInactividad, 5000); // Verificar cada 5 segundos
+    // SISTEMA OPTIMIZADO: Intervalos dinámicos iniciados con valores optimizados
+    intervalAFK = setInterval(verificarInactividad, intervaloActualAFK); // Dinámico: 10-30s según jugadores
     
-    // Iniciar verificación automática de cambio de mapa cada 10 segundos
-    setInterval(detectarCambioMapa, 10000); // Verificar cada 10 segundos
+    // Intervalo de mapa dinámico optimizado para VPS
+    setInterval(detectarCambioMapa, intervaloActualMapa); // Dinámico: 20-60s según estado
     
-    // Actualizar nombres con niveles cada 30 segundos
-    setInterval(actualizarTodosLosNombres, 30000);
+    // OPTIMIZACIÓN CRÍTICA: Eliminado intervalo innecesario de nombres
+    // actualizarTodosLosNombres ahora se ejecuta solo cuando es necesario (al conectarse jugadores)
     
     // Iniciar anuncios de Discord
     iniciarAnunciosDiscord();
@@ -14772,13 +14984,13 @@ function inicializarSistemas() {
     if (intervalAFK) {
         clearInterval(intervalAFK);
     }
-    intervalAFK = setInterval(verificarInactividad, 5000);
+    intervalAFK = setInterval(verificarInactividad, intervaloActualAFK);
     
-    // Iniciar detección de cambio de mapa
-    setInterval(detectarCambioMapa, 10000);
+    // Iniciar detección de cambio de mapa con intervalo optimizado
+    setInterval(detectarCambioMapa, intervaloActualMapa);
     
-    // Actualizar nombres con niveles
-    setInterval(actualizarTodosLosNombres, 30000);
+    // OPTIMIZACIÓN CRÍTICA: Eliminado intervalo innecesario de nombres
+    // actualizarTodosLosNombres ahora se ejecuta solo cuando es necesario
     
     // Iniciar anuncios de Discord
     iniciarAnunciosDiscord();
@@ -14789,9 +15001,9 @@ function inicializarSistemas() {
     // Iniciar anuncios automáticos de Top Rank
     iniciarTopRankAutomatico();
     
-    // Sistema de limpieza de datos
-    setInterval(limpiarDatosExpirados, 60000); // Cada minuto
-    setInterval(limpiarDatosSpam, 120000); // Cada 2 minutos
+    // SISTEMA OPTIMIZADO DE LIMPIEZA - Menos frecuente para ahorrar CPU
+    setInterval(limpiarDatosExpirados, 180000); // OPTIMIZADO: Cada 3 minutos (era 1 minuto)
+    setInterval(limpiarDatosSpam, 300000); // OPTIMIZADO: Cada 5 minutos (era 2 minutos)
     
     console.log('✅ Sistemas inicializados correctamente');
 }

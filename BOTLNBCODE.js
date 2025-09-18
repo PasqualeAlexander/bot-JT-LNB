@@ -1,3 +1,60 @@
+// ANUNCIAR TOP ALEATORIO CADA 20 MINUTOS
+let intervalTopAleatorio = null;
+function iniciarTopAleatorioAutomatico() {
+    if (intervalTopAleatorio) clearInterval(intervalTopAleatorio);
+    
+    // Lista de tipos de top disponibles
+    const tiposTops = [
+        'goles',
+        'asistencias', 
+        'partidos',
+        'victorias',
+        'rank',
+        'mvps'
+    ];
+    
+    // Ejecutar una vez tras 5 minutos para no spamear al iniciar
+    setTimeout(() => {
+        if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
+            try {
+                // Solo anunciar si hay jugadores en sala
+                const players = room.getPlayerList ? room.getPlayerList() : [];
+                if (!players || players.length === 0) return;
+                
+                const tipoAleatorio = tiposTops[Math.floor(Math.random() * tiposTops.length)];
+                if (typeof mostrarTopJugadores === 'function') {
+                    // Usar exactamente la misma función que el comando manual
+                    mostrarTopJugadores({ id: null }, tipoAleatorio);
+                }
+            } catch (e) {
+                // Silenciar errores de anuncio inicial
+            }
+        }
+    }, 300000); // 5 minutos
+    
+    // Intervalo principal cada 20 minutos
+    intervalTopAleatorio = setInterval(() => {
+        try {
+            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
+                // Solo anunciar si hay jugadores en sala
+                const players = room.getPlayerList ? room.getPlayerList() : [];
+                if (!players || players.length === 0) return;
+                
+                // Seleccionar tipo de top aleatorio
+                const tipoAleatorio = tiposTops[Math.floor(Math.random() * tiposTops.length)];
+                
+                if (typeof mostrarTopJugadores === 'function') {
+                    // Usar exactamente la misma función que el comando manual
+                    // El jugador { id: null } hace que se envíe a toda la sala
+                    mostrarTopJugadores({ id: null }, tipoAleatorio);
+                }
+            }
+        } catch (error) {
+            // Error en anuncio automático de top aleatorio
+        }
+    }, 1200000); // 20 minutos (1200000 ms)
+}
+
 /* 
 * ██████╗  ██████╗ ████████╗   ██╗     ███╗   ██╗██████╗         ██╗████████╗
 * ██╔══██╗██╔═══██╗╚══██╔══╝   ██║     ████╗  ██║██╔══██╗        ██║╚══██╔══╝
@@ -6755,79 +6812,7 @@ function iniciarAnunciosDiscord() {
     }, 600000); // 10 minutos
 }
 
-// ANUNCIAR TOP DE GOLES CADA 30 MINUTOS
-let intervalTopGoles = null;
-function iniciarTopGolesAutomatico() {
-    if (intervalTopGoles) clearInterval(intervalTopGoles);
-    // Ejecutar una vez tras 1 minuto para no spamear al iniciar
-    try {
-        setTimeout(() => {
-            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-                try {
-                    // Reutilizamos la función existente enviando a todos (id null)
-                    if (typeof mostrarTopJugadores === 'function') {
-                        mostrarTopJugadores({ id: null }, 'goles');
-                    }
-                } catch (e) {
-                    // Silenciar errores de anuncio inicial
-                }
-            }
-        }, 60000);
-    } catch (e) { /* noop */ }
 
-    intervalTopGoles = setInterval(() => {
-        try {
-            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-                // Opcional: solo anunciar si hay jugadores en sala
-                const players = room.getPlayerList ? room.getPlayerList() : [];
-                if (!players || players.length === 0) return;
-
-                if (typeof mostrarTopJugadores === 'function') {
-                    mostrarTopJugadores({ id: null }, 'goles');
-                }
-            }
-        } catch (error) {
-            // Error en anuncio automático de top goles
-        }
-    }, 1800000); // 30 minutos
-}
-
-// ANUNCIAR TOP RANK CADA 45 MINUTOS
-let intervalTopRank = null;
-function iniciarTopRankAutomatico() {
-    if (intervalTopRank) clearInterval(intervalTopRank);
-    // Ejecutar una vez tras 2 minutos para no spamear al iniciar (diferente al de goles)
-    try {
-        setTimeout(() => {
-            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-                try {
-                    // Reutilizamos la función existente enviando a todos (id null)
-                    if (typeof mostrarTopJugadores === 'function') {
-                        mostrarTopJugadores({ id: null }, 'rank');
-                    }
-                } catch (e) {
-                    // Silenciar errores de anuncio inicial
-                }
-            }
-        }, 120000); // 2 minutos
-    } catch (e) { /* noop */ }
-
-    intervalTopRank = setInterval(() => {
-        try {
-            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-                // Opcional: solo anunciar si hay jugadores en sala
-                const players = room.getPlayerList ? room.getPlayerList() : [];
-                if (!players || players.length === 0) return;
-
-                if (typeof mostrarTopJugadores === 'function') {
-                    mostrarTopJugadores({ id: null }, 'rank');
-                }
-            }
-        } catch (error) {
-            // Error en anuncio automático de top rank
-        }
-    }, 2700000); // 45 minutos
-}
 
 // FUNCIONES DE COMANDOS
 function mostrarAyuda(jugador, contexto) {
@@ -14945,11 +14930,8 @@ function inicializarSistemas() {
     // Iniciar anuncios de Discord
     iniciarAnunciosDiscord();
 
-    // Iniciar anuncios automáticos de Top Goles
-    iniciarTopGolesAutomatico();
-    
-    // Iniciar anuncios automáticos de Top Rank
-    iniciarTopRankAutomatico();
+    // Iniciar anuncios automáticos de Top Aleatorio cada 20 minutos
+    iniciarTopAleatorioAutomatico();
     
     // SISTEMA OPTIMIZADO DE LIMPIEZA - Menos frecuente para ahorrar CPU
     setInterval(limpiarDatosExpirados, 180000); // OPTIMIZADO: Cada 3 minutos (era 1 minuto)

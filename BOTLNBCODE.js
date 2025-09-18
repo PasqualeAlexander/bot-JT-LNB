@@ -1291,6 +1291,94 @@ function calcularNivelPorXP(xpTotal) {
 // ====================================================
 
 // Función para calcular y otorgar XP
+// Variables para el sistema de guardado throttled
+let timeoutGuardado = null;
+let cambiosPendientes = false;
+
+// Cache de mensajes personalizados para evitar consultas durante goles
+let cacheMensajesPersonalizados = new Map(); // {authId: {gol: string, asistencia: string}}
+let ultimaActualizacionCache = 0;
+
+// Función para actualizar el cache de mensajes
+function actualizarCacheMensajes() {
+    const ahora = Date.now();
+    // Actualizar cache solo cada 30 segundos
+    if (ahora - ultimaActualizacionCache < 30000) {
+        return;
+    }
+    
+    ultimaActualizacionCache = ahora;
+    const jugadores = room.getPlayerList();
+    
+    jugadores.forEach(jugador => {
+        if (jugador.auth && obtenerMensajeFestejo) {
+            try {
+                const mensajeGol = obtenerMensajeFestejo(jugador.auth, 'gol');
+                const mensajeAsistencia = obtenerMensajeFestejo(jugador.auth, 'asistencia');
+                
+                if (mensajeGol || mensajeAsistencia) {
+                    cacheMensajesPersonalizados.set(jugador.auth, {
+                        gol: mensajeGol,
+                        asistencia: mensajeAsistencia
+                    });
+                }
+            } catch (error) {
+                // Error silencioso en cache
+            }
+        }
+    });
+}
+
+// Función para obtener mensaje desde cache (rápido)
+function obtenerMensajeDesdeCache(auth, tipo) {
+    const cache = cacheMensajesPersonalizados.get(auth);
+    return cache ? cache[tipo] : null;
+}
+
+// Función para programar guardado con throttle
+function programarGuardadoThrottled() {
+    cambiosPendientes = true;
+    
+    // Si ya hay un timeout programado, no crear otro
+    if (timeoutGuardado) {
+        return;
+    }
+    
+    // Programar guardado después de 2 segundos de inactividad
+    timeoutGuardado = setTimeout(() => {
+        if (cambiosPendientes) {
+            guardarEstadisticasGlobalesCompletas();
+            cambiosPendientes = false;
+        }
+        timeoutGuardado = null;
+    }, 2000);
+}
+
+// Sistema de guardado automático en lotes cada 30 segundos
+let intervalGuardadoAutomatico = null;
+
+function iniciarGuardadoAutomatico() {
+    // Limpiar intervalo anterior si existe
+    if (intervalGuardadoAutomatico) {
+        clearInterval(intervalGuardadoAutomatico);
+    }
+    
+    intervalGuardadoAutomatico = setInterval(() => {
+        if (cambiosPendientes) {
+            try {
+                console.log('💾 Guardado automático en lote...');
+                guardarEstadisticasGlobalesCompletas();
+                cambiosPendientes = false;
+                
+                // También actualizar cache de mensajes periódicamente
+                actualizarCacheMensajes();
+            } catch (error) {
+                console.error('❌ Error en guardado automático:', error);
+            }
+        }
+    }, 30000); // Cada 30 segundos
+}
+
 function otorgarXP(nombreJugador, accion, cantidad = null) {
     // Verificar que estadisticasGlobales y jugadores existan
     if (!estadisticasGlobales || !estadisticasGlobales.jugadores) {
@@ -1329,15 +1417,14 @@ function otorgarXP(nombreJugador, accion, cantidad = null) {
             anunciarGeneral(`👑 ¡${nombreJugador} alcanzó el NIVEL ${nuevoNivel}! ¡Felicitaciones!`, "FF6B6B", "bold");
         }
         
-        // Actualizar nombre con nuevo nivel
+        // Actualizar nombre con nuevo nivel de forma asíncrona
         setTimeout(() => {
             actualizarTodosLosNombres();
         }, 1000);
     }
     
-    // XP se actualiza silenciosamente - solo se notifica cuando sube de nivel
-    
-    guardarEstadisticasGlobalesCompletas();
+    // Usar guardado throttled en lugar de inmediato
+    programarGuardadoThrottled();
 }
 
 // Función para calcular rango basado en XP
@@ -1379,7 +1466,8 @@ function obtenerNivelJugador(nombreJugador) {
 
 // Función para actualizar el nombre de un jugador con su nivel
 function actualizarNombreConNivel(jugador) {
-    // NO cambiar avatar si el jugador es admin
+    // NO cambiar avatar/nombre si el jugador es admin (cualquier nivel)
+    // Los admins pueden elegir su propio avatar
     if (esAdminBasico(jugador)) {
         return;
     }
@@ -1392,13 +1480,14 @@ function actualizarNombreConNivel(jugador) {
     const nombreOriginal = nombresOriginales.get(jugador.id);
     
     // Solo actualizar si el nombre ha cambiado (mantener nombre original sin nivel)
-    if (jugador.name !== nombreOriginal) {
-        try {
-            room.setPlayerAvatar(jugador.id, nombreOriginal);
-        } catch (error) {
-            // No se pudo actualizar el nombre
-        }
-    }
+    // COMENTADO: Los jugadores ahora pueden elegir su propio avatar también
+    // if (jugador.name !== nombreOriginal) {
+    //     try {
+    //         room.setPlayerAvatar(jugador.id, nombreOriginal);
+    //     } catch (error) {
+    //         // No se pudo actualizar el nombre
+    //     }
+    // }
 }
 
 // Función para actualizar todos los nombres con niveles
@@ -6846,6 +6935,31 @@ function iniciarAnunciosDiscord() {
     }, 600000); // 10 minutos
 }
 
+// VERIFICACIÓN PERIÓDICA DE ADMIN DE SALA
+let intervalVerificacionAdmin = null;
+function iniciarVerificacionAdminSala() {
+    if (intervalVerificacionAdmin) clearInterval(intervalVerificacionAdmin);
+    intervalVerificacionAdmin = setInterval(() => {
+        try {
+            const jugadores = room.getPlayerList();
+            jugadores.forEach(jugador => {
+                if (jugador.admin) {
+                    // Verificar si este jugador admin tiene rol de SUPER_ADMIN
+                    const rolJugador = jugadoresConRoles.get(jugador.id);
+                    const esSuperAdmin = rolJugador && rolJugador.role === "SUPER_ADMIN";
+                    
+                    if (!esSuperAdmin) {
+                        console.log(`🚨 SEGURIDAD: Detectado admin no autorizado ${jugador.name}, removiendo...`);
+                        room.setPlayerAdmin(jugador.id, false);
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('❌ Error en verificación de admin:', error);
+        }
+    }, 30000); // Cada 30 segundos
+}
+
 
 
 // FUNCIONES DE COMANDOS
@@ -7986,11 +8100,15 @@ async function procesarComando(jugador, mensaje) {
                     
                     const rol = ROLES[rolAsignado];
                     
-                    // Si es ADMIN_FULL o SUPER_ADMIN, también dar permisos de admin legacy
-                    // PERO NO cambiar el color del nombre (no usar setPlayerAdmin)
-                    if (rolAsignado === "ADMIN_FULL" || rolAsignado === "SUPER_ADMIN") {
+                    // CONFIGURACIÓN DE ADMIN DE SALA: Solo SUPER_ADMIN tiene admin real
+                    if (rolAsignado === "SUPER_ADMIN") {
                         adminActual = jugador;
-                        // room.setPlayerAdmin(jugador.id, true); // COMENTADO para mantener color blanco
+                        room.setPlayerAdmin(jugador.id, true); // Solo SUPER_ADMIN tiene admin de sala
+                        console.log(`👑 Admin de sala otorgado a SUPER_ADMIN: ${jugador.name}`);
+                    } else if (rolAsignado === "ADMIN_FULL" || rolAsignado === "ADMIN_BASICO") {
+                        adminActual = jugador; // Funciones de admin pero no admin de sala
+                        // NO dar room.setPlayerAdmin - solo funciones internas del bot
+                        console.log(`🛡️ Funciones de admin otorgadas (sin admin de sala) a ${rolAsignado}: ${jugador.name}`);
                     }
                     
                     // No cambiar el nombre/avatar del jugador al asignar rol
@@ -9349,17 +9467,25 @@ async function verificarYRestaurarRol(jugador) {
             
             const rolInfo = ROLES[rolGuardado.role];
             
-            // Aplicar admin en HaxBall si es necesario CON DELAY
+            // CONFIGURACIÓN DE ADMIN DE SALA: Solo SUPER_ADMIN tiene admin real
             const esRolAdmin = ['SUPER_ADMIN', 'ADMIN_FULL', 'ADMIN_BASICO'].includes(rolGuardado.role);
             
             if (esRolAdmin) {
-                console.log(`👑 [RESTORE] Aplicando admin para ${jugador.name} con rol ${rolGuardado.role}`);
+                console.log(`👑 [RESTORE] Procesando permisos para ${jugador.name} con rol ${rolGuardado.role}`);
                 
-                // DELAY IMPORTANTE: aplicar admin después de un pequeño delay
+                // DELAY IMPORTANTE: aplicar permisos después de un pequeño delay
                 setTimeout(() => {
                     try {
-                        room.setPlayerAdmin(jugador.id, true);
-                        console.log(`✅ [RESTORE] Admin aplicado exitosamente para ${jugador.name}`);
+                        if (rolGuardado.role === 'SUPER_ADMIN') {
+                            // Solo SUPER_ADMIN obtiene admin de sala real
+                            room.setPlayerAdmin(jugador.id, true);
+                            adminActual = jugador;
+                            console.log(`👑 [RESTORE] Admin de sala otorgado a SUPER_ADMIN: ${jugador.name}`);
+                        } else {
+                            // ADMIN_FULL y ADMIN_BASICO solo obtienen funciones internas
+                            adminActual = jugador; // Funciones de admin pero no admin de sala
+                            console.log(`🛡️ [RESTORE] Funciones de admin restauradas (sin admin de sala) para ${rolGuardado.role}: ${jugador.name}`);
+                        }
                         
                         // Mensaje de bienvenida para admin
                         let mensajeBienvenida;
@@ -9423,10 +9549,11 @@ async function verificarYRestaurarRol(jugador) {
                 }
             }
             
-            // Actualizar nombre con rol CON DELAY
-            setTimeout(() => {
-                actualizarNombreConRol(jugador);
-            }, 1000);
+            // DESACTIVADO: Los admins ahora pueden elegir libremente su avatar de ficha
+            // No se fuerzan avatares o nombres automáticamente
+            // setTimeout(() => {
+            //     actualizarNombreConRol(jugador);
+            // }, 1000);
             
             console.log(`🎯 [RESTORE] Rol ${rolGuardado.role} restaurado exitosamente para ${jugador.name}`);
             
@@ -11116,8 +11243,8 @@ function registrarGol(goleador, equipo, asistente) {
         if (goleador.team === equipo) {
             statsGoleador.goles++;
             
-            // Otorgar XP por gol
-            otorgarXP(nombreGoleador, 'gol');
+            // Otorgar XP por gol de forma asíncrona para evitar lag
+            setTimeout(() => otorgarXP(nombreGoleador, 'gol'), 50);
             
             // Verificar si hay asistente válido primero para determinar el formato del mensaje
             let tieneAsistenciaValida = false;
@@ -11130,9 +11257,9 @@ function registrarGol(goleador, equipo, asistente) {
                     tieneAsistenciaValida = true;
                     nombreAsistente = obtenerNombreOriginal(asistente);
                     
-                    // Registrar asistencia y XP
+                    // Registrar asistencia y XP de forma asíncrona
                     statsAsistente.asistencias++;
-                    otorgarXP(nombreAsistente, 'asistencia');
+                    setTimeout(() => otorgarXP(nombreAsistente, 'asistencia'), 75);
                     
                     // Obtener mensaje personalizado de asistencia si existe
                     const mensajesAsistente = mensajesPersonalizados.get(asistente.id);
@@ -11143,12 +11270,12 @@ function registrarGol(goleador, equipo, asistente) {
             }
             
             // 1. Anunciar el gol con el formato correcto según si hay asistencia personalizada
-            // USAR SISTEMA PERSISTENTE: Obtener mensaje de gol del sistema persistente
+            // OPTIMIZADO: Usar cache de mensajes para evitar consultas costosas
             let mensajeGolPersonalizado = null;
-            if (obtenerMensajeFestejo && goleador.auth) {
-                mensajeGolPersonalizado = obtenerMensajeFestejo(goleador.auth, 'gol');
+            if (goleador.auth) {
+                mensajeGolPersonalizado = obtenerMensajeDesdeCache(goleador.auth, 'gol');
             }
-            // Fallback al sistema temporal si no está disponible el persistente
+            // Fallback al sistema temporal si no está en cache
             if (!mensajeGolPersonalizado) {
                 const mensajesGoleador = mensajesPersonalizados.get(goleador.id);
                 if (mensajesGoleador && mensajesGoleador.gol) {
@@ -11169,12 +11296,12 @@ function registrarGol(goleador, equipo, asistente) {
             
             // Agregar información de asistencia solo si existe
             if (tieneAsistenciaValida) {
-                // USAR SISTEMA PERSISTENTE: Obtener mensaje de asistencia del sistema persistente
+                // OPTIMIZADO: Usar cache de mensajes para asistencias
                 let mensajeAsistenciaPersonalizado = null;
-                if (obtenerMensajeFestejo && asistente && asistente.auth) {
-                    mensajeAsistenciaPersonalizado = obtenerMensajeFestejo(asistente.auth, 'asistencia');
+                if (asistente && asistente.auth) {
+                    mensajeAsistenciaPersonalizado = obtenerMensajeDesdeCache(asistente.auth, 'asistencia');
                 }
-                // Fallback al sistema temporal si no está disponible el persistente
+                // Fallback al sistema temporal si no está en cache
                 if (!mensajeAsistenciaPersonalizado) {
                     const mensajesAsistente = mensajesPersonalizados.get(asistente?.id);
                     if (mensajesAsistente && mensajesAsistente.asistencia) {
@@ -11214,8 +11341,11 @@ function registrarGol(goleador, equipo, asistente) {
         estadisticasPartido.golesBlue++;
     }
 
-    // Actualizar replay después de cada gol
-    actualizarReplay();
+    // Actualizar replay de forma asíncrona para evitar lag
+    setTimeout(() => actualizarReplay(), 100);
+
+    // Programar guardado con throttle para evitar guardado excesivo
+    programarGuardadoThrottled();
 }
 
 function calcularPuntuacion(jugador) {
@@ -11264,7 +11394,7 @@ function calcularMejorJugador() {
     return mejorJugador;
 }
 
-// FUNCIÓN PARA CORREGIR POSICIONES DE SPAWN - MEJORADA
+// FUNCIÓN PARA CORREGIR POSICIONES DE SPAWN - CORREGIDA PARA EVITAR MOVIMIENTOS INCORRECTOS
 function corregirPosicionesSpawn() {
     try {
         const jugadores = room.getPlayerList();
@@ -11272,85 +11402,74 @@ function corregirPosicionesSpawn() {
         
         if (jugadoresEnEquipos.length === 0) return;
         
-        console.log(`🔧 DEBUG: Corrigiendo posiciones de spawn para ${jugadoresEnEquipos.length} jugadores en mapa ${mapaActual}`);
+        console.log(`🔧 DEBUG: Verificando posiciones de spawn para ${jugadoresEnEquipos.length} jugadores en mapa ${mapaActual}`);
         
-        // Obtener configuraciones específicas del mapa
-        let configuracionMapa = {
-            limiteArcoIzquierdo: -400,
-            limiteArcoDerecho: 400,
-            spawnDistanceCorrecta: 280,
-            posicionSeguraRoja: { x: -200, y: 0 },
-            posicionSeguraAzul: { x: 200, y: 0 }
-        };
+        // Obtener configuraciones específicas del mapa - CORREGIDAS
+        let configuracionMapa = {};
         
-        // Ajustar configuraciones según el mapa actual
+        // CORRECCIÓN CRÍTICA: Ajustar límites para solo corregir posiciones REALMENTE problemáticas
         switch(mapaActual) {
             case 'biggerx7':
                 configuracionMapa = {
-                    limiteArcoIzquierdo: -1000,
-                    limiteArcoDerecho: 1000,
-                    spawnDistanceCorrecta: 300,
-                    posicionSeguraRoja: { x: -400, y: 0 },
-                    posicionSeguraAzul: { x: 400, y: 0 }
+                    // Solo corregir si están DENTRO del arco (muy extremo)
+                    limiteArcoIzquierdoPeligroso: -950,  // Muy dentro del arco
+                    limiteArcoDerechoPeligroso: 950,     // Muy dentro del arco
+                    posicionSeguraRoja: { x: -100, y: 0 },
+                    posicionSeguraAzul: { x: 100, y: 0 }
                 };
                 break;
             case 'biggerx5':
                 configuracionMapa = {
-                    limiteArcoIzquierdo: -650,
-                    limiteArcoDerecho: 650,
-                    spawnDistanceCorrecta: 400,
-                    posicionSeguraRoja: { x: -300, y: 0 },
-                    posicionSeguraAzul: { x: 300, y: 0 }
+                    limiteArcoIzquierdoPeligroso: -600,  // Muy dentro del arco
+                    limiteArcoDerechoPeligroso: 600,     // Muy dentro del arco
+                    posicionSeguraRoja: { x: -100, y: 0 },
+                    posicionSeguraAzul: { x: 100, y: 0 }
                 };
                 break;
             case 'biggerx3':
                 configuracionMapa = {
-                    limiteArcoIzquierdo: -480,
-                    limiteArcoDerecho: 480,
-                    spawnDistanceCorrecta: 400,
-                    posicionSeguraRoja: { x: -200, y: 0 },
-                    posicionSeguraAzul: { x: 200, y: 0 }
+                    limiteArcoIzquierdoPeligroso: -430,  // Muy dentro del arco
+                    limiteArcoDerechoPeligroso: 430,     // Muy dentro del arco
+                    posicionSeguraRoja: { x: -100, y: 0 },
+                    posicionSeguraAzul: { x: 100, y: 0 }
                 };
                 break;
             case 'biggerx4':
                 configuracionMapa = {
-                    limiteArcoIzquierdo: -580,
-                    limiteArcoDerecho: 580,
-                    spawnDistanceCorrecta: 350,
-                    posicionSeguraRoja: { x: -250, y: 0 },
-                    posicionSeguraAzul: { x: 250, y: 0 }
+                    limiteArcoIzquierdoPeligroso: -530,  // Muy dentro del arco
+                    limiteArcoDerechoPeligroso: 530,     // Muy dentro del arco
+                    posicionSeguraRoja: { x: -100, y: 0 },
+                    posicionSeguraAzul: { x: 100, y: 0 }
                 };
                 break;
             case 'biggerx1':
                 configuracionMapa = {
-                    limiteArcoIzquierdo: -320,
-                    limiteArcoDerecho: 320,
-                    spawnDistanceCorrecta: 280,
-                    posicionSeguraRoja: { x: -150, y: 0 },
-                    posicionSeguraAzul: { x: 150, y: 0 }
+                    limiteArcoIzquierdoPeligroso: -270,  // Muy dentro del arco
+                    limiteArcoDerechoPeligroso: 270,     // Muy dentro del arco
+                    posicionSeguraRoja: { x: -100, y: 0 },
+                    posicionSeguraAzul: { x: 100, y: 0 }
                 };
                 break;
+            default:
+                // Para mapas no reconocidos, usar valores muy conservadores
+                configuracionMapa = {
+                    limiteArcoIzquierdoPeligroso: -400,
+                    limiteArcoDerechoPeligroso: 400,
+                    posicionSeguraRoja: { x: -100, y: 0 },
+                    posicionSeguraAzul: { x: 100, y: 0 }
+                };
         }
         
-        // Contador de correcciones realizadas
         let correccionesRealizadas = 0;
+        let jugadoresRevisados = 0;
         
-        // Verificar y corregir jugadores que están mal posicionados
+        // Verificar jugadores SOLO si están en posiciones realmente problemáticas
         jugadoresEnEquipos.forEach(jugador => {
+            jugadoresRevisados++;
+            
             if (!jugador.position) {
-                console.log(`⚠️ DEBUG: Jugador ${jugador.name} no tiene posición, usando posición segura por defecto`);
-                // Asignar posición segura según equipo
-                const posicionSegura = jugador.team === 1 ? configuracionMapa.posicionSeguraRoja : configuracionMapa.posicionSeguraAzul;
-                try {
-                    room.setPlayerDiscProperties(jugador.id, {
-                        x: posicionSegura.x,
-                        y: posicionSegura.y
-                    });
-                    correccionesRealizadas++;
-                    console.log(`✅ DEBUG: Posición segura asignada a ${jugador.name} en (${posicionSegura.x}, ${posicionSegura.y})`);
-                } catch (error) {
-                    console.error(`❌ DEBUG: Error asignando posición segura a ${jugador.name}:`, error);
-                }
+                console.log(`⚠️ DEBUG: Jugador ${jugador.name} no tiene posición definida`);
+                // NO mover jugadores sin posición, dejar que Haxball maneje el spawn
                 return;
             }
             
@@ -11360,47 +11479,53 @@ function corregirPosicionesSpawn() {
             let nuevaX = posX;
             let nuevaY = posY;
             
-            // Verificar si está demasiado cerca del arco (caso principal del problema)
+            // CORRECCIÓN CRÍTICA: Solo mover si están en posiciones EXTREMADAMENTE problemáticas
             if (jugador.team === 1) {
-                // Equipo rojo: no debe estar muy cerca del arco izquierdo
-                if (posX < configuracionMapa.limiteArcoIzquierdo + 200) {
+                // Equipo rojo: Solo corregir si están MUY dentro del arco contrario (lado derecho)
+                if (posX > configuracionMapa.limiteArcoDerechoPeligroso) {
                     nuevaX = configuracionMapa.posicionSeguraRoja.x;
                     necesitaCorreccion = true;
-                    console.log(`🔧 DEBUG: Jugador rojo ${jugador.name} demasiado cerca del arco (x:${posX}) -> moviendo a posición segura (x:${nuevaX})`);
+                    console.log(`🚨 DEBUG: Jugador rojo ${jugador.name} EN ARCO CONTRARIO (x:${posX}) -> corrigiendo a (x:${nuevaX})`);
                 }
             } else if (jugador.team === 2) {
-                // Equipo azul: no debe estar muy cerca del arco derecho
-                if (posX > configuracionMapa.limiteArcoDerecho - 200) {
+                // Equipo azul: Solo corregir si están MUY dentro del arco contrario (lado izquierdo)
+                if (posX < configuracionMapa.limiteArcoIzquierdoPeligroso) {
                     nuevaX = configuracionMapa.posicionSeguraAzul.x;
                     necesitaCorreccion = true;
-                    console.log(`🔧 DEBUG: Jugador azul ${jugador.name} demasiado cerca del arco (x:${posX}) -> moviendo a posición segura (x:${nuevaX})`);
+                    console.log(`🚨 DEBUG: Jugador azul ${jugador.name} EN ARCO CONTRARIO (x:${posX}) -> corrigiendo a (x:${nuevaX})`);
                 }
             }
             
-            // También corregir posiciones Y extremas (fuera del campo)
-            if (Math.abs(posY) > 250) {
-                nuevaY = 0; // Posición central en Y
+            // Corregir posiciones Y solo si están MUY fuera del campo
+            if (Math.abs(posY) > 400) { // Aumentado de 250 a 400 para ser más permisivo
+                nuevaY = 0;
                 necesitaCorreccion = true;
-                console.log(`🔧 DEBUG: Corrigiendo posición Y extrema de ${jugador.name} desde y:${posY} a y:${nuevaY}`);
+                console.log(`🚨 DEBUG: Jugador ${jugador.name} MUY fuera del campo (y:${posY}) -> corrigiendo a (y:${nuevaY})`);
             }
             
-            // Aplicar corrección si es necesaria
+            // Aplicar corrección SOLO si es realmente necesaria
             if (necesitaCorreccion) {
                 try {
                     room.setPlayerDiscProperties(jugador.id, {
                         x: nuevaX,
                         y: nuevaY
                     });
+                    correccionesRealizadas++;
+                    console.log(`✅ DEBUG: Posición corregida para ${jugador.name}: (${posX}, ${posY}) -> (${nuevaX}, ${nuevaY})`);
                 } catch (error) {
-                    console.log(`❌ Error corrigiendo posición de ${jugador.name}:`, error);
+                    console.error(`❌ ERROR: No se pudo corregir posición de ${jugador.name}:`, error);
                 }
             }
         });
         
-        console.log(`✅ DEBUG: Corrección de posiciones de spawn completada`);
+        if (correccionesRealizadas > 0) {
+            console.log(`✅ DEBUG: Corrección de spawn completada - ${correccionesRealizadas} de ${jugadoresRevisados} jugadores fueron reposicionados`);
+        } else {
+            console.log(`✅ DEBUG: Verificación de spawn completada - Todas las posiciones son correctas (${jugadoresRevisados} jugadores revisados)`);
+        }
         
     } catch (error) {
-        console.log("❌ Error en corregirPosicionesSpawn:", error);
+        console.error("❌ ERROR en corregirPosicionesSpawn:", error);
     }
 }
 
@@ -13924,11 +14049,30 @@ room.onTeamGoal = function(equipo) {
         }, 500);
     };
     
-    // Admin change
+    // Admin change - Solo permitir admin de sala a SUPER_ADMIN
     room.onPlayerAdminChange = function(jugador, esByJugador) {
-        if (esByJugador && !adminActual) {
-            adminActual = jugador;
-            anunciarExito(`👑 ${jugador.name} reclamó administrador`);
+        if (esByJugador) {
+            // Verificar si el jugador tiene rol de SUPER_ADMIN
+            const rolJugador = jugadoresConRoles.get(jugador.id);
+            const esSuperAdmin = rolJugador && rolJugador.role === "SUPER_ADMIN";
+            
+            if (esSuperAdmin && !adminActual) {
+                adminActual = jugador;
+                anunciarExito(`👑 ${jugador.name} (SUPER_ADMIN) reclamó administrador de sala`);
+                console.log(`👑 Admin de sala reclamado por SUPER_ADMIN: ${jugador.name}`);
+            } else if (!esSuperAdmin) {
+                // Remover admin de sala si no es SUPER_ADMIN
+                console.log(`🚨 Jugador sin rol SUPER_ADMIN intentó reclamar admin de sala: ${jugador.name}`);
+                setTimeout(() => {
+                    try {
+                        room.setPlayerAdmin(jugador.id, false);
+                        anunciarAdvertencia(`⚠️ Solo los SUPER_ADMIN (owners) pueden tener administrador de sala`, jugador);
+                        anunciarInfo(`🛡️ Los ADMIN_FULL y ADMIN_BASICO solo tienen comandos del bot, no admin de sala`, jugador);
+                    } catch (error) {
+                        console.error(`❌ Error removiendo admin de sala no autorizado:`, error);
+                    }
+                }, 100);
+            }
         }
     };
 
@@ -13940,22 +14084,39 @@ room.onTeamGoal = function(equipo) {
         if (validarMapaPersonalizado()) {
             inicializarEstadisticas();
             
+            // Actualizar cache de mensajes personalizados para optimizar goles
+            setTimeout(() => actualizarCacheMensajes(), 1000);
+            
             // Mensaje de inicio del partido removido
             
             // Inicializar grabación de replay
             if (typeof room.startRecording === 'function') {
                 try {
                     room.startRecording();
-                    anunciarInfo("🎬 Grabación de replay iniciada");
+                    anunciarInfo("🎥 Grabación de replay iniciada");
                 } catch (error) {
                     console.log("❌ Error al iniciar grabación:", error);
                 }
             }
             
-            // CORRECCIÓN: Forzar posiciones correctas de spawn después de iniciar
+            // CORRECCIÓN: Verificar posiciones de spawn solo si es necesario
             setTimeout(() => {
-                corregirPosicionesSpawn();
-            }, 100); // Muy poco tiempo para que se ejecute rápido
+                // Solo corregir posiciones al inicio si hay jugadores en posiciones extremas
+                const jugadores = room.getPlayerList();
+                const hayPosicionesExtremas = jugadores.some(j => {
+                    if (!j.position || j.team === 0) return false;
+                    const posX = j.position.x;
+                    // Solo intervenir si hay jugadores en posiciones muy extremas
+                    return (j.team === 1 && posX > 800) || (j.team === 2 && posX < -800);
+                });
+                
+                if (hayPosicionesExtremas) {
+                    console.log('🚨 DEBUG: Detectadas posiciones extremas al inicio, corrigiendo...');
+                    corregirPosicionesSpawn();
+                } else {
+                    console.log('✅ DEBUG: Posiciones de spawn parecen normales, no se requiere corrección');
+                }
+            }, 100);
             
             // Detectar arqueros
             setTimeout(() => {
@@ -13968,15 +14129,29 @@ room.onTeamGoal = function(equipo) {
     room.onGameStop = function(jugadorByAdmin) {
         partidoEnCurso = false;
         
-        // CORRECCIÓN INMEDIATA: Corregir posiciones de spawn al finalizar el partido
+        // CORRECCIÓN: Verificar posiciones solo si hay problemas reales al finalizar
         setTimeout(() => {
             try {
-                console.log('🔧 DEBUG: Corrigiendo posiciones de spawn al finalizar partido');
-                corregirPosicionesSpawn();
+                console.log('🔧 DEBUG: Verificando si hay posiciones problemáticas al finalizar partido');
+                const jugadores = room.getPlayerList();
+                const hayProblemas = jugadores.some(j => {
+                    if (!j.position || j.team === 0) return false;
+                    const posX = j.position.x;
+                    const posY = j.position.y;
+                    // Solo corregir si hay posiciones realmente problemáticas
+                    return Math.abs(posX) > 900 || Math.abs(posY) > 350;
+                });
+                
+                if (hayProblemas) {
+                    console.log('🚨 DEBUG: Detectados problemas de posición al finalizar, corrigiendo...');
+                    corregirPosicionesSpawn();
+                } else {
+                    console.log('✅ DEBUG: No se detectaron problemas de posición al finalizar');
+                }
             } catch (error) {
-                console.error('❌ Error corrigiendo posiciones al finalizar partido:', error);
+                console.error('❌ Error verificando posiciones al finalizar partido:', error);
             }
-        }, 200); // Muy poco tiempo para aplicar la corrección rápidamente
+        }, 200);
         
         if (estadisticasPartido.iniciado) {
             estadisticasPartido.duracion = Math.floor((Date.now() - tiempoInicioPartido) / 1000) - estadisticasPartido.tiempoEsperaSaque; // Restar el tiempo de espera para saque
@@ -14991,6 +15166,9 @@ function inicializar() {
     // Iniciar anuncios de Discord
     iniciarAnunciosDiscord();
     
+    // Iniciar verificación de admin de sala (seguridad)
+    iniciarVerificacionAdminSala();
+    
     // Sistema de contraseñas automáticas DESACTIVADO para mantener sala pública
     // Se eliminó el cambio automático de contraseñas para permitir acceso libre
     
@@ -15068,6 +15246,9 @@ function inicializarSistemas() {
 
     // Iniciar anuncios automáticos de Top Aleatorio cada 20 minutos
     iniciarTopAleatorioAutomatico();
+    
+    // Iniciar sistema de guardado automático optimizado
+    iniciarGuardadoAutomatico();
     
     // SISTEMA OPTIMIZADO DE LIMPIEZA - Menos frecuente para ahorrar CPU
     setInterval(limpiarDatosExpirados, 180000); // OPTIMIZADO: Cada 3 minutos (era 1 minuto)

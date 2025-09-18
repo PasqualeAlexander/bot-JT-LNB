@@ -6408,7 +6408,7 @@ function detectarCambioMapa() {
         return;
     }
     
-const ahora = Date.now();
+// OPTIMIZACIÓN 6: Usar la misma variable ahora ya declarada
 if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresActivos !== ultimoEstadoLogeado.jugadores || mapaActual !== ultimoEstadoLogeado.mapa || partidoEnCurso !== ultimoEstadoLogeado.partido) {
     console.log(`🔍 DEBUG detectarCambioMapa: ${jugadoresActivos} jugadores activos, mapa actual: ${mapaActual}, partido en curso: ${partidoEnCurso}`);
     ultimoEstadoLogeado = {

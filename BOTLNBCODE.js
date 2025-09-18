@@ -10481,8 +10481,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
     }
     
     const lineas = [
-        `${titulo}`,
-        `══════════════════════════════════════`
+        `${titulo}`
     ];
     
     topJugadores.forEach((jugador, i) => {
@@ -10559,7 +10558,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
     room.sendAnnouncement(lineas[0], solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
     
     // Unir todos los jugadores en una sola línea
-    const jugadoresEnLinea = lineas.slice(2).join(" • "); // Omitir título y separador
+    const jugadoresEnLinea = lineas.slice(1).join(" • "); // Omitir solo el título
     room.sendAnnouncement(jugadoresEnLinea, solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
 }
 

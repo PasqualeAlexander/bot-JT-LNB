@@ -5045,7 +5045,7 @@ function balanceInteligente(razon = "balance automático") {
             }
             
             room.setPlayerTeam(unicoJugador.id, 1);
-            anunciarInfo(`🔴 ${unicoJugador.name} movido al equipo rojo para entrenar`, unicoJugador);
+            // anunciarInfo(`🔴 ${unicoJugador.name} movido al equipo rojo para entrenar`, unicoJugador);
         } else {
             console.log(`✅ DEBUG: Único jugador ya está en equipo rojo para training`);
         }
@@ -8490,7 +8490,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                     return;
                 }
                 
-                anunciarInfo(`🎯 Jugador seleccionado por ID #${id}: ${jugadorObjetivo.name}`, jugador);
+                // anunciarInfo(`🎯 Jugador seleccionado por ID #${id}: ${jugadorObjetivo.name}`, jugador);
             } else {
                 // Búsqueda por nombre tradicional
                 jugadorObjetivo = obtenerJugadorPorNombre(inputJugador);

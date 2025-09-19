@@ -5271,6 +5271,9 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
         }, 300);
         
         return;
+    } else if (equipoVacio && partidoEnCurso) {
+        console.log(`🚫 DEBUG: Equipo vacío detectado pero partido en curso - no se hace mezcla`);
+        return;
     }
     
     // DETERMINAR EQUIPOS
@@ -5832,6 +5835,12 @@ function verificarAutoStart() {
 
 // FUNCIÓN PARA MEZCLAR EQUIPOS AL FINAL DEL PARTIDO (SIN VERIFICAR AUTO START INMEDIATAMENTE)
 function mezclarEquiposAleatoriamenteFinPartido() {
+    // VERIFICACIÓN CRÍTICA: No mezclar si el partido ya está en curso
+    if (partidoEnCurso) {
+        console.log(`🚫 DEBUG: Mezcla cancelada - partido ya en curso`);
+        return;
+    }
+    
     // Activar la variable de control para evitar múltiples verificaciones
     mezclaProcesandose = true;
     
@@ -6009,6 +6018,13 @@ function mezclarEquiposAleatoriamenteFinPartido() {
 
 // FUNCIÓN PARA MEZCLAR EQUIPOS ALEATORIAMENTE
 function mezclarEquiposAleatoriamente() {
+    // VERIFICACIÓN CRÍTICA: No mezclar si el partido ya está en curso
+    if (partidoEnCurso) {
+        console.log(`🚫 DEBUG: Mezcla manual cancelada - partido ya en curso`);
+        anunciarError("❌ No se puede mezclar equipos durante un partido");
+        return;
+    }
+    
     const todosJugadores = room.getPlayerList().filter(j => !esBot(j)); // Excluir el bot
     
     // Solo considerar jugadores que están actualmente en equipos (no en espectadores/AFK)

@@ -710,6 +710,44 @@ let room = null;
 let advertenciasAFK = new Map();
 let comandoCooldown = new Map();
 
+// SISTEMA DE LOGGING OPTIMIZADO PARA REDUCIR SPAM
+let logSpamControl = new Map();
+const LOG_SPAM_INTERVAL = 5000; // 5 segundos mínimo entre logs similares
+
+function logOptimizado(mensaje, categoria = 'general') {
+    const ahora = Date.now();
+    const clave = `${categoria}_${mensaje.substring(0, 50)}`; // Primeros 50 caracteres como clave
+    
+    const ultimoLog = logSpamControl.get(clave);
+    if (!ultimoLog || (ahora - ultimoLog) > LOG_SPAM_INTERVAL) {
+        console.log(mensaje);
+        logSpamControl.set(clave, ahora);
+    }
+    
+    // Limpiar mapa cada 10 minutos para evitar acumulación
+    if (logSpamControl.size > 100) {
+        logSpamControl.clear();
+    }
+}
+
+// CACHE OPTIMIZADO PARA getPlayerList
+let playerListCache = null;
+let playerListCacheTime = 0;
+const PLAYER_CACHE_DURATION = 100; // Cache por 100ms
+
+function getPlayerListCached() {
+    const ahora = Date.now();
+    if (!playerListCache || (ahora - playerListCacheTime) > PLAYER_CACHE_DURATION) {
+        if (room && room.getPlayerList) {
+            playerListCache = room.getPlayerList();
+            playerListCacheTime = ahora;
+        } else {
+            return [];
+        }
+    }
+    return playerListCache;
+}
+
 // SISTEMA DE OPTIMIZACIÓN DE RENDIMIENTO
 // Función debounce para optimizar funciones que se ejecutan frecuentemente
 function debounce(func, delay) {
@@ -1366,7 +1404,6 @@ function iniciarGuardadoAutomatico() {
     intervalGuardadoAutomatico = setInterval(() => {
         if (cambiosPendientes) {
             try {
-                console.log('💾 Guardado automático en lote...');
                 guardarEstadisticasGlobalesCompletas();
                 cambiosPendientes = false;
                 
@@ -1376,7 +1413,51 @@ function iniciarGuardadoAutomatico() {
                 console.error('❌ Error en guardado automático:', error);
             }
         }
-    }, 30000); // Cada 30 segundos
+        
+        // LIMPIEZA DE MEMORIA: Limpiar Maps que pueden crecer indefinidamente
+        limpiarMemoriaPeriodicamente();
+        
+    }, 120000); // Cada 2 minutos en lugar de 30 segundos
+}
+
+// FUNCIÓN DE LIMPIEZA PERIÓDICA DE MEMORIA
+function limpiarMemoriaPeriodicamente() {
+    try {
+        // Limpiar cache de jugadores si es muy grande
+        if (playerListCache && playerListCache.length > 20) {
+            playerListCache = null;
+        }
+        
+        // Limpiar advertencias AFK antiguas (más de 10 minutos)
+        const ahora = Date.now();
+        for (const [id, data] of advertenciasAFK.entries()) {
+            if (ahora - data.timestamp > 600000) { // 10 minutos
+                advertenciasAFK.delete(id);
+            }
+        }
+        
+        // Limpiar cooldowns de comandos antiguos
+        for (const [key, timestamp] of comandoCooldown.entries()) {
+            if (ahora - timestamp > 300000) { // 5 minutos
+                comandoCooldown.delete(key);
+            }
+        }
+        
+        // Limpiar logs de spam control
+        if (logSpamControl.size > 50) {
+            logSpamControl.clear();
+        }
+        
+        // Limpiar movimientos del bot antiguo
+        if (movimientoIniciadorPorBot && movimientoIniciadorPorBot.size > 20) {
+            movimientoIniciadorPorBot.clear();
+        }
+        
+        // Limpieza de memoria completada silenciosamente
+        
+    } catch (error) {
+        console.error('❌ Error en limpieza de memoria:', error);
+    }
 }
 
 function otorgarXP(nombreJugador, accion, cantidad = null) {
@@ -4966,7 +5047,7 @@ function agregarJugadorAEquipo(jugador) {
     
     // 1. Verificar si el jugador está marcado como AFK
     if (jugadoresAFK.has(jugador.id)) {
-        console.log(`🚫 DEBUG: No agregando ${jugador.name} a equipo (marcado como AFK)`);
+        logOptimizado(`🚫 DEBUG: No agregando ${jugador.name} a equipo (marcado como AFK)`, 'balance');
         return;
     }
     
@@ -4977,30 +5058,25 @@ function agregarJugadorAEquipo(jugador) {
         // Verificar si hay advertencias AFK recientes (últimos 30 segundos)
         const advertenciaAFK = advertenciasAFK.get(jugador.id);
         if (advertenciaAFK && Date.now() - advertenciaAFK.timestamp < 30000) {
-            console.log(`🚫 DEBUG: No agregando ${jugador.name} - tiene advertencias AFK recientes`);
+            logOptimizado(`🚫 DEBUG: No agregando ${jugador.name} - tiene advertencias AFK recientes`, 'balance');
             return;
         }
     }
     
     // 2. Verificar si el jugador ya está en un equipo
     if (jugador.team !== 0) {
-        console.log(`🚫 DEBUG: No agregando ${jugador.name} - ya está en equipo ${jugador.team}`);
         return;
     }
     
     // 3. Excluir bot del sistema automático
     if (esBot(jugador)) {
-        console.log(`🚫 DEBUG: No agregando bot ${jugador.name} a equipo automáticamente`);
         return;
     }
     
     // 4. NUEVA VERIFICACIÓN: Asegurar que no está en proceso de ser movido a espectadores
     if (movimientoIniciadorPorBot.has(jugador.id)) {
-        console.log(`🚫 DEBUG: No agregando ${jugador.name} - movimiento del bot en proceso`);
         return;
     }
-    
-    console.log(`✅ DEBUG: Agregando ${jugador.name} a un equipo automáticamente`);
     
     // Agregar jugador al equipo con menos jugadores
     const jugadoresRed = room.getPlayerList().filter(j => j.team === 1).length;
@@ -5029,15 +5105,13 @@ function balanceInteligente(razon = "balance automático") {
     const totalJugadoresEnEquipos = jugadoresRed.length + jugadoresBlue.length;
     const diferencia = Math.abs(jugadoresRed.length - jugadoresBlue.length);
 
-    console.log(`⚖️ DEBUG balanceInteligente (${razon}): Rojo=${jugadoresRed.length}, Azul=${jugadoresBlue.length}, Total=${totalJugadoresEnEquipos}, Diferencia=${diferencia}`);
+    // Debug balanceInteligente optimizado
     
     // CASO ESPECIAL: Training con 1 jugador - mantener en equipo rojo
     if (mapaActual === "training" && totalJugadoresEnEquipos === 1) {
-        console.log(`🎯 DEBUG: Training con 1 jugador detectado`);
         const unicoJugador = jugadoresRed.length === 1 ? jugadoresRed[0] : jugadoresBlue[0];
         
         if (unicoJugador && unicoJugador.team !== 1) {
-            console.log(`🔴 DEBUG: Moviendo único jugador ${unicoJugador.name} al equipo rojo para training`);
             
             // Permitir movimiento por sistema automático
             if (movimientoPermitidoPorComando) {
@@ -5717,7 +5791,7 @@ function autoBalanceEquipos() {
 // Variables para controlar la frecuencia de verificarAutoStart
 let ultimaVerificacionAutoStart = 0;
 let verificandoAutoStart = false;
-const INTERVALO_MINIMO_VERIFICACION = 1000; // 1 segundo mínimo entre verificaciones
+const INTERVALO_MINIMO_VERIFICACION = 3000; // 3 segundos mínimo entre verificaciones (optimizado)
 
 // FUNCIÓN PARA VERIFICAR AUTO START
 function verificarAutoStart() {
@@ -5768,7 +5842,8 @@ function verificarAutoStart() {
         return;
     }
     
-    const jugadores = room.getPlayerList();
+    // Usar cache optimizado en lugar de llamadas repetidas a getPlayerList
+    const jugadores = getPlayerListCached();
     const jugadoresRed = jugadores.filter(j => j.team === 1).length;
     const jugadoresBlue = jugadores.filter(j => j.team === 2).length;
     const totalJugadores = jugadoresRed + jugadoresBlue;
@@ -5794,19 +5869,13 @@ function verificarAutoStart() {
             const totalActuales = redActuales + blueActuales;
             const minActual = mapas[mapaActual] ? mapas[mapaActual].minJugadores : 2;
             
-            console.log(`🔍 DEBUG final: Rojo=${redActuales}, Azul=${blueActuales}, Total=${totalActuales}, partidoEnCurso=${partidoEnCurso}`);
+            // Logs reducidos para mejor rendimiento
             
             if (totalActuales >= minActual && Math.abs(redActuales - blueActuales) <= 1 && !partidoEnCurso) {
-                console.log(`🚀 DEBUG: ¡Iniciando partido!`);
                 // Mensaje de inicio automático eliminado
                 room.startGame();
                 // Resetear la variable para permitir el mensaje en el próximo partido
                 mensajeAutoStartMostrado = false;
-            } else {
-                console.log(`❌ DEBUG: Condiciones no cumplidas en timeout final`);
-                if (totalActuales < minActual) console.log(`❌ Pocos jugadores: ${totalActuales} < ${minActual}`);
-                if (Math.abs(redActuales - blueActuales) > 1) console.log(`❌ Equipos desbalanceados: diferencia ${Math.abs(redActuales - blueActuales)}`);
-                if (partidoEnCurso) console.log(`❌ Partido ya en curso`);
             }
         }, tiempoEsperaInicio);
         
@@ -5816,9 +5885,7 @@ function verificarAutoStart() {
             mensajeAutoStartMostrado = true;
         }
     } else {
-        console.log(`❌ DEBUG: Condiciones iniciales no cumplidas`);
-        if (totalJugadores < minJugadoresActual) console.log(`❌ Pocos jugadores: ${totalJugadores} < ${minJugadoresActual}`);
-        if (Math.abs(jugadoresRed - jugadoresBlue) > 1) console.log(`❌ Equipos desbalanceados: diferencia ${Math.abs(jugadoresRed - jugadoresBlue)}`);
+        // Logs eliminados para optimizar rendimiento
         
         // Cancelar auto start si las condiciones no se cumplen
         if (timeoutAutoStart) {
@@ -5849,11 +5916,8 @@ function mezclarEquiposAleatoriamenteFinPartido() {
     // Solo considerar jugadores que están actualmente en equipos (no en espectadores/AFK)
     const jugadoresEnEquipos = todosJugadores.filter(j => j.team === 1 || j.team === 2);
     
-    console.log(`🔄 DEBUG mezcla fin partido: ${jugadoresEnEquipos.length} jugadores en equipos de ${todosJugadores.length} totales`);
-    
     if (jugadoresEnEquipos.length < 2) {
         anunciarInfo("⚠️ Se necesitan al menos 2 jugadores en equipos para mezclar");
-        console.log(`❌ DEBUG mezcla fin partido: No hay suficientes jugadores (${jugadoresEnEquipos.length})`);
         mezclaProcesandose = false; // Desactivar control
         return;
     }
@@ -5863,21 +5927,16 @@ function mezclarEquiposAleatoriamenteFinPartido() {
     let requiereCambioMapa = false;
     let nuevoMapa = null;
     
-    console.log(`🔍 DEBUG: Verificando cambio de mapa pre-mezcla - Jugadores activos: ${jugadoresActivos}, Mapa actual: ${mapaActual}`);
-    
     // Detectar si se necesita cambio de mapa basado en la cantidad de jugadores
     if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
         requiereCambioMapa = true;
         nuevoMapa = "biggerx7";
-        console.log(`🎯 DEBUG: Se requiere cambio de x5 a x7 con ${jugadoresActivos} jugadores`);
     } else if (mapaActual === "biggerx3" && jugadoresActivos >= 9) {
         requiereCambioMapa = true;
         nuevoMapa = "biggerx5";
-        console.log(`🎯 DEBUG: Se requiere cambio de x3 a x5 con ${jugadoresActivos} jugadores`);
     } else if (mapaActual === "biggerx1" && jugadoresActivos >= 5) {
         requiereCambioMapa = true;
         nuevoMapa = "biggerx3";
-        console.log(`🎯 DEBUG: Se requiere cambio de x1 a x3 con ${jugadoresActivos} jugadores`);
     }
     
     // Si se requiere cambio de mapa, hacerlo ANTES de mezclar equipos
@@ -5900,34 +5959,24 @@ function mezclarEquiposAleatoriamenteFinPartido() {
     
     // Guardar los IDs de los jugadores que vamos a mezclar
     const idsJugadoresAMezclar = jugadoresEnEquipos.map(j => j.id);
-    console.log(`📋 DEBUG mezcla fin partido: IDs a mezclar: [${idsJugadoresAMezclar.join(', ')}]`);
     
     // CORRECCIÓN: Marcar todos los movimientos como iniciados por bot para evitar mensajes duplicados
     jugadoresEnEquipos.forEach(jugador => {
         if (movimientoIniciadorPorBot) {
             movimientoIniciadorPorBot.add(jugador.id);
         }
-        console.log(`➡️ DEBUG fin partido: Moviendo ${jugador.name} (ID: ${jugador.id}) a espectadores`);
         room.setPlayerTeam(jugador.id, 0);
     });
     
     // Paso 2: Esperar un momento y luego mezclar aleatoriamente SOLO a los que estaban en equipos
     setTimeout(() => {
-        console.log(`⏰ DEBUG fin partido: Ejecutando mezcla después del timeout...`);
-        
         // Obtener solo los jugadores que estaban en equipos antes de la mezcla
         const jugadoresParaMezclar = room.getPlayerList().filter(j => 
             !esBot(j) && idsJugadoresAMezclar.includes(j.id)
         );
         
-        console.log(`👥 DEBUG mezcla fin partido: ${jugadoresParaMezclar.length} jugadores encontrados para mezclar`);
-        jugadoresParaMezclar.forEach(j => {
-            console.log(`  - ${j.name} (ID: ${j.id}, equipo actual: ${j.team})`);
-        });
-        
         if (jugadoresParaMezclar.length < 2) {
             anunciarInfo("⚠️ No hay suficientes jugadores para mezclar");
-            console.log(`❌ DEBUG fin partido: No hay suficientes jugadores después del timeout`);
             mezclaProcesandose = false; // Desactivar control
             return;
         }
@@ -5943,21 +5992,17 @@ function mezclarEquiposAleatoriamenteFinPartido() {
         
         // Dividir los jugadores mezclados entre los dos equipos
         const mitad = Math.ceil(jugadoresMezclados.length / 2);
-        console.log(`⚖️ DEBUG distribución fin partido: ${mitad} al rojo, ${jugadoresMezclados.length - mitad} al azul`);
         
         // Activar flag de mezcla para permitir movimientos del sistema durante la mezcla
         mezclaProcesandose = true;
-        console.log(`🔄 DEBUG fin partido: Activando flag de mezcla para permitir movimientos del sistema`);
         
         // Asignar primera mitad al equipo rojo (1)
         for (let i = 0; i < mitad && i < jugadoresMezclados.length; i++) {
-            console.log(`🔴 DEBUG fin partido: Asignando ${jugadoresMezclados[i].name} (ID: ${jugadoresMezclados[i].id}) al equipo ROJO`);
             room.setPlayerTeam(jugadoresMezclados[i].id, 1);
         }
         
         // Asignar segunda mitad al equipo azul (2)
         for (let i = mitad; i < jugadoresMezclados.length; i++) {
-            console.log(`🔵 DEBUG fin partido: Asignando ${jugadoresMezclados[i].name} (ID: ${jugadoresMezclados[i].id}) al equipo AZUL`);
             room.setPlayerTeam(jugadoresMezclados[i].id, 2);
         }
         
@@ -5965,22 +6010,9 @@ function mezclarEquiposAleatoriamenteFinPartido() {
         
         // Mostrar los equipos formados y verificar que se hicieron correctamente
         setTimeout(() => {
-            console.log(`🔍 DEBUG fin partido: Verificando equipos después de 300ms...`);
-            
-            const jugadoresActualizados = room.getPlayerList();
-            const equipoRojo = jugadoresActualizados.filter(j => j.team === 1);
-            const equipoAzul = jugadoresActualizados.filter(j => j.team === 2);
-            const espectadores = jugadoresActualizados.filter(j => j.team === 0);
-            
-            console.log(`✅ DEBUG equipos fin partido formados:`);
-            console.log(`  🔴 Equipo Rojo (${equipoRojo.length}): ${equipoRojo.map(j => `${j.name}(${j.id})`).join(', ')}`);
-            console.log(`  🔵 Equipo Azul (${equipoAzul.length}): ${equipoAzul.map(j => `${j.name}(${j.id})`).join(', ')}`);
-            console.log(`  ⚪ Espectadores (${espectadores.length}): ${espectadores.map(j => `${j.name}(${j.id})`).join(', ')}`);
-            
-                // Verificar auto start después de formar equipos con delay adicional
-                setTimeout(() => {
-                    console.log(`🚀 DEBUG fin partido: Llamando a verificarAutoStart después de espera...`);
-                    mezclaProcesandose = false; // Desactivar control ANTES de verificar auto start
+            // Verificar auto start después de formar equipos con delay adicional
+            setTimeout(() => {
+                mezclaProcesandose = false; // Desactivar control ANTES de verificar auto start
                     
 // IMPORTANTE: Detectar cambio de mapa necesario (ej. biggerx5 -> biggerx7 con 12+ jugadores)
                     console.log(`🔄 DEBUG fin partido: Verificando cambio de mapa tras mezcla...`);
@@ -6385,12 +6417,8 @@ function verificarCambioMapaPostPartido() {
     // Contar jugadores activos (en equipos 1 y 2, no espectadores)
     const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
     
-    console.log(`🏁 DEBUG: Verificando cambio de mapa post-partido con ${jugadoresActivos} jugadores activos`);
-    
     // CAMBIO CON HISTÉRESIS: De biggerx7 a biggerx5 si hay menos de 8 jugadores activos (tolerancia)
     if (mapaActual === "biggerx7" && jugadoresActivos < 8) {
-        console.log(`📉 DEBUG: Cambiando de x7 a x5 post-partido con histéresis (${jugadoresActivos} < 8 jugadores)`);
-        
         cambioMapaEnProceso = true;
         if (cambiarMapa("biggerx5")) {
             anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x7 a x4`);
@@ -6402,7 +6430,6 @@ function verificarCambioMapaPostPartido() {
                 cambioMapaEnProceso = false;
             }, 1000);
         } else {
-            console.error(`❌ Error al cambiar de x7 a x5 con ${jugadoresActivos} jugadores`);
             cambioMapaEnProceso = false;
         }
         return;
@@ -6410,8 +6437,6 @@ function verificarCambioMapaPostPartido() {
     
 // CAMBIO CON HISTÉRESIS: De biggerx5 (x4) a biggerx7 si hay 10 o más jugadores activos
     if (mapaActual === "biggerx5" && jugadoresActivos >= 10) {
-        console.log(`📈 DEBUG: Cambiando de x5 a x7 post-partido (${jugadoresActivos} >= 10 jugadores)`);
-        
         cambioMapaEnProceso = true;
         if (cambiarMapa("biggerx7")) {
             anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x4 a x7`);
@@ -6423,7 +6448,6 @@ function verificarCambioMapaPostPartido() {
                 cambioMapaEnProceso = false;
             }, 1000);
         } else {
-            console.error(`❌ Error al cambiar de x5 a x7 con ${jugadoresActivos} jugadores`);
             cambioMapaEnProceso = false;
         }
         return;
@@ -11418,8 +11442,6 @@ function corregirPosicionesSpawn() {
         
         if (jugadoresEnEquipos.length === 0) return;
         
-        console.log(`🔧 DEBUG: Verificando posiciones de spawn para ${jugadoresEnEquipos.length} jugadores en mapa ${mapaActual}`);
-        
         // Obtener configuraciones específicas del mapa - CORREGIDAS
         let configuracionMapa = {};
         
@@ -11484,7 +11506,6 @@ function corregirPosicionesSpawn() {
             jugadoresRevisados++;
             
             if (!jugador.position) {
-                console.log(`⚠️ DEBUG: Jugador ${jugador.name} no tiene posición definida`);
                 // NO mover jugadores sin posición, dejar que Haxball maneje el spawn
                 return;
             }
@@ -11534,11 +11555,7 @@ function corregirPosicionesSpawn() {
             }
         });
         
-        if (correccionesRealizadas > 0) {
-            console.log(`✅ DEBUG: Corrección de spawn completada - ${correccionesRealizadas} de ${jugadoresRevisados} jugadores fueron reposicionados`);
-        } else {
-            console.log(`✅ DEBUG: Verificación de spawn completada - Todas las posiciones son correctas (${jugadoresRevisados} jugadores revisados)`);
-        }
+        // Corrección de spawn completada silenciosamente
         
     } catch (error) {
         console.error("❌ ERROR en corregirPosicionesSpawn:", error);

@@ -11953,7 +11953,7 @@ async function registrarGol(goleador, equipo, asistente) {
             }
             
             // Agregar velocidad de disparo y cerrar el mensaje
-            mensajeGolBase += ` • ${velocidadDisparo}km/h 🔵`;
+            mensajeGolBase += ` • Velocidad de disparo: ${velocidadDisparo}km/h 🔵`;
             
             // Enviar el mensaje final
             anunciarGeneral(mensajeGolBase, COLORES.DORADO, "bold");

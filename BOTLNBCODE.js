@@ -13510,24 +13510,17 @@ function configurarEventos() {
             colorVIP = "FFFFFF"; // BLANCO para jugadores normales
         }
         
-        // Solo retransmitir si es admin, super admin o VIP (para darles formato especial)
-        // Los jugadores normales usan el chat nativo de HaxBall
-        if (esSuperAdmin(jugador) || esAdminBasico(jugador) || esVIP) {
-            console.log(`🎮 CHAT DEBUG: Enviando mensaje formateado para admin/VIP/SuperAdmin`);
-            
-            // Usar el color y estilo determinados arriba
-            const colorChat = parseInt(colorVIP, 16);
-            
-            // Retransmitir el mensaje con el formato, color y estilo apropiados
-            room.sendAnnouncement(mensajeCompleto, null, colorChat, estiloMensaje, 1);
-            
-            console.log(`🎮 CHAT DEBUG: Retornando false para admin/VIP/SuperAdmin`);
-            return false; // No mostrar el mensaje original sin formato
-        }
+        // APLICAR FORMATO A TODOS LOS JUGADORES (admins, VIPs y normales)
+        console.log(`🎮 CHAT DEBUG: Enviando mensaje formateado para todos los jugadores`);
         
-        // Para jugadores normales, permitir que HaxBall maneje el mensaje naturalmente
-        console.log(`🎮 CHAT DEBUG: Permitiendo mensaje nativo para jugador normal`);
-        return true;
+        // Usar el color y estilo determinados arriba
+        const colorChat = parseInt(colorVIP, 16);
+        
+        // Retransmitir el mensaje con el formato, color y estilo apropiados
+        room.sendAnnouncement(mensajeCompleto, null, colorChat, estiloMensaje, 1);
+        
+        console.log(`🎮 CHAT DEBUG: Mensaje formateado enviado, ocultando mensaje original`);
+        return false; // No mostrar el mensaje original sin formato
     };
     
     // Jugador se une

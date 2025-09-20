@@ -7072,7 +7072,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
         if (cambiarMapa(mapaRequerido)) {
             const nombreMapa = mapas[mapaRequerido] ? mapas[mapaRequerido].nombre : mapaRequerido;
             // Log eliminado para mejor rendimiento
-            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados. Cambiando a ${nombreMapa}...`);
+            // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados. Cambiando a ${nombreMapa}...`);
             
             setTimeout(() => {
                 // CASO ESPECIAL: Mover único jugador al equipo rojo en training
@@ -7160,7 +7160,7 @@ function cambiarMapa(codigoMapa) {
                 room.setScoreLimit(0); // Sin límite de goles
             }
             
-            anunciarExito(`🗺️ Mapa cambiado a: ${mapa.nombre}`);
+            anunciarInfo(`🗺️ Mapa cambiado a: ${mapa.nombre}`);
             return true;
         } catch (error) {
             console.error(`❌ Error al cambiar mapa a ${codigoMapa}:`, error);

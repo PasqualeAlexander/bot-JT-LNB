@@ -5044,7 +5044,7 @@ function anunciarExito(mensaje) {
 function anunciarError(mensaje, jugador) {
     if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
         if (jugador && jugador.id !== undefined) {
-            room.sendAnnouncement("❌ " + mensaje, jugador.id, parseInt("FF0000", 16), "bold", 0);
+            room.sendAnnouncement("[PV] ❌ " + mensaje, jugador.id, parseInt("FF0000", 16), "bold", 0);
         } else {
             // Si no hay jugador válido, enviar como mensaje general
             room.sendAnnouncement("❌ " + mensaje, null, parseInt("FF0000", 16), "bold", 1);
@@ -5057,15 +5057,22 @@ function anunciarError(mensaje, jugador) {
 function anunciarAdvertencia(mensaje, jugador = null) {
     if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
         const targetId = jugador ? jugador.id : null;
-        room.sendAnnouncement("⚠️ " + mensaje, targetId, parseInt("FFD700", 16), "bold", targetId ? 0 : 1);
+        const prefix = targetId ? "[PV] ⚠️ " : "⚠️ ";
+        room.sendAnnouncement(prefix + mensaje, targetId, parseInt("FFD700", 16), "bold", targetId ? 0 : 1);
     } else {
         // Mensaje de advertencia enviado
     }
 }
 
-function anunciarInfo(mensaje) {
+function anunciarInfo(mensaje, jugador = null) {
     if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-        room.sendAnnouncement("ℹ️ " + mensaje, null, parseInt(CELESTE_LNB, 16), "normal", 1);
+        if (jugador && jugador.id !== undefined) {
+            // Mensaje privado con formato [PV]
+            room.sendAnnouncement("[PV] ℹ️ " + mensaje, jugador.id, parseInt(CELESTE_LNB, 16), "normal", 0);
+        } else {
+            // Mensaje general
+            room.sendAnnouncement("ℹ️ " + mensaje, null, parseInt(CELESTE_LNB, 16), "normal", 1);
+        }
     } else {
         // Mensaje de información enviado
     }
@@ -8412,12 +8419,12 @@ async function procesarComando(jugador, mensaje) {
                                 
                                 if (resultado?.ok) {
                                     console.log(`🔑 ROL GUARDADO PERSISTENTEMENTE: ${jugador.name} (${authGuardado}) -> ${rolAsignado}`);
-                                    anunciarInfo(`✅ Rol ${rolAsignado} guardado permanentemente`, jugador);
+                                    // anunciarInfo(`✅ Rol ${rolAsignado} guardado permanentemente`, jugador);
                                 } else if (resultado?.reason === 'AUTH_REQUIRED') {
                                     // Notificar al jugador que necesita login de Haxball
-                                    anunciarError("🔑 ⚠️ Para que tu rol sea permanente, debes estar logueado en Haxball.com", jugador);
-                                    anunciarInfo(`📝 Ve a https://www.haxball.com/ y haz login antes de usar !claim`, jugador);
-                                    anunciarInfo(`🔍 Debug: AuthID recibido: ${typeof authGuardado} - "${authGuardado}"`, jugador);
+                                    // anunciarError("🔑 ⚠️ Para que tu rol sea permanente, debes estar logueado en Haxball.com", jugador);
+                                    // anunciarInfo(`📝 Ve a https://www.haxball.com/ y haz login antes de usar !claim`, jugador);
+                                    // anunciarInfo(`🔍 Debug: AuthID recibido: ${typeof authGuardado} - "${authGuardado}"`, jugador);
                                 } else {
                                     console.error(`❌ Error guardando rol persistente para ${jugador.name}:`, resultado);
                                 }
@@ -11143,7 +11150,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             topJugadores = jugadores
                 .sort((a, b) => b.goles - a.goles)
                 .slice(0, 10);
-            titulo = "⚽ TOP 10 GOLEADORES ⚽";
+            titulo = "[PV] ⚽ Gᴏʟᴇs ❯❯❯";
             unidad = "";
             // Eliminar el emoji de título adicional
             break;
@@ -11153,7 +11160,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             topJugadores = jugadores
                 .sort((a, b) => b.asistencias - a.asistencias)
                 .slice(0, 10);
-            titulo = "TOP 10 ASISTENTES";
+            titulo = "[PV] 👟 Asɪsᴛᴇɴᴄɪs ❯❯❯";
             emoji = "🎯";
             unidad = "";
             break;
@@ -11164,7 +11171,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             topJugadores = jugadores
                 .sort((a, b) => b.vallasInvictas - a.vallasInvictas)
                 .slice(0, 10);
-            titulo = "TOP 10 VALLAS INVICTAS";
+            titulo = "[PV] 🥅 Vᴀʟʟᴀs ❯❯❯";
             emoji = "🛡️";
             unidad = ""; // Formato compacto: solo el número
             break;
@@ -11173,7 +11180,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             topJugadores = jugadores
                 .sort((a, b) => b.autogoles - a.autogoles)
                 .slice(0, 10);
-            titulo = "TOP 10 AUTOGOLES";
+            titulo = "[PV] 😱 Aᴜᴛᴏɢᴏʟᴇs ❯❯❯";
             emoji = "😱";
             unidad = "";
             break;
@@ -11183,7 +11190,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             topJugadores = jugadores
                 .sort((a, b) => b.hatTricks - a.hatTricks)
                 .slice(0, 10);
-            titulo = "TOP 10 HAT-TRICKS";
+            titulo = "[PV] 🎩 Hᴀᴛ-ᴛʀɪᴄᴋꜱ ❯❯❯";
             emoji = "🎩";
             unidad = "";
             break;
@@ -11193,7 +11200,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             topJugadores = jugadores
                 .sort((a, b) => (b.mvps || 0) - (a.mvps || 0))
                 .slice(0, 10);
-            titulo = "TOP 10 MVPs";
+            titulo = "[PV] 👑 MVPꜱ ❯❯❯";
             emoji = "👑";
             unidad = "";
             break;
@@ -11203,7 +11210,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             topJugadores = jugadores
                 .sort((a, b) => b.partidos - a.partidos)
                 .slice(0, 10);
-            titulo = "TOP 10 PARTIDOS JUGADOS";
+            titulo = "[PV] 🎮 Pᴀʀᴛɪᴅᴏꜱ ❯❯❯";
             emoji = "🎮";
             unidad = "";
             break;
@@ -11217,7 +11224,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
                 }))
                 .sort((a, b) => b.puntuacionRank - a.puntuacionRank)
                 .slice(0, 10);
-            titulo = "🏆 TOP 10 RANKING GENERAL 🏆";
+            titulo = "[PV] 🏆 Rᴀɴᴋɪɴɢ ❯❯❯";
             emoji = "🏆";
             unidad = "puntos";
             break;
@@ -11281,23 +11288,25 @@ function mostrarTopJugadores(solicitante, estadistica) {
         
         // Emojis de posición
         let posicionEmoji = "";
+        // Emojis especiales para todas las estadísticas
         if (i === 0) posicionEmoji = "🥇";
         else if (i === 1) posicionEmoji = "🥈";
         else if (i === 2) posicionEmoji = "🥉";
-        else if (i === 3) posicionEmoji = "4️⃣";
-        else if (i === 4) posicionEmoji = "5️⃣";
-        else if (i === 5) posicionEmoji = "6️⃣";
-        else if (i === 6) posicionEmoji = "7️⃣";
-        else if (i === 7) posicionEmoji = "8️⃣";
-        else if (i === 8) posicionEmoji = "9️⃣";
+        else if (i === 3) posicionEmoji = "⿤";
+        else if (i === 4) posicionEmoji = "⿥";
+        else if (i === 5) posicionEmoji = "⿦";
+        else if (i === 6) posicionEmoji = "⿧";
+        else if (i === 7) posicionEmoji = "⿨";
+        else if (i === 8) posicionEmoji = "⿩";
         else if (i === 9) posicionEmoji = "🔟";
         else posicionEmoji = `${i + 1}.`;
         
         if (estadistica === "rank") {
-            // Formato especial para rank: solo nombre y valor
-            lineas.push(`${posicionEmoji} ${jugador.nombre}: ${valor}`);
+            // Formato especial para rank: nombre [valor puntos]
+            lineas.push(`${posicionEmoji} ${jugador.nombre} [${valor}]`);
         } else {
-            lineas.push(`${posicionEmoji} ${jugador.nombre}: ${valor} ${unidad} ${info}`);
+            // Formato especial con corchetes para todas las estadísticas: nombre [valor]
+            lineas.push(`${posicionEmoji} ${jugador.nombre} [${valor}]`);
         }
     });
     
@@ -11305,7 +11314,8 @@ function mostrarTopJugadores(solicitante, estadistica) {
     room.sendAnnouncement(lineas[0], solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
     
     // Unir todos los jugadores en una sola línea
-    const jugadoresEnLinea = lineas.slice(1).join(" • "); // Omitir solo el título
+    const separador = " ❯ "; // Usar separador ❯ para todas las estadísticas
+    const jugadoresEnLinea = lineas.slice(1).join(separador); // Omitir solo el título
     room.sendAnnouncement(jugadoresEnLinea, solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
 }
 

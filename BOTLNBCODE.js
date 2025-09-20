@@ -5195,11 +5195,12 @@ function balanceInteligente(razon = "balance automático") {
         room.setPlayerTeam(jugador.id, equipoMenorEnum);
         const equipoDestinoNombre = equipoMenorEnum === 1 ? '🔴 ROJO' : '🔵 AZUL';
         
-        if (partidoEnCurso) {
-            anunciarGeneral(`⚖️ 🔄 Balance: ${jugador.name} → ${equipoDestinoNombre}`, "FFD700", "bold");
-        } else {
-            anunciarGeneral(`⚖️ 🔄 Auto Balance: ${jugador.name} → ${equipoDestinoNombre}`, "87CEEB", "bold");
-        }
+        // Mensajes de movimiento deshabilitados para evitar spam en el chat
+        // if (partidoEnCurso) {
+        //     anunciarGeneral(`⚖️ 🔄 Balance: ${jugador.name} → ${equipoDestinoNombre}`, "FFD700", "bold");
+        // } else {
+        //     anunciarGeneral(`⚖️ 🔄 Auto Balance: ${jugador.name} → ${equipoDestinoNombre}`, "87CEEB", "bold");
+        // }
     }
 }
 
@@ -5459,8 +5460,8 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
         room.setPlayerTeam(jugadorSeleccionado.id, equipoMenorEnum);
         const equipoDestinoNombre = equipoMenorEnum === 1 ? '🔴 ROJO' : '🔵 AZUL';
         
-        // Mensaje individual de cada movimiento
-        anunciarGeneral(`⚖️ ${jugadorSeleccionado.name} → ${equipoDestinoNombre} (${i + 1}/${jugadoresAMover})`, "90EE90", "normal");
+        // Mensaje individual de cada movimiento - DESHABILITADO
+        // anunciarGeneral(`⚖️ ${jugadorSeleccionado.name} → ${equipoDestinoNombre} (${i + 1}/${jugadoresAMover})`, "90EE90", "normal");
         
         console.log(`✅ DEBUG: Movido ${jugadorSeleccionado.name} al equipo ${equipoMenorNombre} (${i + 1}/${jugadoresAMover})`);
     }
@@ -5735,9 +5736,9 @@ function balanceAutomaticoContinuo() {
                 if (jugadorDespues && jugadorDespues.team === equipoConMenos) {
                     console.log(`✅ DEBUG balanceAutomaticoContinuo: ${jugadorSeleccionado.name} movido EXITOSAMENTE de equipo ${equipoAnterior} al ${equipoConMenos}`);
                     
-                    // Anunciar el movimiento individual
+                    // Anunciar el movimiento individual - DESHABILITADO
                     const equipoDestinoEmoji = equipoConMenos === 1 ? '🔴' : '🔵';
-                    anunciarGeneral(`⚖️ ${jugadorSeleccionado.name} → ${equipoDestinoEmoji} ${equipoConMenosNombre}`, "90EE90", "normal");
+                    // anunciarGeneral(`⚖️ ${jugadorSeleccionado.name} → ${equipoDestinoEmoji} ${equipoConMenosNombre}`, "90EE90", "normal");
                 } else {
                     console.log(`❌ DEBUG balanceAutomaticoContinuo: FALLO al mover ${jugadorSeleccionado.name} - equipo actual: ${jugadorDespues ? jugadorDespues.team : 'desconectado'}`);
                 }

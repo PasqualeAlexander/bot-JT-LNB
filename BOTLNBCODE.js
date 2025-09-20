@@ -165,6 +165,21 @@ if (isNode) {
     }
 }
 
+// ==================== SISTEMA DE BANEOS OFFLINE ====================
+// Importar sistema de baneos offline para banear jugadores desconectados
+let OfflineBanSystem = null;
+let offlineBanSystem = null;
+if (isNode) {
+    try {
+        const offlineBanModule = require('./offline_ban_system.js');
+        OfflineBanSystem = offlineBanModule.OfflineBanSystem;
+        offlineBanSystem = offlineBanModule.offlineBanSystem;
+        console.log('✅ Sistema de baneos offline importado correctamente');
+    } catch (error) {
+        console.warn('⚠️ No se pudo importar el sistema de baneos offline:', error.message);
+    }
+}
+
 // ==================== SISTEMA DE FESTEJOS PERSISTENTES ====================
 // Importar sistema de festejos persistentes para mantener mensajes personalizados entre desconexiones
 let sistemaFestejosPersistente = null;
@@ -714,7 +729,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjOHC1SKg1pNadWiw.r_CSIC2L6vs";
+const token = "thr1.AAAAAGjOvQ8ZaTPCWRKZJA.W6USfsee1dw";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -9512,6 +9527,58 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             }
             break;
             
+        // ==================== COMANDOS DE BANEOS OFFLINE ====================
+        case "banoffline":
+        case "offlineban":
+            // Banear jugador aunque no esté conectado
+            if (!esSuperAdmin(jugador)) {
+                anunciarError("❌ Solo los Super Admins pueden banear offline", jugador);
+                return;
+            }
+            
+            if (args.length < 3) {
+                anunciarError("📝 Uso: !banoffline <jugador|auth_id> <duracion_minutos> <razón>", jugador);
+                anunciarError("💡 Ejemplo: !banoffline Carlos 60 Insultos", jugador);
+                anunciarError("💡 Duración 0 = permanente", jugador);
+                return;
+            }
+            
+            await procesarBaneoOffline(jugador, args);
+            break;
+            
+        case "findplayer":
+        case "buscarjugador":
+            // Buscar jugador en historial para banear offline
+            if (!esAdminBasico(jugador)) {
+                anunciarError("❌ Solo los admins pueden usar este comando", jugador);
+                return;
+            }
+            
+            if (args.length < 2) {
+                anunciarError("📝 Uso: !findplayer <nombre|auth_id>", jugador);
+                anunciarError("💡 Ejemplo: !findplayer Carlos", jugador);
+                return;
+            }
+            
+            await procesarBusquedaJugador(jugador, args[1]);
+            break;
+            
+        case "banstatus":
+        case "checkban":
+            // Verificar estado de baneo de un jugador
+            if (!esAdminBasico(jugador)) {
+                anunciarError("❌ Solo los admins pueden usar este comando", jugador);
+                return;
+            }
+            
+            if (args.length < 2) {
+                anunciarError("📝 Uso: !banstatus <jugador|auth_id>", jugador);
+                return;
+            }
+            
+            await procesarEstadoBaneo(jugador, args[1]);
+            break;
+            
         default:
 anunciarError("Comando no reconocido. Usa !ayuda para ver comandos disponibles", jugador);
     }
@@ -13511,6 +13578,20 @@ procesarComando(jugador, mensaje);
         // CRÍTICO: Verificar si el jugador está baneado antes de permitir la conexión
         let jugadorBaneado = false;
         
+        // 1. VERIFICAR BANEOS OFFLINE PRIMERO (sistema más avanzado)
+        if (offlineBanSystem) {
+            try {
+                const tienebaneoOffline = await offlineBanSystem.checkPlayerOnJoin(jugador);
+                if (tienebaneoOffline) {
+                    console.log(`🚫 BANEO OFFLINE: Jugador ${jugador.name} baneado por sistema offline`);
+                    return; // Impedir que continúe el proceso de unión
+                }
+            } catch (error) {
+                console.error('❌ Error verificando baneo offline:', error);
+                // Continuar con verificación estándar si hay error
+            }
+        }
+        
         try {
             console.log(`🚔 DEBUG: Verificando estado de baneo para ${jugador.name} (Auth: ${jugador.auth || 'N/A'})`);
             
@@ -15382,6 +15463,22 @@ function inicializar() {
         anunciarAdvertencia('⚠️ Sistema VIP básico activo (sin base de datos)');
     } else {
         console.log('✅ Sistema VIP ya estaba inicializado');
+    }
+    
+    // ==================== INICIALIZAR SISTEMA DE BANEOS OFFLINE ====================
+    // Inicializar sistema de baneos offline para banear jugadores desconectados
+    if (offlineBanSystem) {
+        try {
+            console.log('🔄 Inicializando sistema de baneos offline...');
+            await offlineBanSystem.initialize(room);
+            console.log('✅ Sistema de baneos offline inicializado correctamente');
+            anunciarInfo('🚫 Sistema de baneos offline activado - Comandos: !banoffline, !findplayer');
+        } catch (error) {
+            console.error('❌ Error al inicializar sistema de baneos offline:', error);
+            anunciarError('⚠️ Error al activar el sistema de baneos offline');
+        }
+    } else {
+        console.warn('⚠️ Sistema de baneos offline no está disponible');
     }
     
     // Cargar estadísticas globales desde localStorage

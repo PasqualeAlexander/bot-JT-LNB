@@ -13669,7 +13669,8 @@ setTimeout(() => {
         
         // Solo mostrar mensaje de desconexión si NO se fue voluntariamente
         if (!jugadoresSaliendoVoluntariamente.has(jugador.id)) {
-            anunciarGeneral(`👋 💨 ${nombreOriginal} se desconectó de la sala 💨`, "888888");
+            // Mensaje de desconexión eliminado por solicitud del usuario
+            // anunciarGeneral(`👋 💨 ${nombreOriginal} se desconectó de la sala 💨`, "888888");
         } else {
             // Limpiar el flag ya que el jugador ya salió
             jugadoresSaliendoVoluntariamente.delete(jugador.id);

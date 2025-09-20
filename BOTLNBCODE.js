@@ -729,7 +729,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjOvQ8ZaTPCWRKZJA.W6USfsee1dw";
+const token = "thr1.AAAAAGjO0zHqYFyIRpcg4A.0t3uHLl9sxQ";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -3662,7 +3662,7 @@ let jugadoresActivos = new Map(); // {playerID: identificadorUnico}
 let autoStartEnabled = true;
 let autoStopEnabled = true;
 let minJugadoresParaIniciar = 2; // Mínimo de jugadores para auto start (se ajustará según el mapa)
-let tiempoEsperaInicio = 800; // 0.8 segundos de espera antes de iniciar (optimizado)
+let tiempoEsperaInicio = 300; // 0.3 segundos de espera antes de iniciar (ULTRA RÁPIDO)
 let timeoutAutoStart = null;
 let mensajeAutoStartMostrado = false; // Controla si ya se mostró el mensaje de auto-start
 
@@ -6060,11 +6060,11 @@ function mezclarEquiposAleatoriamenteFinPartido() {
                     // CORRECCIÓN: Llamar múltiples veces a verificarAutoStart para asegurar que se ejecute
                     verificarAutoStart();
                     
-                    // Llamada adicional después de 1 segundo para asegurar que el auto-start funcione
+                    // Llamada adicional después de 100ms para asegurar que el auto-start funcione (ULTRA RÁPIDO)
                     setTimeout(() => {
                         console.log(`🚀 DEBUG fin partido: Segunda llamada a verificarAutoStart...`);
                         verificarAutoStart();
-                    }, 1000);
+                    }, 100);
                     
                     // Tercera llamada como respaldo
                     setTimeout(() => {
@@ -6197,9 +6197,9 @@ function mezclarEquiposAleatoriamente() {
             anunciarInfo(`💤 Jugadores AFK mantienen su estado: ${jugadoresAFK.map(j => j.name).join(", ")}`);
         }
         
-        // Mostrar los equipos formados y verificar que se hicieron correctamente
+        // Mostrar los equipos formados y verificar que se hicieron correctamente (ACELERADO)
         setTimeout(() => {
-            console.log(`🔍 DEBUG: Verificando equipos después de 500ms...`);
+            console.log(`🔍 DEBUG: Verificando equipos después de 100ms... (ULTRA RÁPIDO)`);
             
             const jugadoresActualizados = room.getPlayerList();
             console.log(`👥 DEBUG: ${jugadoresActualizados.length} jugadores conectados total`);
@@ -6231,15 +6231,15 @@ function mezclarEquiposAleatoriamente() {
                 // Mensaje informativo sobre el sistema permanente
                 anunciarInfo("ℹ️ Recordatorio: Usa !afk para ir a espectadores o !back para unirte a un equipo");
                 
-                // Verificar auto start después de desactivar bloqueo
+                // Verificar auto start después de desactivar bloqueo (ULTRA RÁPIDO)
                 setTimeout(() => {
                     console.log(`🚀 DEBUG: Llamando a verificarAutoStart después de la mezcla...`);
                     verificarAutoStart();
-                }, 200); // Reducir tiempo de espera
-            }, 500); // Reducir tiempo de bloqueo
-        }, 500);
+                }, 50); // ULTRA RÁPIDO: 50ms en lugar de 200ms
+            }, 100); // ULTRA RÁPIDO: 100ms en lugar de 500ms
+        }, 100); // ULTRA RÁPIDO: 100ms en lugar de 500ms
         
-    }, 500); // Esperar 0.5 segundos antes de mezclar
+    }, 100); // ULTRA RÁPIDO: 100ms en lugar de 500ms para mezclar
 }
 
 // FUNCIÓN PARA VERIFICAR AUTO STOP
@@ -6259,17 +6259,17 @@ function verificarAutoStop(jugadorDesconectado = null) {
 }
 
 // ==================== SISTEMA OPTIMIZADO DE INTERVALOS DINÁMICOS ====================
-let intervaloActualAFK = 15000; // Intervalo inicial: 15 segundos (optimizado para VPS 1vCPU)
+let intervaloActualAFK = 5000; // Intervalo inicial: 5 segundos (ULTRA RÁPIDO para detección)
 let ultimaVerificacionJugadores = 0;
 let cacheJugadoresCount = 0;
 
 // FUNCIÓN OPTIMIZADA: Calcula intervalos según carga de jugadores
 function calcularIntervaloOptimo(numeroJugadores) {
-    if (numeroJugadores === 0) return 30000;      // 30s - sala vacía (pausa casi total)
-    if (numeroJugadores <= 6) return 20000;      // 20s - pocos jugadores
-    if (numeroJugadores <= 12) return 15000;     // 15s - carga media
-    if (numeroJugadores <= 18) return 12000;     // 12s - carga alta
-    return 10000;                                 // 10s - sala llena (mínimo para estabilidad)
+    if (numeroJugadores === 0) return 10000;      // 10s - sala vacía (ACELERADO)
+    if (numeroJugadores <= 6) return 5000;       // 5s - pocos jugadores (ULTRA RÁPIDO)
+    if (numeroJugadores <= 12) return 3000;      // 3s - carga media (ULTRA RÁPIDO)
+    if (numeroJugadores <= 18) return 2000;      // 2s - carga alta (ULTRA RÁPIDO)
+    return 1000;                                  // 1s - sala llena (ULTRA RÁPIDO para auto-start)
 }
 
 // FUNCIÓN OPTIMIZADA: Actualiza intervalo dinámicamente
@@ -6571,17 +6571,17 @@ function verificarCambioMapaPostPartido() {
 }
 
 // ==================== SISTEMA OPTIMIZADO PARA DETECTAR CAMBIO DE MAPA ====================
-let intervaloActualMapa = 30000; // 30s inicial (optimizado para VPS)
+let intervaloActualMapa = 5000; // 5s inicial (ULTRA RÁPIDO para cambios de mapa)
 let ultimoCountJugadoresMapa = 0;
 let ultimaVerificacionMapa = 0;
 
 // FUNCIÓN OPTIMIZADA: Calcula intervalo según estado del juego
 function calcularIntervaloMapa(partidoEnCurso, numeroJugadores) {
-    if (numeroJugadores === 0) return 60000;          // 60s - sala vacía
-    if (!partidoEnCurso && numeroJugadores <= 4) return 45000;  // 45s - sin partido, pocos jugadores
-    if (!partidoEnCurso) return 30000;                // 30s - sin partido
-    if (partidoEnCurso && numeroJugadores >= 12) return 20000; // 20s - partido activo, muchos jugadores
-    return 25000;                                     // 25s - partido activo, jugadores normales
+    if (numeroJugadores === 0) return 10000;          // 10s - sala vacía (ACELERADO)
+    if (!partidoEnCurso && numeroJugadores <= 4) return 3000;  // 3s - sin partido, pocos jugadores (ULTRA RÁPIDO)
+    if (!partidoEnCurso) return 2000;                 // 2s - sin partido (ULTRA RÁPIDO para auto-start)
+    if (partidoEnCurso && numeroJugadores >= 12) return 5000; // 5s - partido activo, muchos jugadores
+    return 3000;                                      // 3s - partido activo, jugadores normales
 }
 
 // FUNCIÓN OPTIMIZADA: Actualiza intervalo de detección de mapa
@@ -12863,7 +12863,7 @@ function contieneCaracteresProhibidos(mensaje) {
 
 function configurarEventos() {
     // Chat del jugador
-    room.onPlayerChat = async function(jugador, mensaje) {
+    room.onPlayerChat = function(jugador, mensaje) {
         if (contieneCaracteresProhibidos(mensaje)) {
             return false;
         }
@@ -13277,64 +13277,64 @@ function configurarEventos() {
         const nivel = obtenerNivelJugador(nombreOriginal);
         const emojiNivel = obtenerEmojiNivel(nivel);
         
-        // Verificar estado VIP de forma asíncrona
+        // Verificar estado VIP de forma síncrona (para evitar async en onPlayerChat)
         let esVIP = false;
         let tipoVIP = null;
         let colorVIP = "FFFFFF"; // Blanco por defecto
         
-        if (vipBot) {
-            try {
-                const vipStatus = await vipBot.vipSystem.checkVIPStatus(nombreOriginal);
-                if (vipStatus && vipStatus.vip_type) {
-                    esVIP = true;
-                    tipoVIP = vipStatus.vip_type;
-                    // Definir colores para cada tipo de VIP
-                    colorVIP = tipoVIP === 'ULTRA_VIP' ? 'FFD700' : 'FFAA00'; // Dorado para Ultra VIP, Naranja para VIP
-                }
-            } catch (error) {
-                console.error('Error verificando estado VIP para chat:', error);
-            }
-        }
+        // Verificación VIP básica sin await (para evitar problemas con return false)
+        // TODO: Implementar cache VIP síncrono si es necesario
+        // Por ahora, solo usar el sistema de roles existente
         
-        // Determinar formato según el rol y estado VIP
+        // Determinar formato según el rol
         let prefijoRol = '';
         let mensajeCompleto = '';
+        let estiloMensaje = 'normal'; // Por defecto normal
         
         if (esSuperAdmin(jugador)) {
             prefijoRol = `[👑 • ${emojiNivel} Nv. `;
             mensajeCompleto = `${prefijoRol}${nivel}] ${nombreOriginal}: ${mensaje}`;
-            colorVIP = "FF0000"; // Rojo para super admins
+            colorVIP = "FFFFFF"; // BLANCO para super admins
         } else if (esAdminBasico(jugador)) {
             prefijoRol = `[👮🏻 • ${emojiNivel} Nv. `;
             mensajeCompleto = `${prefijoRol}${nivel}] ${nombreOriginal}: ${mensaje}`;
-            colorVIP = "FFA500"; // Naranja para admins
-        } else if (esVIP && tipoVIP === 'ULTRA_VIP') {
-            // ULTRA VIP: Formato especial con corona y efectos
-            prefijoRol = `[👑 ULTRA VIP • ${emojiNivel} Nv. `;
-            mensajeCompleto = `${prefijoRol}${nivel}] ✨${nombreOriginal}✨: ${mensaje}`;
-        } else if (esVIP && tipoVIP === 'VIP') {
-            // VIP: Formato especial con diamante
-            prefijoRol = `[💎 VIP • ${emojiNivel} Nv. `;
-            mensajeCompleto = `${prefijoRol}${nivel}] ⭐${nombreOriginal}: ${mensaje}`;
+            colorVIP = "FFFFFF"; // BLANCO para admins
+        } else if (esVIP && (tipoVIP === 'ULTRA_VIP' || tipoVIP === 'VIP')) {
+            // VIP y ULTRA VIP: Color naranja y formato bold
+            if (tipoVIP === 'ULTRA_VIP') {
+                prefijoRol = `[👑 ULTRA VIP • ${emojiNivel} Nv. `;
+                mensajeCompleto = `${prefijoRol}${nivel}] ✨${nombreOriginal}✨: ${mensaje}`;
+            } else {
+                prefijoRol = `[💎 VIP • ${emojiNivel} Nv. `;
+                mensajeCompleto = `${prefijoRol}${nivel}] ⭐${nombreOriginal}: ${mensaje}`;
+            }
+            colorVIP = "FF8800"; // NARANJA para VIPs
+            estiloMensaje = 'bold'; // BOLD para VIPs
         } else {
             // Jugador normal
             prefijoRol = '〔Nv. ';
             mensajeCompleto = `${prefijoRol}${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensaje}`;
+            colorVIP = "FFFFFF"; // BLANCO para jugadores normales
         }
         
-        // Retransmitir TODOS los mensajes con formato apropiado (admins, VIP y jugadores normales)
-        // Esto evita duplicación de mensajes en el chat
-        
-        // Determinar el color según el tipo de jugador
-        const colorChat = esSuperAdmin(jugador) || esAdminBasico(jugador) || esVIP 
-            ? parseInt(colorVIP, 16)  // Color especial para admin/VIP
-            : parseInt("FFFFFF", 16); // Color blanco para jugadores normales
+        // Solo retransmitir si es admin, super admin o VIP (para darles formato especial)
+        // Los jugadores normales usan el chat nativo de HaxBall
+        if (esSuperAdmin(jugador) || esAdminBasico(jugador) || esVIP) {
+            console.log(`🎮 CHAT DEBUG: Enviando mensaje formateado para admin/VIP/SuperAdmin`);
             
-        // Retransmitir el mensaje con el formato y color apropiados
-        room.sendAnnouncement(mensajeCompleto, null, colorChat, "normal", 1);
+            // Usar el color y estilo determinados arriba
+            const colorChat = parseInt(colorVIP, 16);
+            
+            // Retransmitir el mensaje con el formato, color y estilo apropiados
+            room.sendAnnouncement(mensajeCompleto, null, colorChat, estiloMensaje, 1);
+            
+            console.log(`🎮 CHAT DEBUG: Retornando false para admin/VIP/SuperAdmin`);
+            return false; // No mostrar el mensaje original sin formato
+        }
         
-        // IMPORTANTE: No mostrar el mensaje original para EVITAR DUPLICACIÓN
-        return false;
+        // Para jugadores normales, permitir que HaxBall maneje el mensaje naturalmente
+        console.log(`🎮 CHAT DEBUG: Permitiendo mensaje nativo para jugador normal`);
+        return true;
     };
     
     // Jugador se une

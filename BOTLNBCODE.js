@@ -5947,7 +5947,7 @@ function mezclarEquiposAleatoriamenteFinPartido() {
     const jugadoresEnEquipos = todosJugadores.filter(j => j.team === 1 || j.team === 2);
     
     if (jugadoresEnEquipos.length < 2) {
-        anunciarInfo("⚠️ Se necesitan al menos 2 jugadores en equipos para mezclar");
+        // Silenciosamente cancelar la mezcla si no hay suficientes jugadores
         mezclaProcesandose = false; // Desactivar control
         return;
     }
@@ -6095,7 +6095,7 @@ function mezclarEquiposAleatoriamente() {
     console.log(`🔄 DEBUG mezcla: ${jugadoresEnEquipos.length} jugadores en equipos de ${todosJugadores.length} totales`);
     
     if (jugadoresEnEquipos.length < 2) {
-        anunciarInfo("⚠️ Se necesitan al menos 2 jugadores en equipos para mezclar");
+        // Silenciosamente cancelar la mezcla si no hay suficientes jugadores
         console.log(`❌ DEBUG mezcla: No hay suficientes jugadores (${jugadoresEnEquipos.length})`);
         return;
     }
@@ -6817,7 +6817,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx1");
-            anunciarInfo(`🔄 Menos de 3 jugadores durante partido (${jugadoresActivos}). Cambiando de x3 a x1...`);
+            // Cambio de mapa silencioso de x3 a x1
             
             setTimeout(() => {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos
@@ -7188,7 +7188,7 @@ function iniciarAnunciosDiscord() {
     intervalDiscord = setInterval(() => {
         try {
             if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-                room.sendAnnouncement("⚡¿Tenés equipo o querés armar uno para jugar BIGGER competitivo? 👉 Unite: discord.gg/nJRhZXRNCA", null, parseInt(CELESTE_LNB, 16), "bold", 0);
+                room.sendAnnouncement("⚡¿TENÉS EQUIPO O QUERÉS ARMAR UNO PARA JUGAR BIGGER COMPETITIVO? 👉 UNITE: DISCORD.GG/NJRHZXRNCA", null, parseInt(COLORES.DORADO, 16), "bold", 0);
             }
         } catch (error) {
             // Error en anuncio de Discord
@@ -10812,7 +10812,9 @@ function registrarJugadorGlobal(nombre) {
             promedioGoles: 0,
             promedioAsistencias: 0,
             fechaPrimerPartido: new Date().toISOString(),
-            fechaUltimoPartido: new Date().toISOString()
+            fechaUltimoPartido: new Date().toISOString(),
+            xp: 40,  // XP inicial para jugadores nuevos
+            nivel: 1 // Nivel inicial
         };
     }
     return estadisticasGlobales.jugadores[nombre];
@@ -14056,6 +14058,17 @@ setTimeout(() => {
         try {
             if (!estadisticasGlobales.jugadores[jugador.name]) {
                 registrarJugadorGlobal(jugador.name);
+                console.log(`✅ DEBUG: Jugador nuevo registrado: ${jugador.name} con XP inicial y nivel 1`);
+                
+                // Actualizar formato de nombre para jugadores nuevos después de un breve delay
+                setTimeout(() => {
+                    try {
+                        actualizarNombreConNivel(jugador);
+                        console.log(`🎨 DEBUG: Formato de nivel aplicado a jugador nuevo: ${jugador.name}`);
+                    } catch (updateError) {
+                        console.error('❌ Error actualizando formato de nombre:', updateError);
+                    }
+                }, 1500);
             }
         } catch (error) {
             console.error('❌ Error registrando jugador global:', error);

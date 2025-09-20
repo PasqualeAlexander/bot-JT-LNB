@@ -13322,16 +13322,19 @@ function configurarEventos() {
             mensajeCompleto = `${prefijoRol}${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensaje}`;
         }
         
-        // Solo retransmitir si es admin o VIP (para darles formato especial)
-        // Los jugadores normales usan el chat nativo de HaxBall
-        if (esSuperAdmin(jugador) || esAdminBasico(jugador) || esVIP) {
-            // Retransmitir el mensaje con el formato y color apropiados
-            room.sendAnnouncement(mensajeCompleto, null, parseInt(colorVIP, 16), "normal", 1);
-            return false; // No mostrar el mensaje original sin formato
-        }
+        // Retransmitir TODOS los mensajes con formato apropiado (admins, VIP y jugadores normales)
+        // Esto evita duplicación de mensajes en el chat
         
-        // Para jugadores normales, permitir que HaxBall maneje el mensaje naturalmente
-        return true;
+        // Determinar el color según el tipo de jugador
+        const colorChat = esSuperAdmin(jugador) || esAdminBasico(jugador) || esVIP 
+            ? parseInt(colorVIP, 16)  // Color especial para admin/VIP
+            : parseInt("FFFFFF", 16); // Color blanco para jugadores normales
+            
+        // Retransmitir el mensaje con el formato y color apropiados
+        room.sendAnnouncement(mensajeCompleto, null, colorChat, "normal", 1);
+        
+        // IMPORTANTE: No mostrar el mensaje original para EVITAR DUPLICACIÓN
+        return false;
     };
     
     // Jugador se une

@@ -5821,14 +5821,14 @@ function autoBalanceEquipos() {
 // Variables para controlar la frecuencia de verificarAutoStart
 let ultimaVerificacionAutoStart = 0;
 let verificandoAutoStart = false;
-const INTERVALO_MINIMO_VERIFICACION = 3000; // 3 segundos mínimo entre verificaciones (optimizado)
+const INTERVALO_MINIMO_VERIFICACION = 1000; // 1 segundo mínimo (CORREGIDO para mezclas)
 
 // FUNCIÓN PARA VERIFICAR AUTO START
-function verificarAutoStart() {
+function verificarAutoStart(forzarVerificacion = false) {
     const ahora = Date.now();
     
-    // Evitar llamadas muy frecuentes
-    if (ahora - ultimaVerificacionAutoStart < INTERVALO_MINIMO_VERIFICACION) {
+    // Evitar llamadas muy frecuentes (excepto si se fuerza)
+    if (!forzarVerificacion && ahora - ultimaVerificacionAutoStart < INTERVALO_MINIMO_VERIFICACION) {
         return;
     }
     
@@ -5872,11 +5872,13 @@ function verificarAutoStart() {
         return;
     }
     
-    // Usar cache optimizado en lugar de llamadas repetidas a getPlayerList
-    const jugadores = getPlayerListCached();
+    // CORRECCIÓN: Usar siempre datos frescos para evitar problemas post-mezcla
+    const jugadores = room.getPlayerList();
     const jugadoresRed = jugadores.filter(j => j.team === 1).length;
     const jugadoresBlue = jugadores.filter(j => j.team === 2).length;
     const totalJugadores = jugadoresRed + jugadoresBlue;
+    
+    console.log(`🔍 DEBUG AutoStart: ${totalJugadores} jugadores (R:${jugadoresRed}, B:${jugadoresBlue}), Mapa: ${mapaActual}, Min: ${mapas[mapaActual]?.minJugadores || 2}`);
     
     // Obtener mínimo de jugadores según el mapa actual
     const minJugadoresActual = mapas[mapaActual] ? mapas[mapaActual].minJugadores : 2;
@@ -5884,6 +5886,7 @@ function verificarAutoStart() {
     // Verificar si hay suficientes jugadores y equipos balanceados
     if (totalJugadores >= minJugadoresActual && Math.abs(jugadoresRed - jugadoresBlue) <= 1) {
         // Condiciones cumplidas
+        console.log(`✅ DEBUG AutoStart: Condiciones cumplidas para iniciar partido`);
         
         if (timeoutAutoStart) {
             clearTimeout(timeoutAutoStart);
@@ -5915,7 +5918,15 @@ function verificarAutoStart() {
             mensajeAutoStartMostrado = true;
         }
     } else {
-        // Logs eliminados para optimizar rendimiento
+        // CORRECCIÓN: Loguear por qué no se cumplen las condiciones
+        const razonFalla = [];
+        if (totalJugadores < minJugadoresActual) {
+            razonFalla.push(`jugadores insuficientes (${totalJugadores}/${minJugadoresActual})`);
+        }
+        if (Math.abs(jugadoresRed - jugadoresBlue) > 1) {
+            razonFalla.push(`equipos desbalanceados (R:${jugadoresRed}, B:${jugadoresBlue})`);
+        }
+        console.log(`❌ DEBUG AutoStart: Condiciones NO cumplidas - ${razonFalla.join(", ")}`);
         
         // Cancelar auto start si las condiciones no se cumplen
         if (timeoutAutoStart) {
@@ -6057,19 +6068,20 @@ function mezclarEquiposAleatoriamenteFinPartido() {
                         detectarCambioMapa();
                     }
                     
-                    // CORRECCIÓN: Llamar múltiples veces a verificarAutoStart para asegurar que se ejecute
-                    verificarAutoStart();
+                    // CORRECCIÓN: Llamadas forzadas para asegurar que se ejecute post-mezcla
+                    console.log(`🚀 DEBUG fin partido: Forzando verificarAutoStart post-mezcla...`);
+                    verificarAutoStart(true);
                     
-                    // Llamada adicional después de 100ms para asegurar que el auto-start funcione (ULTRA RÁPIDO)
+                    // Llamada adicional después de 500ms para garantizar que funcione
                     setTimeout(() => {
-                        console.log(`🚀 DEBUG fin partido: Segunda llamada a verificarAutoStart...`);
-                        verificarAutoStart();
-                    }, 100);
+                        console.log(`🚀 DEBUG fin partido: Segunda llamada forzada a verificarAutoStart...`);
+                        verificarAutoStart(true);
+                    }, 500);
                     
-                    // Tercera llamada como respaldo
+                    // Tercera llamada como respaldo final
                     setTimeout(() => {
-                        console.log(`🚀 DEBUG fin partido: Tercera llamada a verificarAutoStart (respaldo)...`);
-                        verificarAutoStart();
+                        console.log(`🚀 DEBUG fin partido: Tercera llamada forzada a verificarAutoStart (respaldo)...`);
+                        verificarAutoStart(true);
                     }, 2000);
                     
                 }, 500); // Aumentado a 500ms para dar más tiempo
@@ -6231,11 +6243,17 @@ function mezclarEquiposAleatoriamente() {
                 // Mensaje informativo sobre el sistema permanente
                 anunciarInfo("ℹ️ Recordatorio: Usa !afk para ir a espectadores o !back para unirte a un equipo");
                 
-                // Verificar auto start después de desactivar bloqueo (ULTRA RÁPIDO)
+                // CORRECCIÓN: Verificar auto start con llamadas forzadas post-mezcla manual
                 setTimeout(() => {
-                    console.log(`🚀 DEBUG: Llamando a verificarAutoStart después de la mezcla...`);
-                    verificarAutoStart();
-                }, 50); // ULTRA RÁPIDO: 50ms en lugar de 200ms
+                    console.log(`🚀 DEBUG: Forzando verificarAutoStart después de la mezcla manual...`);
+                    verificarAutoStart(true);
+                    
+                    // Llamada adicional como respaldo
+                    setTimeout(() => {
+                        console.log(`🔄 DEBUG: Segunda llamada forzada post-mezcla manual...`);
+                        verificarAutoStart(true);
+                    }, 1000);
+                }, 200); // Mayor delay para asegurar que los equipos estén formados
             }, 100); // ULTRA RÁPIDO: 100ms en lugar de 500ms
         }, 100); // ULTRA RÁPIDO: 100ms en lugar de 500ms
         
@@ -6464,14 +6482,14 @@ function verificarCambioMapaPostPartido() {
                 // 2. Luego esperar un poco y verificar auto-start con más tiempo
                 setTimeout(() => {
                     console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio post-partido...`);
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     
                     // 3. Verificación adicional para asegurar inicio
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
                             console.log(`🔄 DEBUG: Verificación adicional post-partido - Forzando auto-start...`);
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         
                         // 4. Finalmente liberar el bloqueo
@@ -6497,11 +6515,11 @@ function verificarCambioMapaPostPartido() {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
                 setTimeout(() => {
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         cambioMapaEnProceso = false;
                     }, 3000);
@@ -6526,11 +6544,11 @@ function verificarCambioMapaPostPartido() {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
                 setTimeout(() => {
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         cambioMapaEnProceso = false;
                     }, 3000);
@@ -6556,11 +6574,11 @@ function verificarCambioMapaPostPartido() {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
                 setTimeout(() => {
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         cambioMapaEnProceso = false;
                     }, 3000);
@@ -6586,11 +6604,11 @@ function verificarCambioMapaPostPartido() {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
                 setTimeout(() => {
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         cambioMapaEnProceso = false;
                     }, 3000);
@@ -6616,11 +6634,11 @@ function verificarCambioMapaPostPartido() {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
                 setTimeout(() => {
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         cambioMapaEnProceso = false;
                     }, 3000);
@@ -6745,14 +6763,14 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
                 // 2. Luego esperar un poco y verificar auto-start con más tiempo
                 setTimeout(() => {
                     console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio...`);
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     
                     // 3. Verificación adicional para asegurar inicio
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
                             console.log(`🔄 DEBUG: Verificación adicional - Forzando auto-start...`);
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         
                         // 4. Finalmente liberar el bloqueo
@@ -6787,14 +6805,14 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
                 // 2. Luego esperar un poco y verificar auto-start con más tiempo
                 setTimeout(() => {
                     console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio...`);
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     
                     // 3. Verificación adicional para asegurar inicio
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
                             console.log(`🔄 DEBUG: Verificación adicional - Forzando auto-start...`);
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         
                         // 4. Finalmente liberar el bloqueo
@@ -6829,14 +6847,14 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
                 // 2. Luego esperar un poco y verificar auto-start con más tiempo
                 setTimeout(() => {
                     console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio...`);
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     
                     // 3. Verificación adicional para asegurar inicio
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
                             console.log(`🔄 DEBUG: Verificación adicional - Forzando auto-start...`);
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         
                         // 4. Finalmente liberar el bloqueo
@@ -7080,14 +7098,14 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
                 // 2. Luego esperar un poco y verificar auto-start con más tiempo
                 setTimeout(() => {
                     console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio (fuera de partido)...`);
-                    verificarAutoStart();
+                    verificarAutoStart(true);
                     
                     // 3. Verificación adicional para asegurar inicio
                     setTimeout(() => {
                         const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
                         if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
                             console.log(`🔄 DEBUG: Verificación adicional fuera de partido - Forzando auto-start...`);
-                            verificarAutoStart();
+                            verificarAutoStart(true);
                         }
                         
                         // 4. Finalmente liberar el bloqueo

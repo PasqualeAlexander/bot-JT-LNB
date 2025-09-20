@@ -700,7 +700,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjOAIgvLdk9uhIjUg.h8SRVa6lerU";
+const token = "thr1.AAAAAGjOHC1SKg1pNadWiw.r_CSIC2L6vs";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -5147,7 +5147,7 @@ function balanceInteligente(razon = "balance automático") {
     const equipoVacio = jugadoresRed.length === 0 || jugadoresBlue.length === 0;
     if (equipoVacio && totalJugadoresEnEquipos >= 2 && !partidoEnCurso) {
         console.log(`🔥 DEBUG: Equipo completamente vacío con ${totalJugadoresEnEquipos} jugadores. Activando mezcla completa...`);
-        anunciarGeneral(`🔄 ⚡ REORGANIZANDO EQUIPOS POR EQUIPO VACÍO... ⚡ 🔄`, "FFD700", "bold");
+        // anunciarGeneral(`🔄 ⚡ REORGANIZANDO EQUIPOS POR EQUIPO VACÍO... ⚡ 🔄`, "FFD700", "bold");
         
         setTimeout(() => {
             mezclarEquiposAleatoriamente();
@@ -5339,7 +5339,7 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
     const equipoVacio = jugadoresRed.length === 0 || jugadoresBlue.length === 0;
     if (equipoVacio && totalJugadoresEnEquipos >= 2 && !partidoEnCurso) {
         console.log(`🔥 DEBUG: Aplicando mezcla completa por equipo vacío`);
-        anunciarGeneral(`🔄 ⚡ REORGANIZANDO EQUIPOS (equipo vacío tras salida)... ⚡ 🔄`, "FFD700", "bold");
+        // anunciarGeneral(`🔄 ⚡ REORGANIZANDO EQUIPOS (equipo vacío tras salida)... ⚡ 🔄`, "FFD700", "bold");
         
         setTimeout(() => {
             mezclarEquiposAleatoriamente();
@@ -5441,12 +5441,12 @@ function balanceInteligentePostSalida(nombreJugadorSalido = "jugador") {
         mensajeBalance = `⚖️ ⚡ Balance Dinámico: ${equipoMayorSize}v${equipoMenorSize} → ${equipoMayorFinal}v${equipoMenorFinal} ⚡`;
     }
     
-    // Anunciar el balance con mensaje específico
-    if (partidoEnCurso) {
-        anunciarGeneral(mensajeBalance + " (en partido)", "FFD700", "bold");
-    } else {
-        anunciarGeneral(mensajeBalance, "87CEEB", "bold");
-    }
+    // Anunciar el balance con mensaje específico - DESACTIVADO
+    // if (partidoEnCurso) {
+    //     anunciarGeneral(mensajeBalance + " (en partido)", "FFD700", "bold");
+    // } else {
+    //     anunciarGeneral(mensajeBalance, "87CEEB", "bold");
+    // }
     
     console.log(`⚖️ DEBUG: Sistema dinámico - moviendo ${jugadoresAMover} jugador(es) del equipo ${equipoMayorNombre} al ${equipoMenorNombre}`);
     
@@ -5671,10 +5671,10 @@ function balanceAutomaticoContinuo() {
             console.log(`   ${jugador.name}: Bot=${esBot}, AFK=${esAFK}, EnEquipo=${enEquipo}`);
         });
         
-        // PROBLEMA DETECTADO: Informar al chat que no se puede balancear
-        if (equipoConMas.length > 0) {
-            anunciarGeneral(`⚖️ ❌ No se puede equilibrar: jugadores no disponibles para balance`, "FFA500", "normal");
-        }
+        // PROBLEMA DETECTADO: Informar al chat que no se puede balancear - DESACTIVADO
+        // if (equipoConMas.length > 0) {
+        //     anunciarGeneral(`⚖️ ❌ No se puede equilibrar: jugadores no disponibles para balance`, "FFA500", "normal");
+        // }
         
         return false;
     }
@@ -5698,8 +5698,8 @@ function balanceAutomaticoContinuo() {
         return false;
     }
     
-    // CORRECCIÓN: Anunciar el balance ANTES de mover jugadores (para confirmar que llega hasta aquí)
-    // anunciarGeneral(`⚖️ 🔄 Equilibrando equipos por desconexión (${jugadoresAMover} jugador${jugadoresAMover > 1 ? 'es' : ''})...`, "87CEEB", "bold");
+    // CORRECIÓN: Anunciar el balance ANTES de mover jugadores (para confirmar que llega hasta aquí) - DESACTIVADO
+    // anunciarGeneral(`⚖️ 🔄 Equilibrando equipos por desconexión (${jugadoresAMover} jugador${jugadoresAMover > 1 ? 'es' : ''})…`, "87CEEB", "bold");
     
     // CORRECCIÓN: Mezclar candidatos y mover uno por uno con verificaciones
     const candidatosAleatorios = [...candidatos].sort(() => 0.5 - Math.random());
@@ -7454,12 +7454,17 @@ async function procesarComando(jugador, mensaje) {
             
             if (tipoFestejo === 'gol') {
                 if (mensajeArgs.length === 0) {
-                    // USAR SISTEMA PERSISTENTE: Obtener mensaje actual usando auth
+                    // USAR SISTEMA PERSISTENTE: Obtener mensaje actual usando auth via funciones expuestas
                     let mensajeActual = "¡GOOOOOL!";
-                    if (obtenerMensajeFestejo && jugador.auth) {
-                        const mensajePersistente = obtenerMensajeFestejo(jugador.auth, 'gol');
-                        if (mensajePersistente) {
-                            mensajeActual = mensajePersistente;
+                    const authJugadorGol = jugador.auth || jugadoresUID.get(jugador.id);
+                    if (typeof nodeObtenerMensajeFestejo === 'function' && authJugadorGol) {
+                        try {
+                            const mensajePersistente = await nodeObtenerMensajeFestejo(authJugadorGol, 'gol');
+                            if (mensajePersistente) {
+                                mensajeActual = mensajePersistente;
+                            }
+                        } catch (error) {
+                            console.error('❌ Error obteniendo mensaje de gol:', error);
                         }
                     }
                     room.sendAnnouncement(`🎯 Tu mensaje de gol actual: "${mensajeActual}"`, jugador.id, parseInt(AZUL_LNB, 16), "bold", 0);
@@ -7470,21 +7475,43 @@ async function procesarComando(jugador, mensaje) {
                         return;
                     }
                     
-                    // USAR SISTEMA PERSISTENTE: Guardar mensaje usando auth
-                    if (guardarFestejo && jugador.auth) {
+                    // USAR SISTEMA PERSISTENTE: Guardar mensaje usando auth via funciones expuestas
+                    console.log(`🎉 [FESTEJO DEBUG] Intentando guardar festejo de gol para ${jugador.name}:`);
+                    console.log(`🎉 [FESTEJO DEBUG] - nodeGuardarFestejo disponible: ${typeof nodeGuardarFestejo === 'function'}`);
+                    console.log(`🎉 [FESTEJO DEBUG] - jugador.auth disponible: ${!!jugador.auth}`);
+                    console.log(`🎉 [FESTEJO DEBUG] - jugador.auth valor: ${jugador.auth}`);
+                    
+                    // CORRECIÓN CRÍTICA: Usar jugadoresUID para obtener el auth guardado
+                    const authJugador = jugador.auth || jugadoresUID.get(jugador.id);
+                    console.log(`🎉 [FESTEJO DEBUG] - auth desde jugadoresUID: ${jugadoresUID.get(jugador.id)}`);
+                    console.log(`🎉 [FESTEJO DEBUG] - auth final a usar: ${authJugador}`);
+                    console.log(`🎉 [FESTEJO DEBUG] - mensaje: "${mensaje}"`);
+                    
+                    if (typeof nodeGuardarFestejo === 'function' && authJugador) {
+                        console.log(`🎉 [FESTEJO DEBUG] Usando sistema persistente para guardar`);
                         try {
-                            const resultado = await guardarFestejo(jugador.auth, jugador.name || 'Desconocido', 'gol', mensaje);
+                            console.log(`🎉 [FESTEJO DEBUG] Llamando nodeGuardarFestejo con auth: ${authJugador}`);
+                            const resultado = await nodeGuardarFestejo(authJugador, jugador.name || 'Desconocido', 'gol', mensaje);
+                            console.log(`🎉 [FESTEJO DEBUG] Resultado de nodeGuardarFestejo:`, resultado);
                             if (resultado.success) {
                                 room.sendAnnouncement(`⚽ Mensaje de gol configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
                                 console.log(`💾 [FESTEJOS] Mensaje de gol guardado para jugador ${jugador.name} (${jugador.auth}): "${mensaje}"`);
+                                
+                                // CORRECIÓN: Actualizar cache inmediatamente usando el auth correcto
+                                const cacheExistente = cacheMensajesPersonalizados.get(authJugador) || {};
+                                cacheExistente.gol = mensaje;
+                                cacheMensajesPersonalizados.set(authJugador, cacheExistente);
+                                console.log(`💾 [CACHE DEBUG] Cache actualizado tras guardar gol para ${jugador.name} con auth: ${authJugador}`);
                             } else {
                                 anunciarError("❌ Error al guardar el mensaje de gol: " + (resultado.error || 'Unknown'), jugador);
                             }
                         } catch (error) {
-                            console.error('❌ Error en guardarFestejo:', error);
+                            console.error('❌ Error en nodeGuardarFestejo:', error);
                             anunciarError("❌ Error al guardar el mensaje de gol", jugador);
                         }
                     } else {
+                        console.log(`🎉 [FESTEJO DEBUG] Usando fallback - sistema temporal`);
+                        console.log(`🎉 [FESTEJO DEBUG] - Razón: nodeGuardarFestejo=${typeof nodeGuardarFestejo === 'function'}, authFinal=${!!authJugador}`);
                         // Fallback al sistema anterior si no está disponible el persistente
                         if (!mensajesPersonalizados.has(jugador.id)) {
                             mensajesPersonalizados.set(jugador.id, {});
@@ -7492,17 +7519,23 @@ async function procesarComando(jugador, mensaje) {
                         const msgs = mensajesPersonalizados.get(jugador.id);
                         msgs.gol = mensaje;
                         msgs.ultimoUso = Date.now();
-                        room.sendAnnouncement(`⚽ Mensaje de gol configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
+                        console.log(`🎉 [FESTEJO DEBUG] Mensaje guardado en sistema temporal para ID ${jugador.id}`);
+                        room.sendAnnouncement(`⚽ Mensaje de gol configurado: "${mensaje}" (temporal)`, jugador.id, parseInt("00FF00", 16), "bold", 0);
                     }
                 }
             } else if (tipoFestejo === 'asis' || tipoFestejo === 'asistencia') {
                 if (mensajeArgs.length === 0) {
-                    // USAR SISTEMA PERSISTENTE: Obtener mensaje actual usando auth
+                    // USAR SISTEMA PERSISTENTE: Obtener mensaje actual usando auth via funciones expuestas
                     let mensajeActual = "¡Qué asistencia!";
-                    if (obtenerMensajeFestejo && jugador.auth) {
-                        const mensajePersistente = obtenerMensajeFestejo(jugador.auth, 'asistencia');
-                        if (mensajePersistente) {
-                            mensajeActual = mensajePersistente;
+                    const authJugadorAsist = jugador.auth || jugadoresUID.get(jugador.id);
+                    if (typeof nodeObtenerMensajeFestejo === 'function' && authJugadorAsist) {
+                        try {
+                            const mensajePersistente = await nodeObtenerMensajeFestejo(authJugadorAsist, 'asistencia');
+                            if (mensajePersistente) {
+                                mensajeActual = mensajePersistente;
+                            }
+                        } catch (error) {
+                            console.error('❌ Error obteniendo mensaje de asistencia:', error);
                         }
                     }
                     room.sendAnnouncement(`🎯 Tu mensaje de asistencia actual: "${mensajeActual}"`, jugador.id, parseInt(AZUL_LNB, 16), "bold", 0);
@@ -7513,18 +7546,26 @@ async function procesarComando(jugador, mensaje) {
                         return;
                     }
                     
-                    // USAR SISTEMA PERSISTENTE: Guardar mensaje usando auth
-                    if (guardarFestejo && jugador.auth) {
+                    // USAR SISTEMA PERSISTENTE: Guardar mensaje usando auth via funciones expuestas
+                    const authJugadorAsist2 = jugador.auth || jugadoresUID.get(jugador.id);
+                    console.log(`🎯 [FESTEJO DEBUG] Guardando asistencia con auth: ${authJugadorAsist2}`);
+                    if (typeof nodeGuardarFestejo === 'function' && authJugadorAsist2) {
                         try {
-                            const resultado = await guardarFestejo(jugador.auth, jugador.name || 'Desconocido', 'asistencia', mensaje);
+                            const resultado = await nodeGuardarFestejo(authJugadorAsist2, jugador.name || 'Desconocido', 'asistencia', mensaje);
                             if (resultado.success) {
                                 room.sendAnnouncement(`🎯 Mensaje de asistencia configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
                                 console.log(`💾 [FESTEJOS] Mensaje de asistencia guardado para jugador ${jugador.name} (${jugador.auth}): "${mensaje}"`);
+                                
+                                // CORRECIÓN: Actualizar cache inmediatamente usando el auth correcto
+                                const cacheExistente = cacheMensajesPersonalizados.get(authJugadorAsist2) || {};
+                                cacheExistente.asistencia = mensaje;
+                                cacheMensajesPersonalizados.set(authJugadorAsist2, cacheExistente);
+                                console.log(`💾 [CACHE DEBUG] Cache actualizado tras guardar asistencia para ${jugador.name}`);
                             } else {
                                 anunciarError("❌ Error al guardar el mensaje de asistencia: " + (resultado.error || 'Unknown'), jugador);
                             }
                         } catch (error) {
-                            console.error('❌ Error en guardarFestejo:', error);
+                            console.error('❌ Error en nodeGuardarFestejo:', error);
                             anunciarError("❌ Error al guardar el mensaje de asistencia", jugador);
                         }
                     } else {
@@ -7548,16 +7589,21 @@ async function procesarComando(jugador, mensaje) {
             try {
                 let mensajesEncontrados = false;
                 
-                // 1. Intentar obtener del sistema persistente
-                if (obtenerMensajeFestejo && jugador.auth) {
-                    const msgGolPersistente = obtenerMensajeFestejo(jugador.auth, 'gol');
-                    const msgAsistPersistente = obtenerMensajeFestejo(jugador.auth, 'asistencia');
-                    
-                    if (msgGolPersistente || msgAsistPersistente) {
-                        mensajesEncontrados = true;
-                        room.sendAnnouncement(`⚽ Mensaje de gol: "${msgGolPersistente || 'No configurado'}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
-                        room.sendAnnouncement(`🎯 Mensaje de asistencia: "${msgAsistPersistente || 'No configurado'}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
-                        room.sendAnnouncement(`📝 Tus mensajes están guardados con persistencia`, jugador.id, parseInt(COLORES.EXITO, 16), "normal", 0);
+                // 1. Intentar obtener del sistema persistente via funciones expuestas
+                const authJugadorVer = jugador.auth || jugadoresUID.get(jugador.id);
+                if (typeof nodeObtenerMensajeFestejo === 'function' && authJugadorVer) {
+                    try {
+                        const msgGolPersistente = await nodeObtenerMensajeFestejo(authJugadorVer, 'gol');
+                        const msgAsistPersistente = await nodeObtenerMensajeFestejo(authJugadorVer, 'asistencia');
+                        
+                        if (msgGolPersistente || msgAsistPersistente) {
+                            mensajesEncontrados = true;
+                            room.sendAnnouncement(`⚽ Mensaje de gol: "${msgGolPersistente || 'No configurado'}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
+                            room.sendAnnouncement(`🎯 Mensaje de asistencia: "${msgAsistPersistente || 'No configurado'}"`, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
+                            room.sendAnnouncement(`📝 Tus mensajes están guardados con persistencia`, jugador.id, parseInt(COLORES.EXITO, 16), "normal", 0);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error obteniendo mensajes persistentes:', error);
                     }
                 }
                 
@@ -7592,18 +7638,20 @@ async function procesarComando(jugador, mensaje) {
                 mensajesPersonalizados.delete(jugador.id);
                 resultadoLimpieza = true;
                 
-                // 2. Limpiar mensajes del sistema persistente si está disponible
-                if (limpiarFestejos && jugador.auth) {
-                    limpiarFestejos(jugador.auth, jugador.name).then(resultado => {
+                // 2. Limpiar mensajes del sistema persistente si está disponible via funciones expuestas
+                const authJugadorLimp = jugador.auth || jugadoresUID.get(jugador.id);
+                if (typeof nodeLimpiarFestejos === 'function' && authJugadorLimp) {
+                    try {
+                        const resultado = await nodeLimpiarFestejos(authJugadorLimp, jugador.name, 'all');
                         if (resultado && resultado.success) {
                             anunciarExito(`🧹 Mensajes personalizados eliminados completamente (persistencia + memoria)`, jugador);
                         } else {
                             anunciarExito(`🧹 Mensajes eliminados solo de la memoria`, jugador);
                         }
-                    }).catch(error => {
+                    } catch (error) {
                         console.error('❌ Error en limpiar_mensajes (persistente):', error);
                         anunciarExito(`🧹 Mensajes eliminados solo de la memoria (error en sistema persistente)`, jugador);
-                    });
+                    }
                 } else {
                     // Si no hay sistema persistente disponible o no hay auth
                     anunciarExito(`🧹 Mensajes personalizados eliminados de la memoria`, jugador);
@@ -11266,7 +11314,7 @@ function inicializarEstadisticas() {
     anunciarInfo("📊 Estadísticas iniciadas para el partido");
 }
 
-function registrarGol(goleador, equipo, asistente) {
+async function registrarGol(goleador, equipo, asistente) {
     const statsGoleador = estadisticasPartido.jugadores[goleador.id];
     if (statsGoleador) {
         const nombreGoleador = obtenerNombreOriginal(goleador);
@@ -11311,16 +11359,41 @@ function registrarGol(goleador, equipo, asistente) {
             }
             
             // 1. Anunciar el gol con el formato correcto según si hay asistencia personalizada
-            // OPTIMIZADO: Usar cache de mensajes para evitar consultas costosas
+            // CORREGIDO: Usar jugadoresUID para obtener auth como en el sistema de admins
             let mensajeGolPersonalizado = null;
-            if (goleador.auth) {
-                mensajeGolPersonalizado = obtenerMensajeDesdeCache(goleador.auth, 'gol');
+            const authGoleador = jugadoresUID.get(goleador.id); // Obtener auth guardado al conectarse
+            console.log(`🎉 [GOL DEBUG] Buscando festejo para goleador ${nombreGoleador} (ID: ${goleador.id})`);
+            console.log(`🎉 [GOL DEBUG] Auth guardado en jugadoresUID: ${authGoleador}`);
+            console.log(`🎉 [GOL DEBUG] Función nodeObtenerMensajeFestejo disponible: ${typeof nodeObtenerMensajeFestejo === 'function'}`);
+            
+            if (authGoleador && typeof nodeObtenerMensajeFestejo === 'function') {
+                try {
+                    console.log(`🎉 [GOL DEBUG] Llamando nodeObtenerMensajeFestejo(${authGoleador}, 'gol')`);
+                    mensajeGolPersonalizado = await nodeObtenerMensajeFestejo(authGoleador, 'gol');
+                    console.log(`🎉 [GOL DEBUG] Respuesta de nodeObtenerMensajeFestejo: "${mensajeGolPersonalizado || 'null'}"`);
+                } catch (error) {
+                    console.error('❌ [GOL DEBUG] Error obteniendo mensaje de gol persistente:', error);
+                }
+            } else {
+                console.log(`⚠️ [GOL DEBUG] No se pudo obtener mensaje de gol para ${nombreGoleador}: authGuardado=${authGoleador ? 'disponible' : 'no disponible'}, nodeObtenerMensajeFestejo=${typeof nodeObtenerMensajeFestejo === 'function' ? 'disponible' : 'no disponible'}`);
             }
-            // Fallback al sistema temporal si no está en cache
+            
+            // Fallback al cache local si el sistema persistente no tiene el mensaje
+            if (!mensajeGolPersonalizado && authGoleador) {
+                console.log(`🔄 [GOL DEBUG] Buscando en cache local con auth: ${authGoleador}`);
+                mensajeGolPersonalizado = obtenerMensajeDesdeCache(authGoleador, 'gol');
+                console.log(`🔄 [GOL DEBUG] Mensaje encontrado en cache: "${mensajeGolPersonalizado || 'null'}"`);
+            }
+            
+            // Fallback final al sistema temporal
             if (!mensajeGolPersonalizado) {
+                console.log(`🔄 [GOL DEBUG] Buscando en sistema temporal con ID: ${goleador.id}`);
                 const mensajesGoleador = mensajesPersonalizados.get(goleador.id);
                 if (mensajesGoleador && mensajesGoleador.gol) {
                     mensajeGolPersonalizado = mensajesGoleador.gol;
+                    console.log(`🔄 [GOL DEBUG] Mensaje encontrado en sistema temporal: "${mensajeGolPersonalizado}"`);
+                } else {
+                    console.log(`🔄 [GOL DEBUG] No se encontró mensaje en sistema temporal`);
                 }
             }
             
@@ -11337,12 +11410,28 @@ function registrarGol(goleador, equipo, asistente) {
             
             // Agregar información de asistencia solo si existe
             if (tieneAsistenciaValida) {
-                // OPTIMIZADO: Usar cache de mensajes para asistencias
+                // CORREGIDO: Usar jugadoresUID para obtener auth como en el sistema de admins
                 let mensajeAsistenciaPersonalizado = null;
-                if (asistente && asistente.auth) {
-                    mensajeAsistenciaPersonalizado = obtenerMensajeDesdeCache(asistente.auth, 'asistencia');
+                const authAsistente = asistente ? jugadoresUID.get(asistente.id) : null; // Obtener auth guardado
+                if (authAsistente && typeof nodeObtenerMensajeFestejo === 'function') {
+                    try {
+                        mensajeAsistenciaPersonalizado = await nodeObtenerMensajeFestejo(authAsistente, 'asistencia');
+                        console.log(`🎯 [FESTEJOS DEBUG] Obtenido mensaje de asistencia persistente para ${nombreAsistente}: "${mensajeAsistenciaPersonalizado || 'null'}"`);
+                    } catch (error) {
+                        console.error('❌ Error obteniendo mensaje de asistencia persistente:', error);
+                    }
+                } else {
+                    if (asistente) {
+                        console.log(`⚠️ [FESTEJOS DEBUG] No se pudo obtener mensaje de asistencia para ${nombreAsistente}: authGuardado=${authAsistente ? 'disponible' : 'no disponible'}, nodeObtenerMensajeFestejo=${typeof nodeObtenerMensajeFestejo === 'function' ? 'disponible' : 'no disponible'}`);
+                    }
                 }
-                // Fallback al sistema temporal si no está en cache
+                
+                // Fallback al cache local si el sistema persistente no tiene el mensaje
+                if (!mensajeAsistenciaPersonalizado && authAsistente) {
+                    mensajeAsistenciaPersonalizado = obtenerMensajeDesdeCache(authAsistente, 'asistencia');
+                }
+                
+                // Fallback final al sistema temporal
                 if (!mensajeAsistenciaPersonalizado) {
                     const mensajesAsistente = mensajesPersonalizados.get(asistente?.id);
                     if (mensajesAsistente && mensajesAsistente.asistencia) {
@@ -13487,37 +13576,56 @@ setTimeout(() => {
         // ====================== FIN TRACKING INTEGRADO ======================
         
         // ====================== CARGAR FESTEJOS PERSISTENTES ======================
-        // CORRECCIÓN CRÍTICA: Cargar festejos automáticamente al conectarse
+        // CORRECCIÓN CRÍTICA: Cargar festejos automáticamente al conectarse usando funciones expuestas
         try {
-            if (cargarFestejos && jugador.auth) {
-                console.log(`🎉 FESTEJOS: Cargando festejos persistentes para ${jugador.name} (${jugador.auth})`);
+            console.log(`🎉 [FESTEJOS DEBUG ENTRY] Iniciando carga de festejos para ${jugador.name}`);
+            console.log(`🎉 [FESTEJOS DEBUG ENTRY] - Jugador ID: ${jugador.id}`);
+            console.log(`🎉 [FESTEJOS DEBUG ENTRY] - Auth disponible: ${!!jugador.auth}`);
+            console.log(`🎉 [FESTEJOS DEBUG ENTRY] - Auth valor: ${jugador.auth}`);
+            console.log(`🎉 [FESTEJOS DEBUG ENTRY] - Función nodeCargarFestejos disponible: ${typeof nodeCargarFestejos === 'function'}`);
+            
+            if (typeof nodeCargarFestejos === 'function' && jugador.auth) {
+                console.log(`🎉 [FESTEJOS DEBUG] Llamando nodeCargarFestejos para ${jugador.name} con auth: ${jugador.auth}`);
                 
-                cargarFestejos(jugador.auth, jugador.name).then(async festejos => {
+                nodeCargarFestejos(jugador.auth, jugador.name).then(async festejos => {
+                    console.log(`🎉 [FESTEJOS DEBUG] Respuesta de nodeCargarFestejos:`, festejos);
+                    
                     if (festejos && (festejos.gol || festejos.asistencia)) {
-                        console.log(`✅ FESTEJOS: Festejos cargados para ${jugador.name}:`, {
+                        console.log(`✅ [FESTEJOS DEBUG] Festejos encontrados para ${jugador.name}:`, {
                             gol: festejos.gol || 'default',
                             asistencia: festejos.asistencia || 'default'
                         });
                         
-                        // Los festejos ya están guardados en el cache del sistema persistente
-                        // No necesitamos hacer nada más, el sistema los usará automáticamente
+                        // CORRECIÓN: Actualizar inmediatamente el cache local
+                        if (jugador.auth) {
+                            console.log(`💾 [CACHE DEBUG] Actualizando cache con auth: ${jugador.auth}`);
+                            cacheMensajesPersonalizados.set(jugador.auth, {
+                                gol: festejos.gol,
+                                asistencia: festejos.asistencia
+                            });
+                            console.log(`💾 [CACHE DEBUG] Cache actualizado para ${jugador.name}: gol="${festejos.gol || 'null'}", asistencia="${festejos.asistencia || 'null'}"`);
+                            console.log(`💾 [CACHE DEBUG] Verificando cache después de actualización:`, cacheMensajesPersonalizados.get(jugador.auth));
+                        } else {
+                            console.error(`❌ [CACHE DEBUG] No se puede actualizar cache: jugador sin auth`);
+                        }
                         
-                        // Mensaje informativo al jugador si tiene festejos personalizados
-                        setTimeout(() => {
-                            const mensajes = [];
-                            if (festejos.gol) mensajes.push(`⚽ Gol: "${festejos.gol}"`);
-                            if (festejos.asistencia) mensajes.push(`🎯 Asistencia: "${festejos.asistencia}"`);
-                            
-                            room.sendAnnouncement(
-                                `🎉 Festejos personalizados restaurados: ${mensajes.join(', ')}`,
-                                jugador.id,
-                                parseInt("00FF00", 16),
-                                "normal",
-                                0
-                            );
-                        }, 2500); // Delay para no saturar de mensajes al conectarse
+                        // Mensaje informativo al jugador si tiene festejos personalizados - DESACTIVADO
+                        // setTimeout(() => {
+                        //     const mensajes = [];
+                        //     if (festejos.gol) mensajes.push(`⚽ Gol: "${festejos.gol}"`);
+                        //     if (festejos.asistencia) mensajes.push(`🎯 Asistencia: "${festejos.asistencia}"`);
+                        //     
+                        //     room.sendAnnouncement(
+                        //         `🎉 Festejos personalizados restaurados: ${mensajes.join(', ')}`,
+                        //         jugador.id,
+                        //         parseInt("00FF00", 16),
+                        //         "normal",
+                        //         0
+                        //     );
+                        // }, 2500); // Delay para no saturar de mensajes al conectarse
                     } else {
-                        console.log(`ℹ️ FESTEJOS: Sin festejos persistentes para ${jugador.name}`);
+                        console.log(`ℹ️ [FESTEJOS DEBUG] Sin festejos persistentes encontrados para ${jugador.name}`);
+                        console.log(`ℹ️ [FESTEJOS DEBUG] Respuesta de nodeCargarFestejos era:`, festejos);
                         
                         // ==================== MIGRACIÓN AUTOMÁTICA ====================
                         // Si no hay festejos persistentes, verificar si hay temporales para migrar
@@ -13571,17 +13679,18 @@ setTimeout(() => {
                         // ==================== FIN MIGRACIÓN AUTOMÁTICA ====================
                     }
                 }).catch(error => {
-                    console.error(`❌ Error cargando festejos para ${jugador.name}:`, error);
+                    console.error(`❌ [FESTEJOS DEBUG] Error cargando festejos para ${jugador.name}:`, error);
                 });
             } else {
-                if (!cargarFestejos) {
-                    console.warn(`⚠️ FESTEJOS: Función cargarFestejos no disponible`);
+                if (typeof nodeCargarFestejos !== 'function') {
+                    console.warn(`⚠️ [FESTEJOS DEBUG] Función nodeCargarFestejos no disponible`);
                 } else if (!jugador.auth) {
-                    console.warn(`⚠️ FESTEJOS: Jugador ${jugador.name} sin auth - no se pueden cargar festejos`);
+                    console.warn(`⚠️ [FESTEJOS DEBUG] Jugador ${jugador.name} sin auth - no se pueden cargar festejos`);
+                    console.warn(`⚠️ [FESTEJOS DEBUG] Auth valor actual: ${jugador.auth}`);
                 }
             }
         } catch (error) {
-            console.error(`❌ Error en sistema de festejos persistentes para ${jugador.name}:`, error);
+            console.error(`❌ [FESTEJOS DEBUG] Error en sistema de festejos persistentes para ${jugador.name}:`, error);
         }
         // ====================== FIN FESTEJOS PERSISTENTES ======================
         
@@ -13961,7 +14070,9 @@ room.onTeamGoal = function(equipo) {
             
             // Registrar el gol si tenemos un goleador
             if (goleadorDetectado) {
-                registrarGol(goleadorDetectado, equipo, asistenteDetectado);
+                registrarGol(goleadorDetectado, equipo, asistenteDetectado).catch(error => {
+                    console.error('❌ Error en registrarGol:', error);
+                });
             } else {
                 // ÚLTIMO RECURSO: Registrar gol sin goleador específico
                 console.log(`❌ DEBUG: No se pudo detectar goleador, registrando gol genérico`);
@@ -14573,9 +14684,9 @@ function usarFetchParaEdicion(webhookEditUrl, payload) {
 
 // Función para enviar nuevo mensaje de reportes de sala
 function enviarNuevoMensajeDiscordReportes(payload) {
-    console.log('📤 DEBUG: Enviando nuevo mensaje de reportes...');
-    console.log('🔗 DEBUG: Webhook URL:', webhookReportesSala);
-    console.log('📦 DEBUG: Payload:', JSON.stringify(payload, null, 2));
+    // console.log('📤 DEBUG: Enviando nuevo mensaje de reportes...');
+    // console.log('🔗 DEBUG: Webhook URL:', webhookReportesSala);
+    // console.log('📦 DEBUG: Payload:', JSON.stringify(payload, null, 2));
     
     // Usar función nodeEnviarWebhook si está disponible (para Node.js)
     if (typeof nodeEnviarWebhook === 'function') {
@@ -14621,8 +14732,8 @@ function usarFetchParaEnvio(payload) {
         body: JSON.stringify(payload)
     })
     .then(response => {
-        console.log('📡 DEBUG: Respuesta de envío - Status:', response.status);
-        console.log('📡 DEBUG: Respuesta OK:', response.ok);
+        // console.log('📡 DEBUG: Respuesta de envío - Status:', response.status);
+        // console.log('📡 DEBUG: Respuesta OK:', response.ok);
         
         if (response.ok) {
             return response.json();
@@ -14634,8 +14745,8 @@ function usarFetchParaEnvio(payload) {
         }
     })
     .then(data => {
-        console.log('✅ DEBUG: Nuevo mensaje de reportes enviado exitosamente');
-        console.log('📋 DEBUG: Respuesta completa:', data);
+        // console.log('✅ DEBUG: Nuevo mensaje de reportes enviado exitosamente');
+        // console.log('📋 DEBUG: Respuesta completa:', data);
         
         if (data && data.id) {
             const idAnterior = MENSAJE_IDS_DISCORD.reportesSala;

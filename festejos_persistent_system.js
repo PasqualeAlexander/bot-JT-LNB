@@ -107,27 +107,37 @@ class FestejosPersistentSystem {
      */
     async cargarFestejosJugador(auth_id, player_name) {
         try {
+            console.log(`🎉 [SISTEMA DEBUG] cargarFestejosJugador llamado:`);
+            console.log(`🎉 [SISTEMA DEBUG] - auth_id: ${auth_id}`);
+            console.log(`🎉 [SISTEMA DEBUG] - player_name: ${player_name}`);
+            console.log(`🎉 [SISTEMA DEBUG] - inicializado: ${this.inicializado}`);
+            
             if (!this.inicializado) {
+                console.log(`🎉 [SISTEMA DEBUG] Sistema no inicializado, retornando null`);
                 return { gol: null, asistencia: null };
             }
             
             this.jugadoresConectados.add(auth_id);
+            console.log(`🎉 [SISTEMA DEBUG] Jugador agregado a conectados, total: ${this.jugadoresConectados.size}`);
             
             // Primero verificar cache
+            console.log(`🎉 [SISTEMA DEBUG] Verificando cache para auth_id: ${auth_id}`);
             if (this.cacheMensajes.has(auth_id)) {
                 const cached = this.cacheMensajes.get(auth_id);
-                if (FESTEJOS_CONFIG.DEBUG) {
-                    console.log(`💾 Festejos cargados desde cache para ${player_name}`);
-                }
+                console.log(`💾 [SISTEMA DEBUG] Festejos encontrados en cache para ${player_name}:`, cached);
                 return cached;
+            } else {
+                console.log(`💾 [SISTEMA DEBUG] No hay festejos en cache para ${player_name}`);
             }
             
             // Si no hay BD, devolver mensajes vacíos
             if (!executeQuery) {
+                console.log(`🎉 [SISTEMA DEBUG] No hay executeQuery disponible`);
                 return { gol: null, asistencia: null };
             }
             
             // Buscar en base de datos
+            console.log(`🎉 [SISTEMA DEBUG] Buscando en BD con player_name: ${player_name}`);
             const query = `
                 SELECT mensaje_gol, mensaje_asistencia 
                 FROM festejos_personalizados 
@@ -136,24 +146,33 @@ class FestejosPersistentSystem {
                 LIMIT 1
             `;
             
+            console.log(`🎉 [SISTEMA DEBUG] Ejecutando query:`, query);
             const resultado = await executeQuery(query, [player_name]);
+            console.log(`🎉 [SISTEMA DEBUG] Resultado de BD:`, resultado);
             
             let festejos = { gol: null, asistencia: null };
             
             if (resultado.length > 0) {
+                console.log(`🎉 [SISTEMA DEBUG] Registro encontrado en BD:`, resultado[0]);
                 festejos.gol = resultado[0].mensaje_gol;
                 festejos.asistencia = resultado[0].mensaje_asistencia;
                 
                 // Actualizar auth_id si es diferente
                 if (auth_id && auth_id.length > 8) {
+                    console.log(`🎉 [SISTEMA DEBUG] Actualizando auth_id en BD: ${auth_id}`);
                     await this.actualizarAuthID(player_name, auth_id);
                 }
                 
-                console.log(`🎉 Festejos cargados para ${player_name}: gol="${festejos.gol || 'default'}", asistencia="${festejos.asistencia || 'default'}"`);
+                console.log(`🎉 [SISTEMA DEBUG] Festejos procesados para ${player_name}: gol="${festejos.gol || 'default'}", asistencia="${festejos.asistencia || 'default'}"`);
+            } else {
+                console.log(`🎉 [SISTEMA DEBUG] No se encontró registro en BD para ${player_name}`);
             }
             
             // Guardar en cache
+            console.log(`🎉 [SISTEMA DEBUG] Guardando en cache con auth_id: ${auth_id}`);
+            console.log(`🎉 [SISTEMA DEBUG] Datos a guardar en cache:`, festejos);
             this.cacheMensajes.set(auth_id, festejos);
+            console.log(`🎉 [SISTEMA DEBUG] Cache actualizado, tamaño total: ${this.cacheMensajes.size}`);
             
             return festejos;
             
@@ -230,15 +249,23 @@ class FestejosPersistentSystem {
      */
     obtenerMensajeFestejo(auth_id, tipo) {
         try {
+            console.log(`🎯 [SISTEMA DEBUG] obtenerMensajeFestejo llamado: auth_id=${auth_id}, tipo=${tipo}`);
+            console.log(`🎯 [SISTEMA DEBUG] Cache tiene auth_id: ${this.cacheMensajes.has(auth_id)}`);
+            console.log(`🎯 [SISTEMA DEBUG] Tamaño actual del cache: ${this.cacheMensajes.size}`);
+            
             if (!this.cacheMensajes.has(auth_id)) {
+                console.log(`🎯 [SISTEMA DEBUG] No hay mensaje personalizado en cache para ${auth_id}`);
                 return null; // No hay mensaje personalizado
             }
             
             const festejos = this.cacheMensajes.get(auth_id);
-            return festejos[tipo] || null;
+            console.log(`🎯 [SISTEMA DEBUG] Festejos encontrados en cache:`, festejos);
+            const mensaje = festejos[tipo] || null;
+            console.log(`🎯 [SISTEMA DEBUG] Mensaje para tipo '${tipo}': "${mensaje}"`);
+            return mensaje;
             
         } catch (error) {
-            console.error(`❌ Error obteniendo mensaje de festejo:`, error);
+            console.error(`❌ [SISTEMA DEBUG] Error obteniendo mensaje de festejo:`, error);
             return null;
         }
     }

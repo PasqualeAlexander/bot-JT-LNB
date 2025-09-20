@@ -1599,12 +1599,12 @@ const dbFunctionsOld = {
 
 // Configuración del bot (igual que el original)
 const roomConfig = {
-    roomName: "⚡🔹 ❰LNB❱ | JUEGAN TODOS | BIGGER X7 🔹⚡",
+    roomName: "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡",
     playerName: "",
     password: null,
     maxPlayers: 18,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGjMixR7nX49ACAsVQ.--gqBG1WaNI", // Token actualizado
+    token: "thr1.AAAAAGjOHC1SKg1pNadWiw.r_CSIC2L6vs", // Token actualizado
     geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };
@@ -1792,16 +1792,22 @@ const webhooks = {
                 return result;
             } catch (error) {
                 console.error('❌ Error en nodeGetAllRoles:', error);
-                return [];
+                return { totalRoles: 0, superAdmins: 0, adminsFull: 0, adminsBasico: 0 };
             }
-
+        });
+        
         // Exponer funciones del sistema de festejos persistentes
         await page.exposeFunction('nodeCargarFestejos', async (authId, playerName) => {
             try {
                 console.log('🎉 nodeCargarFestejos llamado:', authId, playerName);
-                const result = await cargarFestejos(authId, playerName);
-                console.log('🎉 nodeCargarFestejos resultado:', result);
-                return result;
+                if (sistemaFestejosPersistente) {
+                    const result = await sistemaFestejosPersistente.cargarFestejosJugador(authId, playerName);
+                    console.log('🎉 nodeCargarFestejos resultado:', result);
+                    return result;
+                } else {
+                    console.warn('⚠️ Sistema de festejos persistentes no disponible');
+                    return null;
+                }
             } catch (error) {
                 console.error('❌ Error en nodeCargarFestejos:', error);
                 return null;
@@ -1811,9 +1817,14 @@ const webhooks = {
         await page.exposeFunction('nodeGuardarFestejo', async (authId, playerName, tipo, mensaje) => {
             try {
                 console.log('💾 nodeGuardarFestejo llamado:', authId, playerName, tipo, mensaje);
-                const result = await guardarFestejo(authId, playerName, tipo, mensaje);
-                console.log('💾 nodeGuardarFestejo resultado:', result);
-                return result;
+                if (sistemaFestejosPersistente) {
+                    const result = await sistemaFestejosPersistente.guardarFestejo(authId, playerName, tipo, mensaje);
+                    console.log('💾 nodeGuardarFestejo resultado:', result);
+                    return result;
+                } else {
+                    console.warn('⚠️ Sistema de festejos persistentes no disponible');
+                    return { ok: false, error: 'Sistema no disponible' };
+                }
             } catch (error) {
                 console.error('❌ Error en nodeGuardarFestejo:', error);
                 return { ok: false, error: error.message };
@@ -1823,9 +1834,14 @@ const webhooks = {
         await page.exposeFunction('nodeObtenerMensajeFestejo', async (authId, tipo) => {
             try {
                 console.log('🎯 nodeObtenerMensajeFestejo llamado:', authId, tipo);
-                const result = obtenerMensajeFestejo(authId, tipo);
-                console.log('🎯 nodeObtenerMensajeFestejo resultado:', result);
-                return result;
+                if (sistemaFestejosPersistente) {
+                    const result = sistemaFestejosPersistente.obtenerMensajeFestejo(authId, tipo);
+                    console.log('🎯 nodeObtenerMensajeFestejo resultado:', result);
+                    return result;
+                } else {
+                    console.warn('⚠️ Sistema de festejos persistentes no disponible');
+                    return null;
+                }
             } catch (error) {
                 console.error('❌ Error en nodeObtenerMensajeFestejo:', error);
                 return null;
@@ -1835,9 +1851,14 @@ const webhooks = {
         await page.exposeFunction('nodeTieneFestejos', async (authId) => {
             try {
                 console.log('🔍 nodeTieneFestejos llamado:', authId);
-                const result = tieneFestejos(authId);
-                console.log('🔍 nodeTieneFestejos resultado:', result);
-                return result;
+                if (sistemaFestejosPersistente) {
+                    const result = sistemaFestejosPersistente.tieneFestejos(authId);
+                    console.log('🔍 nodeTieneFestejos resultado:', result);
+                    return result;
+                } else {
+                    console.warn('⚠️ Sistema de festejos persistentes no disponible');
+                    return false;
+                }
             } catch (error) {
                 console.error('❌ Error en nodeTieneFestejos:', error);
                 return false;
@@ -1847,14 +1868,18 @@ const webhooks = {
         await page.exposeFunction('nodeLimpiarFestejos', async (authId, playerName, tipo) => {
             try {
                 console.log('🧹 nodeLimpiarFestejos llamado:', authId, playerName, tipo);
-                const result = await limpiarFestejos(authId, playerName, tipo);
-                console.log('🧹 nodeLimpiarFestejos resultado:', result);
-                return result;
+                if (sistemaFestejosPersistente) {
+                    const result = await sistemaFestejosPersistente.limpiarFestejos(authId, playerName, tipo);
+                    console.log('🧹 nodeLimpiarFestejos resultado:', result);
+                    return result;
+                } else {
+                    console.warn('⚠️ Sistema de festejos persistentes no disponible');
+                    return { ok: false, error: 'Sistema no disponible' };
+                }
             } catch (error) {
                 console.error('❌ Error en nodeLimpiarFestejos:', error);
                 return { ok: false, error: error.message };
             }
-        });
         });
         
         await page.exposeFunction('nodeGetRoleStats', async () => {
@@ -1876,8 +1901,8 @@ const webhooks = {
                     ? `${webhookUrl}&wait=true`
                     : `${webhookUrl}?wait=true`;
                 
-                console.log('📤 DEBUG: Enviando webhook a:', webhookUrlConWait);
-                console.log('📦 DEBUG: Payload:', JSON.stringify(payload, null, 2));
+                // console.log('📤 DEBUG: Enviando webhook a:', webhookUrlConWait);
+                // console.log('📦 DEBUG: Payload:', JSON.stringify(payload, null, 2));
                 
                 const response = await fetch(webhookUrlConWait, {
                     method: 'POST',
@@ -1885,18 +1910,18 @@ const webhooks = {
                     body: JSON.stringify(payload)
                 });
                 
-                console.log('📡 DEBUG: Respuesta status:', response.status);
-                console.log('📡 DEBUG: Respuesta headers:', Object.fromEntries(response.headers.entries()));
-                console.log('📡 DEBUG: Respuesta URL completa:', response.url);
+                // console.log('📡 DEBUG: Respuesta status:', response.status);
+                // console.log('📡 DEBUG: Respuesta headers:', Object.fromEntries(response.headers.entries()));
+                // console.log('📡 DEBUG: Respuesta URL completa:', response.url);
                 
                 if (response.ok) {
                     const responseText = await response.text();
-                    console.log('📍 DEBUG: Respuesta texto:', responseText);
-                    console.log('📍 DEBUG: Longitud respuesta:', responseText ? responseText.length : 0);
+                    // console.log('📍 DEBUG: Respuesta texto:', responseText);
+                    // console.log('📍 DEBUG: Longitud respuesta:', responseText ? responseText.length : 0);
                     
                     // Verificar si la respuesta está vacía o no es JSON válido
                     if (!responseText || responseText.trim() === '') {
-                        console.log('✅ DEBUG: Webhook enviado exitosamente (respuesta vacía)');
+                        // console.log('✅ DEBUG: Webhook enviado exitosamente (respuesta vacía)');
                         return {
                             success: true,
                             messageId: null,
@@ -1906,7 +1931,7 @@ const webhooks = {
                     
                     try {
                         const data = JSON.parse(responseText);
-                        console.log('✅ DEBUG: Webhook enviado exitosamente con datos:', data);
+                        // console.log('✅ DEBUG: Webhook enviado exitosamente con datos:', data);
                         return {
                             success: true,
                             messageId: data.id || null,
@@ -2286,7 +2311,7 @@ const webhooks = {
         console.log('   - Limpieza inicial: 5 minutos después del inicio');
         console.log('   - Limpieza automática: cada 24 horas');
         console.log('   - Limpieza de conexiones: cada 5 minutos');
-console.log('   - Comando manual disponible en el bot');
+        console.log('   - Comando manual disponible en el bot');
 
         // Ejecutar limpieza de conexiones inmediatamente al iniciar
         ejecutarLimpiezaConexiones();
@@ -2316,7 +2341,7 @@ console.log('   - Comando manual disponible en el bot');
         
         // Mantener el proceso vivo
         // Graceful shutdown
-process.on('SIGINT', async () => {
+        process.on('SIGINT', async () => {
             console.log('🛑 Cerrando bot y base de datos...');
             await browser.close();
             await closePool();

@@ -6455,10 +6455,31 @@ function verificarCambioMapaPostPartido() {
             
             // Asegurar que el cambio se complete correctamente
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos
+                console.log(`🔧 DEBUG: Iniciando secuencia post-cambio post-partido...`);
+                
+                // 1. Primero balance de equipos
                 autoBalanceEquipos();
-                verificarAutoStart();
-                cambioMapaEnProceso = false;
-            }, 1000);
+                
+                // 2. Luego esperar un poco y verificar auto-start con más tiempo
+                setTimeout(() => {
+                    console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio post-partido...`);
+                    verificarAutoStart();
+                    
+                    // 3. Verificación adicional para asegurar inicio
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            console.log(`🔄 DEBUG: Verificación adicional post-partido - Forzando auto-start...`);
+                            verificarAutoStart();
+                        }
+                        
+                        // 4. Finalmente liberar el bloqueo
+                        cambioMapaEnProceso = false;
+                        console.log(`✅ DEBUG: Secuencia post-cambio post-partido completada`);
+                    }, 3000);
+                }, 2000);
+            }, 1500);
         } else {
             cambioMapaEnProceso = false;
         }
@@ -6473,10 +6494,19 @@ function verificarCambioMapaPostPartido() {
             
             // Asegurar que el cambio se complete correctamente
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
-                verificarAutoStart();
-                cambioMapaEnProceso = false;
-            }, 1000);
+                setTimeout(() => {
+                    verificarAutoStart();
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            verificarAutoStart();
+                        }
+                        cambioMapaEnProceso = false;
+                    }, 3000);
+                }, 2000);
+            }, 1500);
         } else {
             cambioMapaEnProceso = false;
         }
@@ -6493,10 +6523,19 @@ function verificarCambioMapaPostPartido() {
             
             // Asegurar que el cambio se complete correctamente
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
-                verificarAutoStart();
-                cambioMapaEnProceso = false;
-            }, 1000);
+                setTimeout(() => {
+                    verificarAutoStart();
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            verificarAutoStart();
+                        }
+                        cambioMapaEnProceso = false;
+                    }, 3000);
+                }, 2000);
+            }, 1500);
         } else {
             console.error(`❌ Error al cambiar de x5 a x3 con ${jugadoresActivos} jugadores`);
             cambioMapaEnProceso = false;
@@ -6514,10 +6553,19 @@ function verificarCambioMapaPostPartido() {
             
             // Asegurar que el cambio se complete correctamente
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
-                verificarAutoStart();
-                cambioMapaEnProceso = false;
-            }, 1000);
+                setTimeout(() => {
+                    verificarAutoStart();
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            verificarAutoStart();
+                        }
+                        cambioMapaEnProceso = false;
+                    }, 3000);
+                }, 2000);
+            }, 1500);
         } else {
             console.error(`❌ Error al cambiar de x3 a x5 con ${jugadoresActivos} jugadores`);
             cambioMapaEnProceso = false;
@@ -6535,10 +6583,19 @@ function verificarCambioMapaPostPartido() {
             
             // Asegurar que el cambio se complete correctamente
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
-                verificarAutoStart();
-                cambioMapaEnProceso = false;
-            }, 1000);
+                setTimeout(() => {
+                    verificarAutoStart();
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            verificarAutoStart();
+                        }
+                        cambioMapaEnProceso = false;
+                    }, 3000);
+                }, 2000);
+            }, 1500);
         } else {
             console.error(`❌ Error al cambiar de x3 a x1 con ${jugadoresActivos} jugadores`);
             cambioMapaEnProceso = false;
@@ -6556,10 +6613,19 @@ function verificarCambioMapaPostPartido() {
             
             // Asegurar que el cambio se complete correctamente
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos  
                 autoBalanceEquipos();
-                verificarAutoStart();
-                cambioMapaEnProceso = false;
-            }, 1000);
+                setTimeout(() => {
+                    verificarAutoStart();
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            verificarAutoStart();
+                        }
+                        cambioMapaEnProceso = false;
+                    }, 3000);
+                }, 2000);
+            }, 1500);
         } else {
             console.error(`❌ Error al cambiar de x1 a x3 con ${jugadoresActivos} jugadores`);
             cambioMapaEnProceso = false;
@@ -6670,13 +6736,34 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarInfo(`🔄 Menos de 8 jugadores durante partido (${jugadoresActivos}). Cambiando de x7 a x4...`);
             
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos
+                console.log(`🔧 DEBUG: Iniciando secuencia post-cambio de mapa...`);
+                
+                // 1. Primero balance de equipos
                 autoBalanceEquipos();
-                verificarAutoStart();
-                setTimeout(() => { 
-                    cambioMapaEnProceso = false;
-                    terminoPorCambioMapa = false; // Resetear la bandera
-                }, 5000);
-            }, 1000);
+                
+                // 2. Luego esperar un poco y verificar auto-start con más tiempo
+                setTimeout(() => {
+                    console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio...`);
+                    verificarAutoStart();
+                    
+                    // 3. Verificación adicional para asegurar inicio
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            console.log(`🔄 DEBUG: Verificación adicional - Forzando auto-start...`);
+                            verificarAutoStart();
+                        }
+                        
+                        // 4. Finalmente liberar el bloqueo
+                        setTimeout(() => {
+                            cambioMapaEnProceso = false;
+                            terminoPorCambioMapa = false;
+                            console.log(`✅ DEBUG: Secuencia post-cambio completada`);
+                        }, 2000);
+                    }, 3000);
+                }, 2000);
+            }, 1500);
             return;
         }
         
@@ -6691,13 +6778,34 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarInfo(`🔄 Menos de 5 jugadores durante partido (${jugadoresActivos}). Cambiando de x4 a x3...`);
             
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos
+                console.log(`🔧 DEBUG: Iniciando secuencia post-cambio de mapa...`);
+                
+                // 1. Primero balance de equipos
                 autoBalanceEquipos();
-                verificarAutoStart();
-                setTimeout(() => { 
-                    cambioMapaEnProceso = false;
-                    terminoPorCambioMapa = false; // Resetear la bandera
-                }, 5000);
-            }, 1000);
+                
+                // 2. Luego esperar un poco y verificar auto-start con más tiempo
+                setTimeout(() => {
+                    console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio...`);
+                    verificarAutoStart();
+                    
+                    // 3. Verificación adicional para asegurar inicio
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            console.log(`🔄 DEBUG: Verificación adicional - Forzando auto-start...`);
+                            verificarAutoStart();
+                        }
+                        
+                        // 4. Finalmente liberar el bloqueo
+                        setTimeout(() => {
+                            cambioMapaEnProceso = false;
+                            terminoPorCambioMapa = false;
+                            console.log(`✅ DEBUG: Secuencia post-cambio completada`);
+                        }, 2000);
+                    }, 3000);
+                }, 2000);
+            }, 1500);
             return;
         }
         
@@ -6712,13 +6820,34 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarInfo(`🔄 Menos de 3 jugadores durante partido (${jugadoresActivos}). Cambiando de x3 a x1...`);
             
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos
+                console.log(`🔧 DEBUG: Iniciando secuencia post-cambio de mapa...`);
+                
+                // 1. Primero balance de equipos
                 autoBalanceEquipos();
-                verificarAutoStart();
-                setTimeout(() => { 
-                    cambioMapaEnProceso = false;
-                    terminoPorCambioMapa = false; // Resetear la bandera
-                }, 5000);
-            }, 1000);
+                
+                // 2. Luego esperar un poco y verificar auto-start con más tiempo
+                setTimeout(() => {
+                    console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio...`);
+                    verificarAutoStart();
+                    
+                    // 3. Verificación adicional para asegurar inicio
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            console.log(`🔄 DEBUG: Verificación adicional - Forzando auto-start...`);
+                            verificarAutoStart();
+                        }
+                        
+                        // 4. Finalmente liberar el bloqueo
+                        setTimeout(() => {
+                            cambioMapaEnProceso = false;
+                            terminoPorCambioMapa = false;
+                            console.log(`✅ DEBUG: Secuencia post-cambio completada`);
+                        }, 2000);
+                    }, 3000);
+                }, 2000);
+            }, 1500);
             return;
         }
         
@@ -6734,13 +6863,34 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de training a x1...`);
             
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos
+                console.log(`🔧 DEBUG: Iniciando secuencia post-cambio de mapa...`);
+                
+                // 1. Primero balance de equipos
                 autoBalanceEquipos();
-                verificarAutoStart();
-                setTimeout(() => { 
-                    cambioMapaEnProceso = false;
-                    terminoPorCambioMapa = false; // Resetear la bandera
-                }, 5000);
-            }, 1000);
+                
+                // 2. Luego esperar un poco y verificar auto-start con más tiempo
+                setTimeout(() => {
+                    console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio...`);
+                    verificarAutoStart();
+                    
+                    // 3. Verificación adicional para asegurar inicio
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            console.log(`🔄 DEBUG: Verificación adicional - Forzando auto-start...`);
+                            verificarAutoStart();
+                        }
+                        
+                        // 4. Finalmente liberar el bloqueo
+                        setTimeout(() => {
+                            cambioMapaEnProceso = false;
+                            terminoPorCambioMapa = false;
+                            console.log(`✅ DEBUG: Secuencia post-cambio completada`);
+                        }, 2000);
+                    }, 3000);
+                }, 2000);
+            }, 1500);
             return;
         }
         
@@ -6755,13 +6905,34 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x1 a x3...`);
             
             setTimeout(() => {
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos
+                console.log(`🔧 DEBUG: Iniciando secuencia post-cambio de mapa...`);
+                
+                // 1. Primero balance de equipos
                 autoBalanceEquipos();
-                verificarAutoStart();
-                setTimeout(() => { 
-                    cambioMapaEnProceso = false;
-                    terminoPorCambioMapa = false; // Resetear la bandera
-                }, 5000);
-            }, 1000);
+                
+                // 2. Luego esperar un poco y verificar auto-start con más tiempo
+                setTimeout(() => {
+                    console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio...`);
+                    verificarAutoStart();
+                    
+                    // 3. Verificación adicional para asegurar inicio
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            console.log(`🔄 DEBUG: Verificación adicional - Forzando auto-start...`);
+                            verificarAutoStart();
+                        }
+                        
+                        // 4. Finalmente liberar el bloqueo
+                        setTimeout(() => {
+                            cambioMapaEnProceso = false;
+                            terminoPorCambioMapa = false;
+                            console.log(`✅ DEBUG: Secuencia post-cambio completada`);
+                        }, 2000);
+                    }, 3000);
+                }, 2000);
+            }, 1500);
             return;
         }
         
@@ -6900,12 +7071,32 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
                     }
                 }
                 
+                // CORRECCIÓN: Secuencia optimizada para evitar conflictos
+                console.log(`🔧 DEBUG: Iniciando secuencia post-cambio de mapa (fuera de partido)...`);
+                
+                // 1. Primero balance de equipos
                 autoBalanceEquipos();
-                verificarAutoStart();
-                setTimeout(() => { 
-                    cambioMapaEnProceso = false;
-            // Log eliminado para mejor rendimiento
-                }, 3000);
+                
+                // 2. Luego esperar un poco y verificar auto-start con más tiempo
+                setTimeout(() => {
+                    console.log(`⚙️ DEBUG: Ejecutando verificarAutoStart post-cambio (fuera de partido)...`);
+                    verificarAutoStart();
+                    
+                    // 3. Verificación adicional para asegurar inicio
+                    setTimeout(() => {
+                        const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
+                        if (!partidoEnCurso && jugadoresActivos >= 2 && autoStartEnabled) {
+                            console.log(`🔄 DEBUG: Verificación adicional fuera de partido - Forzando auto-start...`);
+                            verificarAutoStart();
+                        }
+                        
+                        // 4. Finalmente liberar el bloqueo
+                        setTimeout(() => {
+                            cambioMapaEnProceso = false;
+                            console.log(`✅ DEBUG: Secuencia post-cambio fuera de partido completada`);
+                        }, 2000);
+                    }, 3000);
+                }, 2000);
             }, 1000);
         } else {
             console.error(`❌ DEBUG: Error al cambiar mapa a ${mapaRequerido}`);

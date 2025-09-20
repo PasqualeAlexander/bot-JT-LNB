@@ -13485,21 +13485,21 @@ function configurarEventos() {
         let estiloMensaje = 'normal'; // Por defecto normal
         
         if (esSuperAdmin(jugador)) {
-            prefijoRol = `[👑 • ${emojiNivel} Nv. `;
-            mensajeCompleto = `${prefijoRol}${nivel}] ${nombreOriginal}: ${mensaje}`;
+            prefijoRol = `〔👑 • ${emojiNivel} Nv. `;
+            mensajeCompleto = `${prefijoRol}${nivel}〕 ${nombreOriginal}: ${mensaje}`;
             colorVIP = "FFFFFF"; // BLANCO para super admins
         } else if (esAdminBasico(jugador)) {
-            prefijoRol = `[👮🏻 • ${emojiNivel} Nv. `;
-            mensajeCompleto = `${prefijoRol}${nivel}] ${nombreOriginal}: ${mensaje}`;
+            prefijoRol = `〔👮🏻 • ${emojiNivel} Nv. `;
+            mensajeCompleto = `${prefijoRol}${nivel}〕 ${nombreOriginal}: ${mensaje}`;
             colorVIP = "FFFFFF"; // BLANCO para admins
         } else if (esVIP && (tipoVIP === 'ULTRA_VIP' || tipoVIP === 'VIP')) {
             // VIP y ULTRA VIP: Color naranja y formato bold
             if (tipoVIP === 'ULTRA_VIP') {
-                prefijoRol = `[👑 ULTRA VIP • ${emojiNivel} Nv. `;
-                mensajeCompleto = `${prefijoRol}${nivel}] ✨${nombreOriginal}✨: ${mensaje}`;
+                prefijoRol = `〔👑 ULTRA VIP • ${emojiNivel} Nv. `;
+                mensajeCompleto = `${prefijoRol}${nivel}〕 ✨${nombreOriginal}✨: ${mensaje}`;
             } else {
-                prefijoRol = `[💎 VIP • ${emojiNivel} Nv. `;
-                mensajeCompleto = `${prefijoRol}${nivel}] ⭐${nombreOriginal}: ${mensaje}`;
+                prefijoRol = `〔💎 VIP • ${emojiNivel} Nv. `;
+                mensajeCompleto = `${prefijoRol}${nivel}〕 ⭐${nombreOriginal}: ${mensaje}`;
             }
             colorVIP = "FF8800"; // NARANJA para VIPs
             estiloMensaje = 'bold'; // BOLD para VIPs

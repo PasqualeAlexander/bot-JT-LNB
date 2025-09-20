@@ -7213,7 +7213,7 @@ function iniciarAnunciosDiscord() {
     intervalDiscord = setInterval(() => {
         try {
             if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-                room.sendAnnouncement("⚡¿TENÉS EQUIPO O QUERÉS ARMAR UNO PARA JUGAR BIGGER COMPETITIVO? 👉 UNITE: DISCORD.GG/NJRHZXRNCA", null, parseInt(COLORES.DORADO, 16), "bold", 0);
+                room.sendAnnouncement("🏆 ¿Tᴇɴᴇ́s ᴇǫᴜɪᴘᴏ ᴏ ǫᴜᴇʀᴇ́s ᴀʀᴍᴀʀ ᴜɴᴏ ᴘᴀʀᴀ ᴊᴜɢᴀʀ Bɪɢɢᴇʀ ᴄᴏᴍᴘᴇᴛɪᴛɪᴠᴏ? ❯❯❯ 👉 UNITE: DISCORD.GG/NJRHZXRNCA", null, parseInt(COLORES.DORADO, 16), "bold", 0);
             }
         } catch (error) {
             // Error en anuncio de Discord

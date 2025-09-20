@@ -11047,15 +11047,30 @@ function mostrarEstadisticasJugador(solicitante, nombreJugador) {
         
         mostrarEstadisticasCompletas(solicitante, stats, true);
     } else {
-        // Buscar estadísticas de otro jugador por nombre
-        const stats = Object.values(estadisticasGlobales.jugadores)
-            .find(j => j.nombre && j.nombre.toLowerCase() === nombreJugador.toLowerCase());
+        // SEGURIDAD: Solo permitir ver estadísticas de jugadores que están actualmente en la sala con auth_id
+        // Esto previene el robo de estadísticas al usar nombres de jugadores que no están presentes
         
-        if (!stats) {
-            anunciarError(`❌ No se encontraron estadísticas para ${nombreJugador}`, solicitante);
+        const jugadorEnSala = room.getPlayerList().find(j => j.name === nombreJugador);
+        if (!jugadorEnSala) {
+            anunciarError(`❌ ${nombreJugador} no está en la sala actualmente`, solicitante);
+            anunciarInfo(`🔒 Por seguridad, solo puedes consultar estadísticas de jugadores presentes`, solicitante);
             return;
         }
         
+        const authIDJugador = jugadoresUID.get(jugadorEnSala.id);
+        if (!authIDJugador) {
+            anunciarError(`❌ ${nombreJugador} no tiene cuenta registrada (sin login)`, solicitante);
+            anunciarInfo(`💡 Solo los jugadores logueados en Haxball.com tienen estadísticas`, solicitante);
+            return;
+        }
+        
+        const stats = estadisticasGlobales.jugadores[authIDJugador];
+        if (!stats) {
+            anunciarError(`❌ ${nombreJugador} no tiene estadísticas guardadas aún`, solicitante);
+            return;
+        }
+        
+        console.log(`🔍 Consulta segura: ${solicitante.name} consultó stats de ${nombreJugador} (${authIDJugador})`);
         mostrarEstadisticasCompletas(solicitante, stats, false);
     }
 }
@@ -11197,13 +11212,25 @@ function estilizarSmallCaps(texto) {
 }
 
 function mostrarTopJugadores(solicitante, estadistica) {
-    const jugadores = Object.values(estadisticasGlobales.jugadores)
-        .filter(j => j.partidos > 0); // Solo jugadores que han jugado al menos un partido
-    
-    if (jugadores.length === 0) {
-        room.sendAnnouncement("❌ No hay estadísticas disponibles aún.", solicitante.id, parseInt("FF0000", 16), "normal", 0);
+    // SEGURIDAD: Verificar que el solicitante tenga auth_id
+    const authIDSolicitante = jugadoresUID.get(solicitante.id);
+    if (!authIDSolicitante) {
+        anunciarError("❌ Debes estar logueado en Haxball.com para ver rankings", solicitante);
+        anunciarInfo("🔗 Ve a https://www.haxball.com/ y haz login antes de usar este comando", solicitante);
         return;
     }
+    
+    // Solo jugadores con auth_id que han jugado al menos un partido
+    const jugadores = Object.values(estadisticasGlobales.jugadores)
+        .filter(j => j.partidos > 0 && j.authID); // Solo jugadores registrados con auth_id
+    
+    if (jugadores.length === 0) {
+        anunciarError("❌ No hay estadísticas disponibles aún.", solicitante);
+        anunciarInfo("💡 Solo los jugadores logueados tienen estadísticas guardadas", solicitante);
+        return;
+    }
+    
+    console.log(`📊 ${solicitante.name} consultó top ${estadistica} (${jugadores.length} jugadores registrados)`);
     
     let topJugadores = [];
     let titulo = "";
@@ -11366,7 +11393,9 @@ function mostrarTopJugadores(solicitante, estadistica) {
         else if (i === 9) posicionEmoji = "🔟";
         else posicionEmoji = `${i + 1}.`;
         
-        const nombreFancy = estilizarSmallCaps(jugador.nombre);
+        // Usar nombre_display si está disponible, sino usar nombre como fallback
+        const nombreMostrar = jugador.nombre_display || jugador.nombre;
+        const nombreFancy = estilizarSmallCaps(nombreMostrar);
         const valorFancy = estilizarSmallCaps(String(valor));
         if (estadistica === "rank") {
             // Formato especial para rank: nombre [valor]
@@ -11618,7 +11647,7 @@ anunciarError("❌ El jugador que te desafió se desconectó.", jugador);
     desafiosPPT.delete(desafioKey);
 }
 
-// FUNCIÓN PARA MOSTRAR HEAD TO HEAD (H2H)
+// FUNCIÓN PARA MOSTRAR HEAD TO HEAD (H2H) - SEGURO
 function mostrarHeadToHead(solicitante, nombre1, nombre2) {
     // Verificar que el solicitante tenga auth ID
     const authIDSolicitante = jugadoresUID.get(solicitante.id);
@@ -11628,18 +11657,46 @@ function mostrarHeadToHead(solicitante, nombre1, nombre2) {
         return;
     }
     
-    // Buscar estadísticas de ambos jugadores por nombre (búsqueda en todos los registros)
-    const stats1 = Object.values(estadisticasGlobales.jugadores).find(j => j.nombre && j.nombre.toLowerCase() === nombre1.toLowerCase());
-    const stats2 = Object.values(estadisticasGlobales.jugadores).find(j => j.nombre && j.nombre.toLowerCase() === nombre2.toLowerCase());
+    // SEGURIDAD: Solo permitir comparar jugadores que están actualmente en la sala con auth_id
+    function obtenerStatsSeguro(nombreJugador) {
+        const jugadorEnSala = room.getPlayerList().find(j => j.name === nombreJugador);
+        if (!jugadorEnSala) {
+            return { error: `${nombreJugador} no está en la sala actualmente` };
+        }
+        
+        const authIDJugador = jugadoresUID.get(jugadorEnSala.id);
+        if (!authIDJugador) {
+            return { error: `${nombreJugador} no tiene cuenta registrada (sin login)` };
+        }
+        
+        const stats = estadisticasGlobales.jugadores[authIDJugador];
+        if (!stats) {
+            return { error: `${nombreJugador} no tiene estadísticas guardadas aún` };
+        }
+        
+        return { stats, authID: authIDJugador };
+    }
     
-    if (!stats1) {
-        anunciarError(`❌ No se encontraron estadísticas para ${nombre1}`, solicitante);
+    // Obtener estadísticas de ambos jugadores de forma segura
+    const resultado1 = obtenerStatsSeguro(nombre1);
+    const resultado2 = obtenerStatsSeguro(nombre2);
+    
+    if (resultado1.error) {
+        anunciarError(`❌ ${resultado1.error}`, solicitante);
+        anunciarInfo(`🔒 Por seguridad, solo puedes comparar jugadores presentes y logueados`, solicitante);
         return;
     }
-    if (!stats2) {
-        anunciarError(`❌ No se encontraron estadísticas para ${nombre2}`, solicitante);
+    if (resultado2.error) {
+        anunciarError(`❌ ${resultado2.error}`, solicitante);
+        anunciarInfo(`🔒 Por seguridad, solo puedes comparar jugadores presentes y logueados`, solicitante);
         return;
     }
+    
+    const stats1 = resultado1.stats;
+    const stats2 = resultado2.stats;
+    
+    console.log(`🔍 H2H seguro: ${solicitante.name} comparó ${nombre1} (${resultado1.authID}) vs ${nombre2} (${resultado2.authID})`);
+    
     
     // Calcular estadísticas comparativas
     const winRate1 = stats1.partidos > 0 ? ((stats1.victorias / stats1.partidos) * 100).toFixed(1) : "0.0";
@@ -13108,17 +13165,53 @@ function enviarPuntuacionesPrivadas() {
 // Función duplicada eliminada - solo mantenemos la función principal
 
 function compararEstadisticas(solicitante, nombre1, nombre2) {
-    const stats1 = Object.values(estadisticasGlobales.jugadores).find(j => j.nombre.toLowerCase() === nombre1.toLowerCase());
-    const stats2 = Object.values(estadisticasGlobales.jugadores).find(j => j.nombre.toLowerCase() === nombre2.toLowerCase());
-
-    if (!stats1) {
-        anunciarError(`No se encontraron estadísticas para ${nombre1}`, solicitante);
+    // SEGURIDAD: Verificar que el solicitante tenga auth_id
+    const authIDSolicitante = jugadoresUID.get(solicitante.id);
+    if (!authIDSolicitante) {
+        anunciarError("❌ Debes estar logueado en Haxball.com para usar comparaciones", solicitante);
+        anunciarInfo("🔗 Ve a https://www.haxball.com/ y haz login antes de usar este comando", solicitante);
         return;
     }
-    if (!stats2) {
-        anunciarError(`No se encontraron estadísticas para ${nombre2}`, solicitante);
+    
+    // SEGURIDAD: Solo permitir comparar jugadores que están actualmente en la sala con auth_id
+    function obtenerStatsSeguroCompare(nombreJugador) {
+        const jugadorEnSala = room.getPlayerList().find(j => j.name === nombreJugador);
+        if (!jugadorEnSala) {
+            return { error: `${nombreJugador} no está en la sala actualmente` };
+        }
+        
+        const authIDJugador = jugadoresUID.get(jugadorEnSala.id);
+        if (!authIDJugador) {
+            return { error: `${nombreJugador} no tiene cuenta registrada (sin login)` };
+        }
+        
+        const stats = estadisticasGlobales.jugadores[authIDJugador];
+        if (!stats) {
+            return { error: `${nombreJugador} no tiene estadísticas guardadas aún` };
+        }
+        
+        return { stats, authID: authIDJugador };
+    }
+    
+    // Obtener estadísticas de ambos jugadores de forma segura
+    const resultado1 = obtenerStatsSeguroCompare(nombre1);
+    const resultado2 = obtenerStatsSeguroCompare(nombre2);
+    
+    if (resultado1.error) {
+        anunciarError(`❌ ${resultado1.error}`, solicitante);
+        anunciarInfo(`🔒 Por seguridad, solo puedes comparar jugadores presentes y logueados`, solicitante);
         return;
     }
+    if (resultado2.error) {
+        anunciarError(`❌ ${resultado2.error}`, solicitante);
+        anunciarInfo(`🔒 Por seguridad, solo puedes comparar jugadores presentes y logueados`, solicitante);
+        return;
+    }
+    
+    const stats1 = resultado1.stats;
+    const stats2 = resultado2.stats;
+    
+    console.log(`🔍 Compare seguro: ${solicitante.name} comparó ${nombre1} (${resultado1.authID}) vs ${nombre2} (${resultado2.authID})`);
 
     const w_r1 = stats1.partidos > 0 ? ((stats1.victorias / stats1.partidos) * 100).toFixed(1) : "0";
     const w_r2 = stats2.partidos > 0 ? ((stats2.victorias / stats2.partidos) * 100).toFixed(1) : "0";
@@ -13129,8 +13222,12 @@ function compararEstadisticas(solicitante, nombre1, nombre2) {
     const app1 = stats1.partidos > 0 ? (stats1.asistencias / stats1.partidos).toFixed(2) : "0";
     const app2 = stats2.partidos > 0 ? (stats2.asistencias / stats2.partidos).toFixed(2) : "0";
 
+    // Usar nombre_display si está disponible, sino usar nombre como fallback
+    const nombreMostrar1 = stats1.nombre_display || stats1.nombre;
+    const nombreMostrar2 = stats2.nombre_display || stats2.nombre;
+    
     const lineas = [
-        `📊 COMPARATIVA: ${stats1.nombre} vs ${stats2.nombre}`,
+        `📊 COMPARATIVA: ${nombreMostrar1} vs ${nombreMostrar2}`,
         `------------------------------------------`,
         `Partidos: ${stats1.partidos} vs ${stats2.partidos}`,
         `Victorias: ${stats1.victorias} vs ${stats2.victorias}`,

@@ -8767,7 +8767,10 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             break;
             
         case "unmute":
-            if (!esAdmin(jugador)) return;
+            if (!esAdminBasico(jugador)) {
+                anunciarError("❌ No tienes permisos para desmutear jugadores.", jugador);
+                return;
+            }
             if (args[1]) {
                 const nombreJugador = args[1];
                 const jugadorObjetivo = obtenerJugadorPorNombreOID(nombreJugador);

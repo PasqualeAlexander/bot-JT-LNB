@@ -11131,6 +11131,21 @@ function mostrarRecords(solicitante) {
     });
 }
 
+// Utilidad: convierte texto a un estilo "small caps" similar al usado en los títulos
+function estilizarSmallCaps(texto) {
+    if (!texto) return texto;
+    const mapa = {
+        'a':'ᴀ','b':'ʙ','c':'ᴄ','d':'ᴅ','e':'ᴇ','f':'ꜰ','g':'ɢ','h':'ʜ','i':'ɪ','j':'ᴊ','k':'ᴋ','l':'ʟ','m':'ᴍ','n':'ɴ','o':'ᴏ','p':'ᴘ','q':'ǫ','r':'ʀ','s':'ꜱ','t':'ᴛ','u':'ᴜ','v':'ᴠ','w':'ᴡ','x':'x','y':'ʏ','z':'ᴢ',
+        'A':'ᴀ','B':'ʙ','C':'ᴄ','D':'ᴅ','E':'ᴇ','F':'ꜰ','G':'ɢ','H':'ʜ','I':'ɪ','J':'ᴊ','K':'ᴋ','L':'ʟ','M':'ᴍ','N':'ɴ','O':'ᴏ','P':'ᴘ','Q':'ǫ','R':'ʀ','S':'ꜱ','T':'ᴛ','U':'ᴜ','V':'ᴠ','W':'ᴡ','X':'x','Y':'ʏ','Z':'ᴢ'
+        // Caracteres acentuados, ñ, etc. se mantienen tal cual
+    };
+    let out = '';
+    for (const ch of texto) {
+        out += (mapa[ch] || ch);
+    }
+    return out;
+}
+
 function mostrarTopJugadores(solicitante, estadistica) {
     const jugadores = Object.values(estadisticasGlobales.jugadores)
         .filter(j => j.partidos > 0); // Solo jugadores que han jugado al menos un partido
@@ -11160,7 +11175,7 @@ function mostrarTopJugadores(solicitante, estadistica) {
             topJugadores = jugadores
                 .sort((a, b) => b.asistencias - a.asistencias)
                 .slice(0, 10);
-            titulo = "[PV] 👟 Asɪsᴛᴇɴᴄɪs ❯❯❯";
+            titulo = "[PV] 👟 Asɪsᴛᴇɴᴄɪᴀs ❯❯❯";
             emoji = "🎯";
             unidad = "";
             break;
@@ -11301,12 +11316,14 @@ function mostrarTopJugadores(solicitante, estadistica) {
         else if (i === 9) posicionEmoji = "🔟";
         else posicionEmoji = `${i + 1}.`;
         
+        const nombreFancy = estilizarSmallCaps(jugador.nombre);
+        const valorFancy = estilizarSmallCaps(String(valor));
         if (estadistica === "rank") {
-            // Formato especial para rank: nombre [valor puntos]
-            lineas.push(`${posicionEmoji} ${jugador.nombre} [${valor}]`);
+            // Formato especial para rank: nombre [valor]
+            lineas.push(`${posicionEmoji} ${nombreFancy} [${valorFancy}]`);
         } else {
-            // Formato especial con corchetes para todas las estadísticas: nombre [valor]
-            lineas.push(`${posicionEmoji} ${jugador.nombre} [${valor}]`);
+            // Formato con corchetes para todas las estadísticas: nombre [valor]
+            lineas.push(`${posicionEmoji} ${nombreFancy} [${valorFancy}]`);
         }
     });
     

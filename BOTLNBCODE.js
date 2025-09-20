@@ -7089,7 +7089,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
                             
                             room.setPlayerTeam(jugador.id, 1); // Mover al equipo rojo
                             console.log(`🔴 DEBUG: Jugador ${jugador.name} movido al equipo rojo para training`);
-                            anunciarInfo(`🔴 ${jugador.name} movido al equipo rojo para entrenar`, jugador);
+                            // anunciarInfo(`🔴 ${jugador.name} movido al equipo rojo para entrenar`, jugador);
                         } else {
                             console.log(`✅ DEBUG: Jugador ${jugador.name} ya está en el equipo rojo`);
                         }
@@ -7743,7 +7743,7 @@ async function procesarComando(jugador, mensaje) {
                             const resultado = await nodeGuardarFestejo(authJugador, jugador.name || 'Desconocido', 'gol', mensaje);
                             console.log(`🎉 [FESTEJO DEBUG] Resultado de nodeGuardarFestejo:`, resultado);
                             if (resultado.success) {
-                                room.sendAnnouncement(`⚽ Mensaje de gol configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
+                                room.sendAnnouncement(`[PV] Mensaje de gol configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
                                 console.log(`💾 [FESTEJOS] Mensaje de gol guardado para jugador ${jugador.name} (${jugador.auth}): "${mensaje}"`);
                                 
                                 // CORRECIÓN: Actualizar cache inmediatamente usando el auth correcto
@@ -7769,7 +7769,7 @@ async function procesarComando(jugador, mensaje) {
                         msgs.gol = mensaje;
                         msgs.ultimoUso = Date.now();
                         console.log(`🎉 [FESTEJO DEBUG] Mensaje guardado en sistema temporal para ID ${jugador.id}`);
-                        room.sendAnnouncement(`⚽ Mensaje de gol configurado: "${mensaje}" (temporal)`, jugador.id, parseInt("00FF00", 16), "bold", 0);
+                        room.sendAnnouncement(`[PV] Mensaje de gol configurado: "${mensaje}" (temporal)`, jugador.id, parseInt("00FF00", 16), "bold", 0);
                     }
                 }
             } else if (tipoFestejo === 'asis' || tipoFestejo === 'asistencia') {
@@ -7802,7 +7802,7 @@ async function procesarComando(jugador, mensaje) {
                         try {
                             const resultado = await nodeGuardarFestejo(authJugadorAsist2, jugador.name || 'Desconocido', 'asistencia', mensaje);
                             if (resultado.success) {
-                                room.sendAnnouncement(`🎯 Mensaje de asistencia configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
+                                room.sendAnnouncement(`[PV] 🎯 Mensaje de asistencia configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
                                 console.log(`💾 [FESTEJOS] Mensaje de asistencia guardado para jugador ${jugador.name} (${jugador.auth}): "${mensaje}"`);
                                 
                                 // CORRECIÓN: Actualizar cache inmediatamente usando el auth correcto
@@ -7825,7 +7825,7 @@ async function procesarComando(jugador, mensaje) {
                         const msgs = mensajesPersonalizados.get(jugador.id);
                         msgs.asistencia = mensaje;
                         msgs.ultimoUso = Date.now();
-                        room.sendAnnouncement(`🎯 Mensaje de asistencia configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
+                        room.sendAnnouncement(`[PV] 🎯 Mensaje de asistencia configurado: "${mensaje}"`, jugador.id, parseInt("00FF00", 16), "bold", 0);
                     }
                 }
             } else {

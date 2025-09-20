@@ -10807,7 +10807,7 @@ function guardarEstadisticasGlobalesCompletas() {
     }
 }
 
-function registrarJugadorGlobal(nombre) {
+function registrarJugadorGlobal(authID, nombre) {
     // Verificar que estadisticasGlobales esté inicializado
     if (!estadisticasGlobales || !estadisticasGlobales.jugadores) {
         console.error('❌ ERROR: estadisticasGlobales no inicializado en registrarJugadorGlobal');
@@ -10819,9 +10819,16 @@ function registrarJugadorGlobal(nombre) {
         }
     }
     
-    if (!estadisticasGlobales.jugadores[nombre]) {
-        estadisticasGlobales.jugadores[nombre] = {
-            nombre: nombre,
+    // Si no hay authID, no registrar al jugador (solo jugadores con auth)
+    if (!authID || authID.length === 0) {
+        console.log(`🚫 No se registrará a ${nombre}: Sin auth ID`);
+        return null;
+    }
+    
+    if (!estadisticasGlobales.jugadores[authID]) {
+        estadisticasGlobales.jugadores[authID] = {
+            authID: authID,
+            nombre: nombre, // Nombre actual del jugador
             partidos: 0,
             victorias: 0,
             derrotas: 0,
@@ -10841,8 +10848,15 @@ function registrarJugadorGlobal(nombre) {
             xp: 40,  // XP inicial para jugadores nuevos
             nivel: 1 // Nivel inicial
         };
+        console.log(`✅ Nuevo jugador registrado: ${nombre} (${authID})`);
+    } else {
+        // Actualizar nombre si ha cambiado
+        if (estadisticasGlobales.jugadores[authID].nombre !== nombre) {
+            console.log(`📝 Actualizando nombre: ${estadisticasGlobales.jugadores[authID].nombre} -> ${nombre}`);
+            estadisticasGlobales.jugadores[authID].nombre = nombre;
+        }
     }
-    return estadisticasGlobales.jugadores[nombre];
+    return estadisticasGlobales.jugadores[authID];
 }
 
 // ====================== FUNCIÓN DE VALIDACIÓN DE CANCHA ======================
@@ -10888,7 +10902,17 @@ function actualizarEstadisticasGlobales(datosPartido) {
     
     // Actualizar estadísticas de cada jugador
     Object.values(datosPartido.jugadores).forEach(jugadorPartido => {
-        const statsGlobal = registrarJugadorGlobal(jugadorPartido.nombre);
+        // Obtener auth ID desde jugadoresUID (guardado al conectarse)
+        const jugadorEnSala = room.getPlayerList().find(j => j.name === jugadorPartido.nombre);
+        const authID = jugadorEnSala ? jugadoresUID.get(jugadorEnSala.id) : null;
+        
+        const statsGlobal = registrarJugadorGlobal(authID, jugadorPartido.nombre);
+        
+        // Si no tiene auth ID, no guardar estadísticas
+        if (!statsGlobal) {
+            console.log(`🚫 Estadísticas no guardadas para ${jugadorPartido.nombre}: Sin auth ID`);
+            return; // Continuar con el siguiente jugador
+        }
         
         // Estadísticas básicas
         statsGlobal.partidos++;
@@ -11004,27 +11028,53 @@ function actualizarEstadisticasGlobales(datosPartido) {
 }
 
 function mostrarEstadisticasJugador(solicitante, nombreJugador) {
-    const stats = estadisticasGlobales.jugadores[nombreJugador];
+    // Obtener auth ID del jugador solicitante para sus propias estadísticas
+    const authIDSolicitante = jugadoresUID.get(solicitante.id);
     
-    if (!stats) {
-        room.sendAnnouncement(`❌ No se encontraron estadísticas para ${nombreJugador}`, solicitante.id, parseInt("FF0000", 16), "normal", 0);
-        return;
+    // Si está consultando sus propias estadísticas
+    if (solicitante.name === nombreJugador) {
+        if (!authIDSolicitante) {
+            anunciarError("❌ Debes estar logueado en Haxball.com para ver tus estadísticas", solicitante);
+            anunciarInfo("🔗 Ve a https://www.haxball.com/ y haz login antes de usar comandos de estadísticas", solicitante);
+            return;
+        }
+        
+        const stats = estadisticasGlobales.jugadores[authIDSolicitante];
+        if (!stats) {
+            anunciarError(`❌ No tienes estadísticas guardadas aún. Juega algunos partidos primero.`, solicitante);
+            return;
+        }
+        
+        mostrarEstadisticasCompletas(solicitante, stats, true);
+    } else {
+        // Buscar estadísticas de otro jugador por nombre
+        const stats = Object.values(estadisticasGlobales.jugadores)
+            .find(j => j.nombre && j.nombre.toLowerCase() === nombreJugador.toLowerCase());
+        
+        if (!stats) {
+            anunciarError(`❌ No se encontraron estadísticas para ${nombreJugador}`, solicitante);
+            return;
+        }
+        
+        mostrarEstadisticasCompletas(solicitante, stats, false);
     }
-    
+}
+
+function mostrarEstadisticasCompletas(solicitante, stats, esPropioJugador) {
     const winRate = stats.partidos > 0 ? ((stats.victorias / stats.partidos) * 100).toFixed(1) : "0.0";
     const horasJugadas = (stats.tiempoJugado / 3600).toFixed(1);
     const fechaPrimera = new Date(stats.fechaPrimerPartido).toLocaleDateString();
     const fechaUltima = new Date(stats.fechaUltimoPartido).toLocaleDateString();
     
-    const statsMessage = `📊 ${nombreJugador.toUpperCase()} | 🎮 Partidos: ${stats.partidos} | ⏱️ Tiempo: ${horasJugadas} h | 🏆 V: ${stats.victorias} | 💔 D: ${stats.derrotas} | 📈 WR: ${winRate}% | ⚽ Goles: ${stats.goles} (${stats.promedioGoles}/partido) | 🎯 Asistencias: ${stats.asistencias} (${stats.promedioAsistencias}/partido) | 😱 Autogoles: ${stats.autogoles} | 🎩 Hat-tricks: ${stats.hatTricks} | 🛡️ Vallas invictas: ${stats.vallasInvictas} | 📅 ${fechaUltima}`;
+    const statsMessage = `📊 ${stats.nombre.toUpperCase()} | 🎮 Partidos: ${stats.partidos} | ⏱️ Tiempo: ${horasJugadas} h | 🏆 V: ${stats.victorias} | 💔 D: ${stats.derrotas} | 📈 WR: ${winRate}% | ⚽ Goles: ${stats.goles} (${stats.promedioGoles}/partido) | 🎯 Asistencias: ${stats.asistencias} (${stats.promedioAsistencias}/partido) | 😱 Autogoles: ${stats.autogoles} | 🎩 Hat-tricks: ${stats.hatTricks} | 🛡️ Vallas invictas: ${stats.vallasInvictas} | 📅 ${fechaUltima}`;
     
     room.sendAnnouncement(statsMessage, solicitante.id, 0xFFFF00, "normal", 0);
     
-    // Mostrar código de recuperación si el jugador está consultando sus propias estadísticas
-    if (solicitante.name === nombreJugador && stats.partidos > 0) {
+    // Mostrar código de recuperación solo si es el propio jugador
+    if (esPropioJugador && stats.partidos > 0) {
         // Generar código si no existe
         if (!stats.codigoRecuperacion) {
-            stats.codigoRecuperacion = generarCodigoRecuperacion(nombreJugador);
+            stats.codigoRecuperacion = generarCodigoRecuperacion(stats.nombre);
             stats.fechaCodigoCreado = new Date().toISOString();
             guardarEstadisticasGlobalesCompletas();
         }
@@ -11365,11 +11415,20 @@ function generarCodigoRecuperacion(nombre) {
 }
 
 function mostrarCodigoRecuperacion(jugador) {
+    // Obtener auth ID del jugador
+    const authID = jugadoresUID.get(jugador.id);
+    
+    if (!authID) {
+        anunciarError("❌ Debes estar logueado en Haxball.com para usar códigos de recuperación", jugador);
+        anunciarInfo("🔗 Ve a https://www.haxball.com/ y haz login antes de usar este comando", jugador);
+        return;
+    }
+    
     // Verificar si el jugador ya tiene estadísticas
-    const stats = estadisticasGlobales.jugadores[jugador.name];
+    const stats = estadisticasGlobales.jugadores[authID];
     
     if (!stats || stats.partidos === 0) {
-        room.sendAnnouncement("❌ No tienes estadísticas guardadas aún. Juega algunos partidos primero.", jugador.id, parseInt("FF0000", 16), "normal", 0);
+        anunciarError("❌ No tienes estadísticas guardadas aún. Juega algunos partidos primero.", jugador);
         return;
     }
     
@@ -11380,11 +11439,11 @@ function mostrarCodigoRecuperacion(jugador) {
         guardarEstadisticasGlobalesCompletas();
     }
     
-        const lineas = [
-            `🔐 Código de recuperación: ${stats.codigoRecuperacion} (${new Date(stats.fechaCodigoCreado).toLocaleDateString()})`,
-            "💡 Usá '!recuperar [código]' desde otro dispositivo y guardalo en un lugar seguro.",
-            `📊 Stats: ${stats.partidos} partidos, ${stats.goles} goles`
-        ];
+    const lineas = [
+        `[PV] 🔐 Código de recuperación: ${stats.codigoRecuperacion} (${new Date(stats.fechaCodigoCreado).toLocaleDateString()})`,
+        "[PV] 💡 Usá '!recuperar [código]' desde otro dispositivo y guardalo en un lugar seguro.",
+        `[PV] 📊 Stats: ${stats.partidos} partidos, ${stats.goles} goles`
+    ];
     
     lineas.forEach(linea => {
         room.sendAnnouncement(linea, jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
@@ -11392,61 +11451,71 @@ function mostrarCodigoRecuperacion(jugador) {
 }
 
 function recuperarEstadisticas(jugador, codigo) {
+    // Obtener auth ID del jugador
+    const authID = jugadoresUID.get(jugador.id);
+    
+    if (!authID) {
+        anunciarError("❌ Debes estar logueado en Haxball.com para recuperar estadísticas", jugador);
+        anunciarInfo("🔗 Ve a https://www.haxball.com/ y haz login antes de usar este comando", jugador);
+        return;
+    }
+    
     if (!codigo || codigo.length !== 8) {
-        room.sendAnnouncement("❌ Código inválido. Debe tener 8 caracteres.", jugador.id, parseInt("FF0000", 16), "normal", 0);
+        anunciarError("❌ Código inválido. Debe tener 8 caracteres.", jugador);
         return;
     }
     
     const codigoLimpio = codigo.toUpperCase();
     
-    // Buscar el jugador que tiene este código
-    let jugadorOriginal = null;
+    // Buscar el authID que tiene este código
+    let authIDOriginal = null;
     let statsOriginales = null;
     
-    for (const [nombre, stats] of Object.entries(estadisticasGlobales.jugadores)) {
+    for (const [authIDKey, stats] of Object.entries(estadisticasGlobales.jugadores)) {
         if (stats.codigoRecuperacion === codigoLimpio) {
-            jugadorOriginal = nombre;
+            authIDOriginal = authIDKey;
             statsOriginales = stats;
             break;
         }
     }
     
-    if (!jugadorOriginal || !statsOriginales) {
-        room.sendAnnouncement("❌ Código de recuperación no encontrado. Verifica que sea correcto.", jugador.id, parseInt("FF0000", 16), "normal", 0);
+    if (!authIDOriginal || !statsOriginales) {
+        anunciarError("❌ Código de recuperación no encontrado. Verifica que sea correcto.", jugador);
         return;
     }
     
-    // Verificar si ya existe un jugador con este nombre y mostrar información
-    const statsActuales = estadisticasGlobales.jugadores[jugador.name];
+    // Verificar si ya existe estadísticas para este authID
+    const statsActuales = estadisticasGlobales.jugadores[authID];
     
     if (statsActuales && statsActuales.partidos > 0) {
         // Mostrar comparación sin fusionar automáticamente
-        room.sendAnnouncement("⚠️ Ya tienes estadísticas existentes:", jugador.id, parseInt("FFA500", 16), "bold", 0);
-        room.sendAnnouncement(`📊 Actuales: ${statsActuales.partidos} PJ | ${statsActuales.goles} G | ${statsActuales.asistencias} A`, jugador.id, parseInt("87CEEB", 16), "normal", 0);
-        room.sendAnnouncement(`🔄 A recuperar: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A`, jugador.id, parseInt("87CEEB", 16), "normal", 0);
-        room.sendAnnouncement("❌ No se puede recuperar porque ya tienes estadísticas. Contacta a un administrador si necesitas ayuda.", jugador.id, parseInt("FF0000", 16), "normal", 0);
+        anunciarAdvertencia("Ya tienes estadísticas existentes:", jugador);
+        anunciarInfo(`📊 Actuales: ${statsActuales.partidos} PJ | ${statsActuales.goles} G | ${statsActuales.asistencias} A`, jugador);
+        anunciarInfo(`🔄 A recuperar: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A`, jugador);
+        anunciarError("❌ No se puede recuperar porque ya tienes estadísticas. Contacta a un administrador si necesitas ayuda.", jugador);
         return;
     } else {
         // No hay estadísticas actuales, recuperar directamente
-        estadisticasGlobales.jugadores[jugador.name] = {
+        estadisticasGlobales.jugadores[authID] = {
             ...statsOriginales,
-            nombre: jugador.name,
+            authID: authID,
+            nombre: jugador.name, // Actualizar con el nombre actual
             fechaRecuperacion: new Date().toISOString(),
             dispositivo: "recuperado"
         };
         
-        const mensaje = `✅ Stats recuperadas: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A | ${statsOriginales.victorias} V | ${statsOriginales.derrotas} D | Win Rate: ${((statsOriginales.victorias/statsOriginales.partidos)*100).toFixed(1)}%`;
+        const mensaje = `[PV] ✅ Stats recuperadas: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A | ${statsOriginales.victorias} V | ${statsOriginales.derrotas} D | Win Rate: ${((statsOriginales.victorias/statsOriginales.partidos)*100).toFixed(1)}%`;
         room.sendAnnouncement(mensaje, jugador.id, parseInt("00FF00", 16), "normal", 0);
     }
     
-    // Eliminar las estadísticas del nombre original si es diferente
-    if (jugadorOriginal !== jugador.name) {
-        delete estadisticasGlobales.jugadores[jugadorOriginal];
+    // Eliminar las estadísticas del authID original si es diferente
+    if (authIDOriginal !== authID) {
+        delete estadisticasGlobales.jugadores[authIDOriginal];
     }
     
     guardarEstadisticasGlobalesCompletas();
     
-    room.sendAnnouncement("🎮 Usá '!me' para ver tus estadísticas completas.", jugador.id, parseInt("87CEEB", 16), "normal", 0);
+    anunciarInfo("🎮 Usá '!me' para ver tus estadísticas completas.", jugador);
     
     // Anuncio público
     anunciarExito(`🔄 ${jugador.name} ha recuperado sus estadísticas`);
@@ -11551,9 +11620,17 @@ anunciarError("❌ El jugador que te desafió se desconectó.", jugador);
 
 // FUNCIÓN PARA MOSTRAR HEAD TO HEAD (H2H)
 function mostrarHeadToHead(solicitante, nombre1, nombre2) {
-    // Buscar estadísticas de ambos jugadores
-    const stats1 = Object.values(estadisticasGlobales.jugadores).find(j => j.nombre.toLowerCase() === nombre1.toLowerCase());
-    const stats2 = Object.values(estadisticasGlobales.jugadores).find(j => j.nombre.toLowerCase() === nombre2.toLowerCase());
+    // Verificar que el solicitante tenga auth ID
+    const authIDSolicitante = jugadoresUID.get(solicitante.id);
+    if (!authIDSolicitante) {
+        anunciarError("❌ Debes estar logueado en Haxball.com para usar comparaciones", solicitante);
+        anunciarInfo("🔗 Ve a https://www.haxball.com/ y haz login antes de usar este comando", solicitante);
+        return;
+    }
+    
+    // Buscar estadísticas de ambos jugadores por nombre (búsqueda en todos los registros)
+    const stats1 = Object.values(estadisticasGlobales.jugadores).find(j => j.nombre && j.nombre.toLowerCase() === nombre1.toLowerCase());
+    const stats2 = Object.values(estadisticasGlobales.jugadores).find(j => j.nombre && j.nombre.toLowerCase() === nombre2.toLowerCase());
     
     if (!stats1) {
         anunciarError(`❌ No se encontraron estadísticas para ${nombre1}`, solicitante);

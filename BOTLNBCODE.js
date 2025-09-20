@@ -13150,13 +13150,18 @@ function configurarEventos() {
         
         // Comandos - PROCESAR PRIMERO para que sean completamente privados
         if (mensaje.startsWith("!")) {
-            try {
-procesarComando(jugador, mensaje);
-            } catch (error) {
-                console.error('❌ Error procesando comando:', error);
-                anunciarError("Error procesando comando", jugador);
-            }
-            return false; // NO mostrar el comando en el chat público
+            // Procesar el comando de forma inmediata en un setTimeout para evitar bloqueos
+            setTimeout(async () => {
+                try {
+                    await procesarComando(jugador, mensaje);
+                } catch (error) {
+                    console.error('❌ Error procesando comando:', error);
+                    anunciarError("Error procesando comando", jugador);
+                }
+            }, 0);
+            
+            console.log(`🎮 COMANDO INTERCEPTADO: ${jugador.name} -> ${mensaje}`);
+            return false; // NO mostrar el comando en el chat público - RETORNO INMEDIATO
         }
         
         // Team chat - INTERCEPTAR INMEDIATAMENTE AL INICIO
@@ -13317,10 +13322,16 @@ procesarComando(jugador, mensaje);
             mensajeCompleto = `${prefijoRol}${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensaje}`;
         }
         
-        // Retransmitir el mensaje con el formato y color apropiados
-        room.sendAnnouncement(mensajeCompleto, null, parseInt(colorVIP, 16), "normal", 1);
+        // Solo retransmitir si es admin o VIP (para darles formato especial)
+        // Los jugadores normales usan el chat nativo de HaxBall
+        if (esSuperAdmin(jugador) || esAdminBasico(jugador) || esVIP) {
+            // Retransmitir el mensaje con el formato y color apropiados
+            room.sendAnnouncement(mensajeCompleto, null, parseInt(colorVIP, 16), "normal", 1);
+            return false; // No mostrar el mensaje original sin formato
+        }
         
-        return false; // No mostrar el mensaje original sin formato
+        // Para jugadores normales, permitir que HaxBall maneje el mensaje naturalmente
+        return true;
     };
     
     // Jugador se une

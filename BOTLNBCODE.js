@@ -11359,17 +11359,11 @@ function estilizarSmallCaps(texto) {
 }
 
 async function mostrarTopJugadores(solicitante, estadistica) {
-    // SEGURIDAD: Verificar que el solicitante tenga auth_id
-    const authIDSolicitante = jugadoresUID.get(solicitante.id);
-    if (!authIDSolicitante) {
-        anunciarError("❌ Debes estar logueado en Haxball.com para ver rankings", solicitante);
-        anunciarInfo("🔗 Ve a https://www.haxball.com/ y haz login antes de usar este comando", solicitante);
-        return;
-    }
+    // Público: permitir ver rankings sin requerir login, usando solo datos por auth_id
     
     // Solo jugadores con auth_id que han jugado al menos un partido
     const jugadores = Object.values(estadisticasGlobales.jugadores)
-        .filter(j => j.partidos > 0 && j.authID); // Solo jugadores registrados con auth_id
+        .filter(j => j.partidos > 0 && (j.authID || j.auth_id)); // Solo jugadores registrados con auth_id
     
     if (jugadores.length === 0) {
         // Fallback simple: mostrar 10 jugadores aleatorios de la base con valor 0

@@ -609,6 +609,30 @@ class SistemaBackup {
 // Instancia global del sistema de backup
 let sistemaBackup = null;
 
+// ==================== FUNCIÓN PARA VERIFICAR DISPONIBILIDAD DE FUNCIONES NODE.JS ====================
+function verificarFuncionesNodeDisponibles() {
+    const funcionesRequeridas = [
+        'nodeGetRole', 'nodeAssignRole', 'cargarEstadisticasGlobales',
+        'guardarEstadisticasGlobales', 'nodeObtenerJugadorPorAuth'
+    ];
+    
+    let funcionesDisponibles = 0;
+    const estadoFunciones = {};
+    
+    funcionesRequeridas.forEach(nombreFuncion => {
+        const disponible = typeof window[nombreFuncion] === 'function' || typeof global[nombreFuncion] === 'function';
+        estadoFunciones[nombreFuncion] = disponible;
+        if (disponible) funcionesDisponibles++;
+    });
+    
+    return {
+        total: funcionesRequeridas.length,
+        disponibles: funcionesDisponibles,
+        estado: estadoFunciones,
+        completo: funcionesDisponibles === funcionesRequeridas.length
+    };
+}
+
 async function cargarEstadisticasGlobalesDB() {
     try {
         // Buscar función expuesta desde Node.js en el contexto global
@@ -790,7 +814,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjQZSmwM4FSEjO48A.DgVKSIfRVJw";
+const token = "thr1.AAAAAGjQaTYcpUwOdRdrWg.utE0M100t0M";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -9839,10 +9863,28 @@ async function verificarYRestaurarRol(jugador) {
         console.log(`🔍 [DEBUG AUTH] - Valor auth: "${jugador.auth}"`);
         console.log(`🔍 [DEBUG AUTH] - Auth válido: ${tieneAuth(jugador)}`);
         
-        // Verificar si tenemos acceso a las funciones expuestas desde Node
+        // Verificar si tenemos acceso a las funciones expuestas desde Node con retry logic
         if (typeof nodeGetRole !== 'function') {
-            console.log(`⚠️ Sistema de roles persistentes no disponible para ${jugador.name}`);
-            return false;
+            console.log(`⚠️ nodeGetRole no disponible inmediatamente para ${jugador.name}, intentando después de delay...`);
+            
+            // Retry después de un pequeño delay - las funciones pueden no estar listas aún
+            return new Promise((resolve) => {
+                setTimeout(async () => {
+                    try {
+                        if (typeof nodeGetRole === 'function') {
+                            console.log(`✅ nodeGetRole ahora disponible para ${jugador.name}, reintentando...`);
+                            const resultado = await verificarYRestaurarRol(jugador);
+                            resolve(resultado);
+                        } else {
+                            console.log(`❌ nodeGetRole sigue no disponible después del delay para ${jugador.name}`);
+                            resolve(false);
+                        }
+                    } catch (error) {
+                        console.error(`❌ Error en retry de verificarYRestaurarRol:`, error);
+                        resolve(false);
+                    }
+                }, 1000); // 1 segundo de delay
+            });
         }
         
         // Verificar si el jugador tiene auth válido
@@ -16126,6 +16168,113 @@ async function inicializar() {
     
     // Configurar eventos
     configurarEventos();
+    
+    // ==================== INICIALIZACIÓN COMPLETA DE SISTEMAS ====================
+    // Inicializar todos los sistemas del bot después de un delay para asegurar disponibilidad
+    setTimeout(async () => {
+        console.log('🔄 Inicializando sistemas del bot después de configuración...');
+        
+        try {
+            // 1. Verificar funciones de Node.js expuestas
+            const estadoFunciones = verificarFuncionesNodeDisponibles();
+            console.log(`📊 Funciones Node.js disponibles: ${estadoFunciones.disponibles}/${estadoFunciones.total}`);
+            
+            // Mostrar estado detallado
+            Object.entries(estadoFunciones.estado).forEach(([nombre, disponible]) => {
+                if (disponible) {
+                    console.log(`✅ Función ${nombre} disponible`);
+                } else {
+                    console.warn(`⚠️ Función ${nombre} NO disponible`);
+                }
+            });
+            
+            if (!estadoFunciones.completo) {
+                console.warn('⚠️ Algunas funciones Node.js no están disponibles - funcionalidades limitadas');
+            }
+            
+            // 2. Re-cargar estadísticas globales desde BD para asegurar niveles
+            try {
+                console.log('📥 Re-cargando estadísticas globales desde BD...');
+                const estadisticasCargadas = await cargarEstadisticasGlobalesDB();
+                if (estadisticasCargadas && estadisticasCargadas.jugadores) {
+                    estadisticasGlobales = estadisticasCargadas;
+                    const totalJugadores = Object.keys(estadisticasCargadas.jugadores).length;
+                    console.log(`✅ Estadísticas re-cargadas: ${totalJugadores} jugadores`);
+                    
+                    // Verificar que los niveles estén cargados correctamente
+                    let jugadoresConNivel = 0;
+                    Object.values(estadisticasCargadas.jugadores).forEach(jugador => {
+                        if (jugador.nivel && jugador.nivel > 1) {
+                            jugadoresConNivel++;
+                        }
+                    });
+                    console.log(`📊 Jugadores con nivel > 1: ${jugadoresConNivel}/${totalJugadores}`);
+                    
+                    anunciarInfo(`💾 Base de datos cargada: ${totalJugadores} jugadores, ${jugadoresConNivel} con progreso`);
+                } else {
+                    console.warn('⚠️ No se pudieron re-cargar estadísticas desde BD');
+                }
+            } catch (error) {
+                console.error('❌ Error re-cargando estadísticas globales:', error);
+            }
+            
+            // 3. Inicializar sistema de backup
+            if (!sistemaBackup) {
+                try {
+                    sistemaBackup = new SistemaBackup();
+                    console.log('✅ Sistema de backup inicializado');
+                } catch (error) {
+                    console.error('❌ Error inicializando sistema de backup:', error);
+                }
+            }
+            
+            // 4. Iniciar guardado automático
+            try {
+                iniciarGuardadoAutomatico();
+                console.log('✅ Sistema de guardado automático iniciado');
+            } catch (error) {
+                console.error('❌ Error iniciando guardado automático:', error);
+            }
+            
+            // 5. Iniciar anuncios top aleatorio
+            try {
+                iniciarTopAleatorioAutomatico();
+                console.log('✅ Sistema de anuncios top aleatorio iniciado');
+            } catch (error) {
+                console.error('❌ Error iniciando anuncios top aleatorio:', error);
+            }
+            
+            // 6. Pre-cargar roles administrativos persistentes si las funciones están disponibles
+            if (estadoFunciones.completo) {
+                try {
+                    console.log('📎 Precargando roles administrativos persistentes...');
+                    
+                    // Solo intentar si tenemos la función de obtener todos los roles
+                    if (typeof window.nodeGetAllAdminRoles === 'function') {
+                        const rolesAdmin = await window.nodeGetAllAdminRoles();
+                        if (rolesAdmin && rolesAdmin.length > 0) {
+                            console.log(`📄 Encontrados ${rolesAdmin.length} roles administrativos guardados`);
+                            rolesAdmin.forEach(rol => {
+                                console.log(`  - ${rol.identifier}: ${rol.role} (asignado por ${rol.assignedBy})`);
+                            });
+                        } else {
+                            console.log('📄 No hay roles administrativos guardados');
+                        }
+                    } else {
+                        console.log('📄 Función de precarga de roles no disponible');
+                    }
+                } catch (error) {
+                    console.error('❌ Error precargando roles administrativos:', error);
+                }
+            }
+            
+            console.log('✅ Inicialización completa de sistemas finalizada');
+            anunciarGeneral('🤖 Bot completamente inicializado - Todos los sistemas activos', COLORES.DORADO, 'bold');
+            
+        } catch (error) {
+            console.error('❌ Error en inicialización completa:', error);
+        }
+    }, 3000); // 3 segundos de delay para asegurar que todo esté listo
     
     // Deshabilitar los botones de cambio de equipo desde el inicio
     try {

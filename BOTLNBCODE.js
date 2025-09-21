@@ -790,7 +790,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjPk_7SlH5Rujzw5g.sjMWOoJs9oM";
+const token = "thr1.AAAAAGjQZSmwM4FSEjO48A.DgVKSIfRVJw";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -8782,6 +8782,9 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                         anunciarExito(`🔊 ${jugadorObjetivo.name} ya no está silenciado`);
                         // Mensaje privado al jugador desmutado
                         room.sendAnnouncement("ℹ️ ✅ Finalizó tu muteo", jugadorObjetivo.id, parseInt(CELESTE_LNB, 16), "normal", 0);
+                        
+                        // Enviar notificación al webhook
+                        enviarNotificacionMute("unmute", jugador.name, jugadorObjetivo.name, jugadorObjetivo.id);
                         return;
                     }
                     
@@ -8811,10 +8814,16 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                         });
                         
                         anunciarAdvertencia(`🔇 ${jugadorObjetivo.name} ha sido silenciado por ${tiempo} minutos: ${razon}`);
+                        
+                        // Enviar notificación al webhook
+                        enviarNotificacionMute("mute", jugador.name, jugadorObjetivo.name, jugadorObjetivo.id, tiempo, razon);
                     } else {
                         // Mute permanente
                         jugadoresMuteados.add(jugadorObjetivo.id);
                         anunciarAdvertencia(`🔇 ${jugadorObjetivo.name} ha sido silenciado permanentemente: ${razon}`);
+                        
+                        // Enviar notificación al webhook
+                        enviarNotificacionMute("mute", jugador.name, jugadorObjetivo.name, jugadorObjetivo.id, null, razon);
                     }
                 } else {
                     anunciarError("Jugador no encontrado", jugador);
@@ -8917,6 +8926,9 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                     
                     if (jugadorDesmmuteado) {
                         anunciarExito(`🔊 ${jugadorObjetivo.name} ha sido desmuteado por ${jugador.name}`);
+                        
+                        // Enviar notificación al webhook
+                        enviarNotificacionMute("unmute", jugador.name, jugadorObjetivo.name, jugadorObjetivo.id);
                     } else {
                         anunciarError(`❌ ${jugadorObjetivo.name} no está muteado`, jugador);
                     }
@@ -9161,309 +9173,112 @@ anunciarError("Uso: !pw <contraseña>", jugador);
         case "unban":
         case "desban":
         case "banınıkaldır": // Comando en turco
-            // Comando con doble soporte: nuevo sistema (prioritario) y fallback antiguo
-            // Verificar si el nuevo sistema está disponible
-            if (newCommandSystem && room.librariesMap && room.librariesMap.commands) {
-                // El nuevo sistema existe, dejar que maneje el comando
-                // No procesar aquí para evitar conflictos
-                console.log(`💡 UNBAN: Nuevo sistema detectado, ignorando procesamiento en sistema antiguo`);
-                return false;
-            } else {
-                // Fallback al sistema antiguo si el nuevo no está disponible
-                if (!esAdminBasico(jugador)) return;
-                if (args.slice(1).join(' ').trim()) {
-                    const input = args.slice(1).join(' ').trim();
+            // COMANDO SIMPLIFICADO: Usar la misma lógica que el desbaneo automático
+            if (!esAdminBasico(jugador)) {
+                anunciarError("❌ No tienes permisos para desbanear jugadores.", jugador);
+                return;
+            }
+            
+            if (!args[1]) {
+                anunciarError("📝 Uso: !unban <auth_id|ID_secuencial>", jugador);
+                anunciarInfo("💡 Ejemplos: !unban ABC123DEF (auth_id) o !unban 1 (desde !bans)", jugador);
+                return;
+            }
+            
+            const input = args[1];
+            console.log(`🔧 UNBAN: Admin ${jugador.name} solicita desbanear: "${input}"`);
+            anunciarInfo(`🔄 Procesando desbaneo para: ${input}...`, jugador);
+            
+            try {
+                let authIdReal = input;
+                let jugadorObjetivo = null;
+                
+                // Si el input es un número (ID secuencial del comando !bans)
+                if (/^\d+$/.test(input)) {
+                    const idSecuencial = parseInt(input, 10);
+                    console.log(`🔧 UNBAN: Detectado ID secuencial: ${idSecuencial}`);
                     
-                    if (!input) {
-                        anunciarError("❌ Uso correcto: !unban <id_jugador>", jugador);
-                        return false;
-                    }
-
-                    console.log(`🔧 UNBAN: Admin ${jugador.name} (ID: ${jugador.id}) solicita desbanear ID: "${input}"`);
-                    console.log(`🔧 UNBAN: UID del admin: ${jugador.auth || 'N/A'}`);
-                    anunciarInfo(`🔄 Procesando desbaneo para ID: ${input}...`, jugador);
-
-                    try {
-                        // ==================== NUEVO SISTEMA DE MAPEO ====================
-                        let authIdReal = input; // Por defecto, usar el input original
-                        let jugadorObjetivo = null;
+                    if (typeof nodeObtenerBaneosActivos === 'function') {
+                        const jugadoresBaneados = await nodeObtenerBaneosActivos();
+                        const indice = idSecuencial - 1;
                         
-                        // Si el input es un número (ID secuencial del comando !bans)
-                        if (/^\d+$/.test(input)) {
-                            const idSecuencial = parseInt(input, 10);
-                            console.log(`🔧 UNBAN: Detectado ID secuencial: ${idSecuencial}`);
-                            
-                            // Obtener la lista de jugadores baneados para mapear el ID
-                            if (typeof nodeObtenerBaneosActivos === 'function') {
-                                try {
-                                    const jugadoresBaneados = await nodeObtenerBaneosActivos();
-                                    console.log(`🔧 UNBAN: Obtenidos ${jugadoresBaneados.length} jugadores baneados para mapeo`);
-                                    
-                                    // Mapear ID secuencial (base 1) a índice de array (base 0)
-                                    const indice = idSecuencial - 1;
-                                    
-                                    if (indice >= 0 && indice < jugadoresBaneados.length) {
-                                        jugadorObjetivo = jugadoresBaneados[indice];
-                                        authIdReal = jugadorObjetivo.authId; // Usar authId del objeto
-                                        console.log(`✅ UNBAN: ID ${idSecuencial} mapeado a jugador "${jugadorObjetivo.nombre}" (authId: ${authIdReal})`);
-                                    } else {
-                                        throw new Error(`ID ${idSecuencial} no válido. Debe estar entre 1 y ${jugadoresBaneados.length}`);
-                                    }
-                                } catch (mappingError) {
-                                    console.error(`❌ UNBAN: Error mapeando ID secuencial:`, mappingError);
-                                    anunciarError(`❌ Error mapeando ID ${input}: ${mappingError.message}`, jugador);
-                                    anunciarInfo(`💡 Usa !bans para ver los IDs válidos`, jugador);
-                                    return false;
-                                }
-                            } else {
-                                anunciarError(`❌ No se puede mapear ID secuencial: función de base de datos no disponible`, jugador);
-                                return false;
-                            }
+                        if (indice >= 0 && indice < jugadoresBaneados.length) {
+                            jugadorObjetivo = jugadoresBaneados[indice];
+                            authIdReal = jugadorObjetivo.authId;
+                            console.log(`✅ UNBAN: ID ${idSecuencial} mapeado a "${jugadorObjetivo.nombre}" (${authIdReal})`);
                         } else {
-                            console.log(`🔧 UNBAN: Input no es ID secuencial, usando como authId directo: ${input}`);
-                        }
-                        // ==================== FIN NUEVO SISTEMA DE MAPEO ====================
-                        
-                        console.log(`🔧 UNBAN: AuthId final para desbaneo: ${authIdReal}`);
-                        
-                        // Validar que el room esté disponible
-                        if (!room) {
-                            throw new Error('Objeto room no disponible');
-                        }
-                        
-                        if (typeof room.clearBan !== 'function') {
-                            throw new Error('Función clearBan no disponible en room');
-                        }
-                        
-                        // Verificar que no intente desbanearse a sí mismo
-                        if (jugador.auth && authIdReal === jugador.auth) {
-                            anunciarError(`❌ No puedes desbanearte a ti mismo`, jugador);
-                            console.log(`🛡️ UNBAN: Protección activada - Admin intentó desbanearse`);
-                            return false;
-                        }
-                        
-                        // SISTEMA SIMPLE: Intentar desbaneo básico
-                        console.log(`🔧 UNBAN: Ejecutando desbaneo simple para: ${input}`);
-                        
-                        let exito = false;
-                        let metodosIntentados = [];
-                        let jugadorEncontradoEnBD = false;
-                        
-                        // Método 1: clearBan directo con el input original
-                        try {
-                            room.clearBan(input);
-                            console.log(`✅ UNBAN: clearBan directo exitoso`);
-                            metodosIntentados.push('directo');
-                            exito = true;
-                        } catch (error) {
-                            console.warn(`⚠️ UNBAN: clearBan directo falló:`, error.message);
-                            metodosIntentados.push('directo-FALLO');
-                        }
-                        
-                        // Método 2: Como string explícito
-                        if (!exito) {
-                            try {
-                                room.clearBan(String(input));
-                                console.log(`✅ UNBAN: clearBan string exitoso`);
-                                metodosIntentados.push('string');
-                                exito = true;
-                            } catch (error) {
-                            console.warn(`⚠️ UNBAN: clearBan string falló:`, error.message);
-                            metodosIntentados.push('string-FALLO');
-                        }
-                    }
-                    
-                    // Método 3: Si parece UID hex, probar como número decimal
-                    if (!exito && input.length >= 8 && /^[a-fA-F0-9]+$/.test(input)) {
-                        try {
-                            const numeroUID = parseInt(input, 16);
-                            console.log(`🔧 UNBAN: Intentando como número decimal: ${numeroUID}`);
-                            room.clearBan(numeroUID);
-                            console.log(`✅ UNBAN: clearBan hex-decimal exitoso`);
-                            metodosIntentados.push('hex-decimal');
-                            exito = true;
-                        } catch (error) {
-                            console.warn(`⚠️ UNBAN: clearBan hex-decimal falló:`, error.message);
-                            metodosIntentados.push('hex-decimal-FALLO');
-                        }
-                    }
-                    
-                    // Método 4: Probar con BigInt para UIDs muy largos
-                    if (!exito && input.length >= 16 && /^[a-fA-F0-9]+$/.test(input)) {
-                        try {
-                            const bigIntUID = BigInt('0x' + input);
-                            console.log(`🔧 UNBAN: Intentando como BigInt: ${bigIntUID}`);
-                            room.clearBan(Number(bigIntUID));
-                            console.log(`✅ UNBAN: clearBan BigInt exitoso`);
-                            metodosIntentados.push('bigint');
-                            exito = true;
-                        } catch (error) {
-                            console.warn(`⚠️ UNBAN: clearBan BigInt falló:`, error.message);
-                            metodosIntentados.push('bigint-FALLO');
-                        }
-                    }
-                    
-                    // Método 5: Intentar con variaciones del UID (mayúsculas/minúsculas)
-                    if (!exito && /[a-fA-F]/.test(input)) {
-                        const variaciones = [input.toLowerCase(), input.toUpperCase()];
-                        for (const variacion of variaciones) {
-                            if (variacion === input) continue; // Ya probamos el original
-                            try {
-                                room.clearBan(variacion);
-                                console.log(`✅ UNBAN: clearBan variación (${variacion}) exitoso`);
-                                metodosIntentados.push(`variacion-${variacion}`);
-                                exito = true;
-                                break;
-                            } catch (error) {
-                                console.warn(`⚠️ UNBAN: clearBan variación (${variacion}) falló:`, error.message);
-                                metodosIntentados.push(`variacion-${variacion}-FALLO`);
-                            }
-                        }
-                    }
-                    
-                    // Método 6: Usar clearBans() para limpiar todos los baneos (método nuclear)
-                    if (!exito) {
-                        try {
-                            console.log(`🔧 UNBAN: Intentando método nuclear - clearBans() para limpiar todos`);
-                            const jugadoresConectados = room.getPlayerList().length;
-                            
-                            // Solo usar método nuclear si hay pocos jugadores para no afectar otros baneos legítimos
-                            if (jugadoresConectados <= 2) {
-                                room.clearBans();
-                                console.log(`✅ UNBAN: clearBans() (método nuclear) ejecutado`);
-                                metodosIntentados.push('nuclear-clearBans');
-                                exito = true;
-                            } else {
-                                console.log(`⚠️ UNBAN: Método nuclear no usado - demasiados jugadores conectados (${jugadoresConectados})`);
-                                metodosIntentados.push('nuclear-OMITIDO');
-                            }
-                        } catch (error) {
-                            console.warn(`⚠️ UNBAN: clearBans() (método nuclear) falló:`, error.message);
-                            metodosIntentados.push('nuclear-FALLO');
-                        }
-                    }
-                    
-                    console.log(`📊 UNBAN: Métodos intentados: [${metodosIntentados.join(', ')}]`);
-                    console.log(`📊 UNBAN: Resultado final: ${exito ? 'ÉXITO' : 'FALLO'}`);
-                    
-                    // Verificar si existe en la base de datos de jugadores baneados ANTES de intentar desbanear
-                    if (typeof nodeObtenerJugadoresBaneados24h === 'function') {
-                        try {
-                            console.log(`🔍 UNBAN: Verificando si "${input}" existe en la base de datos de baneos...`);
-                            const jugadoresBaneados = await nodeObtenerJugadoresBaneados24h();
-                            const jugadorEncontrado = jugadoresBaneados.find(j => 
-                                j.uid === input || 
-                                j.nombre.toLowerCase().includes(input.toLowerCase()) ||
-                                (j.ip && j.ip === input)
-                            );
-                            
-                            if (jugadorEncontrado) {
-                                jugadorEncontradoEnBD = true;
-                                console.log(`✅ UNBAN: Jugador encontrado en BD - Nombre: "${jugadorEncontrado.nombre}", UID: "${jugadorEncontrado.uid}"`);
-                                
-                                // Si encontramos un UID diferente al input, intentar con ese UID
-                                if (jugadorEncontrado.uid && jugadorEncontrado.uid !== input && !exito) {
-                                    console.log(`🔧 UNBAN: Intentando desbaneo con UID de BD: ${jugadorEncontrado.uid}`);
-                                    try {
-                                        room.clearBan(jugadorEncontrado.uid);
-                                        console.log(`✅ UNBAN: clearBan con UID de BD exitoso`);
-                                        metodosIntentados.push('uid-desde-bd');
-                                        exito = true;
-                                    } catch (error) {
-                                        console.warn(`⚠️ UNBAN: clearBan con UID de BD falló:`, error.message);
-                                        metodosIntentados.push('uid-desde-bd-FALLO');
-                                    }
-                                }
-                            } else {
-                                console.log(`ℹ️ UNBAN: No se encontró "${input}" en la base de datos de baneos activos`);
-                            }
-                        } catch (searchError) {
-                            console.warn(`⚠️ UNBAN: Error consultando base de datos de baneos:`, searchError.message);
-                            metodosIntentados.push('consulta-bd-FALLO');
-                        }
-                    }
-                    
-                    // Limpiar de la base de datos (tabla jugadores)
-                    if (typeof nodeDesbanearJugador === 'function') {
-                        try {
-                            await nodeDesbanearJugador(input);
-                            console.log(`✅ UNBAN: Limpieza BD tabla jugadores completada`);
-                        } catch (dbError) {
-                            console.warn(`⚠️ UNBAN: Error limpiando BD tabla jugadores:`, dbError.message);
-                        }
-                    }
-                    
-                    // Limpiar de la base de datos (tabla baneos)
-                    if (typeof nodeDesbanearJugadorNuevo === 'function') {
-                        try {
-                            await nodeDesbanearJugadorNuevo(input);
-                            console.log(`✅ UNBAN: Limpieza BD tabla baneos completada`);
-                        } catch (dbError) {
-                            console.log(`ℹ️ UNBAN: No se encontró baneo activo en tabla baneos para "${input}" - esto es normal si el jugador no estaba baneado`);
-                            console.warn(`⚠️ UNBAN: Detalle del error:`, dbError.message);
-                        }
-                    }
-                    
-                    // ==================== INTEGRACIÓN SISTEMA BANEOS OFFLINE ====================
-                    // Limpiar cache de baneos offline si el sistema está disponible
-                    if (offlineBanSystem) {
-                        try {
-                            // Si tenemos información del jugador objetivo del mapeo
-                            if (jugadorObjetivo && jugadorObjetivo.authId) {
-                                offlineBanSystem.removeBanFromCache(jugadorObjetivo.authId);
-                                console.log(`✅ UNBAN: Cache offline limpiado para authId: ${jugadorObjetivo.authId}`);
-                            } else {
-                                // Si no tenemos mapeo, intentar con el input como authId directo
-                                offlineBanSystem.removeBanFromCache(authIdReal);
-                                console.log(`✅ UNBAN: Cache offline limpiado para authId: ${authIdReal}`);
-                            }
-                        } catch (offlineError) {
-                            console.warn(`⚠️ UNBAN: Error limpiando cache de baneos offline:`, offlineError.message);
-                        }
-                    }
-                    
-                    // VALIDACIÓN FINAL: Solo mostrar éxito si realmente había alguien que desbanear
-                    if (exito) {
-                        if (jugadorEncontradoEnBD) {
-                            // Había un jugador baneado en la BD, el desbaneo es legítimo
-                            anunciarExito(`✅ Desbaneo completado para \"${input}\"`, jugador);
-                            anunciarInfo(`💡 Si el jugador sigue sin poder conectar, puede que necesite esperar unos segundos`, jugador);
-                        } else {
-                            // clearBan no falló, pero no encontramos evidencia de que hubiera alguien baneado
-                            console.log(`⚠️ UNBAN: clearBan ejecutado pero no se encontró jugador baneado en BD`);
-                            anunciarAdvertencia(`⚠️ Comando de desbaneo ejecutado para \"${input}\", pero no se encontró evidencia de baneo activo`, jugador);
-                            anunciarInfo(`💡 Esto puede significar que el jugador ya estaba desbaneado o que el ID no corresponde a ningún jugador`, jugador);
+                            anunciarError(`❌ ID ${idSecuencial} no válido. Usa !bans para ver los IDs válidos.`, jugador);
+                            return;
                         }
                     } else {
-                        if (jugadorEncontradoEnBD) {
-                            // Había alguien baneado pero no se pudo desbanear
-                            anunciarError(`❌ No se pudo completar el desbaneo para \"${input}\" (jugador encontrado en BD)`, jugador);
-                            anunciarInfo(`💡 El baneo puede haber sido eliminado de la BD pero persiste en HaxBall`, jugador);
-                        } else {
-                            // No se pudo desbanear y no había nadie baneado
-                            anunciarError(`❌ No se pudo ejecutar desbaneo para \"${input}\" (no se encontró jugador baneado)`, jugador);
-                            anunciarInfo(`💡 Verifica que el ID sea correcto o que el jugador realmente esté baneado`, jugador);
-                        }
+                        anunciarError(`❌ No se puede mapear ID secuencial: función de base de datos no disponible`, jugador);
+                        return;
                     }
-                    
+                }
+                
+                // Verificar que no intente desbanearse a sí mismo
+                if (jugador.auth && authIdReal === jugador.auth) {
+                    anunciarError(`❌ No puedes desbanearte a ti mismo`, jugador);
+                    return;
+                }
+                
+                // USAR LA MISMA LÓGICA DEL DESBANEO AUTOMÁTICO (lines 9094-9125)
+                console.log(`🔧 UNBAN: Ejecutando desbaneo automático para authId: ${authIdReal}`);
+                
+                let exitoso = false;
+                
+                try {
+                    // Método 1: Desbanear por authId (más confiable)
+                    room.clearBan(authIdReal);
+                    console.log(`✅ UNBAN: clearBan por authId exitoso`);
+                    exitoso = true;
                 } catch (error) {
-                    console.error(`❌ UNBAN: Error crítico ejecutando comando:`, error);
-                    console.error(`❌ UNBAN: Stack trace:`, error.stack);
-                    anunciarError(`❌ Error al intentar desbanear "${input}": ${error.message}`, jugador);
-                    
-                    // Información adicional para debug
-                    console.error(`❌ UNBAN: Información de debug:`);
-                    console.error(`   - Admin: ${jugador.name} (ID: ${jugador.id}, UID: ${jugador.auth || 'N/A'})`);
-                    console.error(`   - Input: "${input}"`);
-                    console.error(`   - Room disponible: ${!!room}`);
-                    console.error(`   - clearBan disponible: ${typeof room?.clearBan}`);
+                    console.warn(`⚠️ UNBAN: clearBan por authId falló:`, error.message);
                 }
-
-                return false; // Evita que el mensaje se vea públicamente
+                
+                // Método 2: Si tenemos info del jugador objetivo, usar su ID si está disponible
+                if (jugadorObjetivo && jugadorObjetivo.playerId) {
+                    try {
+                        room.clearBan(jugadorObjetivo.playerId);
+                        console.log(`✅ UNBAN: clearBan por playerId exitoso`);
+                        exitoso = true;
+                    } catch (error) {
+                        console.warn(`⚠️ UNBAN: clearBan por playerId falló:`, error.message);
+                    }
+                }
+                
+                // Método 3: Si tenemos IP del jugador, desbanear por IP
+                if (jugadorObjetivo && jugadorObjetivo.ip) {
+                    try {
+                        room.clearBan(jugadorObjetivo.ip);
+                        console.log(`✅ UNBAN: clearBan por IP exitoso`);
+                        exitoso = true;
+                    } catch (error) {
+                        console.warn(`⚠️ UNBAN: clearBan por IP falló:`, error.message);
+                    }
+                }
+                
+                // Actualizar en la base de datos si está disponible
+                if (typeof nodeDesbanearJugador === 'function') {
+                    try {
+                        await nodeDesbanearJugador(authIdReal, `Desban manual por ${jugador.name}`);
+                        console.log(`✅ UNBAN: Desban registrado en DB`);
+                    } catch (dbError) {
+                        console.warn(`⚠️ UNBAN: Error registrando desban en DB:`, dbError.message);
+                    }
+                }
+                
+                if (exitoso) {
+                    const nombreJugador = jugadorObjetivo ? jugadorObjetivo.nombre : input;
+                    anunciarExito(`✅ ${nombreJugador} ha sido desbaneado por ${jugador.name}`);
+                    console.log(`✅ UNBAN: Desbaneo completado para ${nombreJugador}`);
                 } else {
-                    anunciarError('❌ Debes especificar un UID, nombre o IP para desbanear', jugador);
-                    anunciarInfo('💡 Ejemplos: !unban ABC123DEF, !unban JugadorX, !unban 192.168.1.100', jugador);
+                    anunciarError(`❌ No se pudo desbanear "${input}". Puede que ya estuviera desbaneado.`, jugador);
                 }
+                
+            } catch (error) {
+                console.error(`❌ UNBAN: Error en comando:`, error);
+                anunciarError(`❌ Error al desbanear "${input}": ${error.message}`, jugador);
             }
             break;
 
@@ -13291,6 +13106,54 @@ function enviarNotificacionClearBans(adminNombre, tipoLimpieza, jugadoresLimpiad
     });
 }
 
+// FUNCIÓN PARA ENVIAR NOTIFICACIÓN DE MUTE AL WEBHOOK DE MODERACIÓN
+function enviarNotificacionMute(tipo, adminNombre, jugadorNombre, jugadorID, duracion = null, razon = "No especificada") {
+    if (!webhookBanKick || webhookBanKick.length === 0) {
+        return;
+    }
+    
+    const ahora = new Date();
+    const fecha = ahora.toLocaleDateString('es-AR');
+    const hora = ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    
+    let mensaje = "";
+    let accionTexto = "";
+    
+    if (tipo === "mute") {
+        accionTexto = "muteó a";
+        if (duracion) {
+            mensaje = `\`\`\`🔇 [${fecha}, ${hora}] 🤐 ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${jugadorID}) por 🕒 ${duracion} minutos | 📄 Motivo: ${razon}\`\`\``;
+        } else {
+            mensaje = `\`\`\`🔇 [${fecha}, ${hora}] 🤐 ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${jugadorID}) permanentemente | 📄 Motivo: ${razon}\`\`\``;
+        }
+    } else if (tipo === "unmute") {
+        accionTexto = "desmuteó a";
+        mensaje = `\`\`\`🔊 [${fecha}, ${hora}] 🗣️ ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${jugadorID}) | 📄 Motivo: Desmuteo manual\`\`\``;
+    }
+    
+    const payload = {
+        content: mensaje
+    };
+    
+    fetch(webhookBanKick, {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log(`✅ Notificación de ${tipo} enviada al webhook`);
+        } else {
+            console.warn(`⚠️ Error enviando notificación de ${tipo} al webhook:`, response.status);
+        }
+    })
+    .catch(error => {
+        console.error(`❌ Error enviando notificación de ${tipo} al webhook:`, error);
+    });
+}
+
 // FUNCIÓN PARA ENVIAR NOTIFICACIÓN DE BAN/KICK AL WEBHOOK
 function enviarNotificacionBanKick(tipo, adminNombre, jugadorNombre, jugadorIDOUID, duracion = null, razon = "No especificada", ipJugador = null, jugadorIDReal = null) {
     if (!webhookBanKick || webhookBanKick.length === 0) {
@@ -15226,19 +15089,28 @@ room.onTeamGoal = function(equipo) {
         // Actualizar el registro de equipos
         equiposJugadoresAntesMovimiento.set(jugador.id, jugador.team);
         
-        if (estadisticasPartido.iniciado && equipoByAdmin !== 0) {
-            // Registrar jugador en estadísticas si se une durante el partido
+        // CORRECCIÓN: Registrar jugadores que se unen durante el partido
+        if (estadisticasPartido.iniciado && jugador.team !== 0) {
+            // Registrar jugador en estadísticas si se une a un equipo durante el partido
             if (!estadisticasPartido.jugadores[jugador.id]) {
                 const nombreOriginal = obtenerNombreOriginal(jugador);
+                console.log(`🆕 PARTIDO: Registrando jugador tardío ${nombreOriginal} en equipo ${jugador.team}`);
                 estadisticasPartido.jugadores[jugador.id] = {
                     nombre: nombreOriginal,
-                    equipo: equipoByAdmin,
+                    equipo: jugador.team, // Usar el equipo actual, no equipoByAdmin
                     goles: 0,
                     asistencias: 0,
                     autogoles: 0,
                     arquero: false,
                     tiempo: 0
                 };
+            } else {
+                // Si ya existía, actualizar el equipo por si cambió
+                const statsExistente = estadisticasPartido.jugadores[jugador.id];
+                if (statsExistente.equipo !== jugador.team) {
+                    console.log(`🔄 PARTIDO: Actualizando equipo de ${statsExistente.nombre}: ${statsExistente.equipo} -> ${jugador.team}`);
+                    statsExistente.equipo = jugador.team;
+                }
             }
         }
         

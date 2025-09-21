@@ -33,44 +33,42 @@ async function resetearTemporada() {
         
         console.log('✅ Conexión establecida correctamente\n');
         
-        // Obtener fecha y hora para el backup
-        const fechaBackup = new Date().toISOString().replace(/[:.]/g, '-');
-        const nombreTablaBackup = `temporada_backup_${fechaBackup.split('T')[0]}`;
+        // Obtener fecha en formato seguro para nombre de tabla (YYYY_MM_DD_HHMMSS)
+        const fechaISO = new Date().toISOString(); // YYYY-MM-DDTHH:mm:ss.sssZ
+        const fechaDia = fechaISO.slice(0, 10).replace(/-/g, '_'); // YYYY_MM_DD
+        const hora = fechaISO.slice(11, 19).replace(/:/g, ''); // HHMMSS
+        const nombreTablaBackup = `temporada_backup_${fechaDia}_${hora}`;
         
         console.log(`📦 Creando backup en tabla: ${nombreTablaBackup}`);
         
-        // PASO 1: Crear tabla de backup con todas las estadísticas actuales
+        // PASO 1: Crear tabla de backup con estructura idéntica y copiar datos
+        const backupTimestamp = new Date().toISOString();
+
+        // Crear tabla con misma estructura que jugadores
         await executeQuery(`
-            CREATE TABLE ${nombreTablaBackup} AS
-            SELECT 
-                auth_id,
-                nombre,
-                nombre_display,
-                partidos,
-                victorias,
-                derrotas,
-                goles,
-                asistencias,
-                autogoles,
-                mejorRachaGoles,
-                mejorRachaAsistencias,
-                hatTricks,
-                mvps,
-                vallasInvictas,
-                tiempoJugado,
-                promedioGoles,
-                promedioAsistencias,
-                fechaPrimerPartido,
-                fechaUltimoPartido,
-                xp,
-                nivel,
-                created_at,
-                updated_at,
-                '${new Date().toISOString()}' as fecha_backup,
-                'Reset Temporada LNB' as motivo_backup
+            CREATE TABLE ${nombreTablaBackup} LIKE jugadores
+        `);
+
+        // Copiar todos los registros (mismas columnas) que tengan partidos > 0
+        await executeQuery(`
+            INSERT INTO ${nombreTablaBackup}
+            SELECT *
             FROM jugadores 
             WHERE partidos > 0
             ORDER BY partidos DESC
+        `);
+
+        // Agregar metadatos del backup
+        await executeQuery(`
+            ALTER TABLE ${nombreTablaBackup}
+            ADD COLUMN fecha_backup DATETIME NULL,
+            ADD COLUMN motivo_backup VARCHAR(255) NULL
+        `);
+
+        await executeQuery(`
+            UPDATE ${nombreTablaBackup}
+            SET fecha_backup = NOW(),
+                motivo_backup = 'Reset Temporada LNB'
         `);
         
         // Verificar cuántos registros se respaldaron
@@ -124,7 +122,8 @@ async function resetearTemporada() {
         `);
         
         topJugadores.forEach((jugador, i) => {
-            const winRate = jugador.win_rate ? jugador.win_rate.toFixed(1) : '0.0';
+            const wr = Number(jugador.win_rate);
+            const winRate = Number.isFinite(wr) ? wr.toFixed(1) : '0.0';
             console.log(`${i+1}. ${jugador.nombre}: ${jugador.partidos} PJ, ${jugador.goles} G, ${jugador.asistencias} A, ${winRate}% WR`);
         });
         

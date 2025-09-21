@@ -776,7 +776,7 @@ const dbFunctions = {
     obtenerTodosJugadores: async () => {
         try {
             const query = `
-                SELECT nombre, partidos, victorias, derrotas, goles, asistencias, 
+                SELECT auth_id, nombre, nombre_display, partidos, victorias, derrotas, goles, asistencias, 
                        autogoles, mejorRachaGoles, mejorRachaAsistencias, hatTricks, 
                        vallasInvictas, tiempoJugado, promedioGoles, promedioAsistencias,
                        fechaPrimerPartido, fechaUltimoPartido, xp, nivel, mvps,

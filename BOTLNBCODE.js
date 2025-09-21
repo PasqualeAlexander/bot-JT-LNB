@@ -882,7 +882,19 @@ function procesarMVPPartido(nombreMVP, fechaActual) {
             return;
         }
         
-        const statsGlobal = registrarJugadorGlobal(nombreMVP);
+        // Resolver authID del MVP actual (solo si está en sala)
+        const jugadorEnSala = room.getPlayerList().find(j => obtenerNombreOriginal(j) === nombreMVP);
+        if (!jugadorEnSala) {
+            console.warn(`🚫 MVP no registrado: ${nombreMVP} no está en sala (no se usa nombre como identificador)`);
+            return;
+        }
+        const authIDMVP = jugadoresUID.get(jugadorEnSala.id);
+        if (!authIDMVP) {
+            console.warn(`🚫 MVP no registrado: ${nombreMVP} sin authID`);
+            return;
+        }
+        
+        const statsGlobal = registrarJugadorGlobal(authIDMVP, nombreMVP);
         if (!statsGlobal) return;
         statsGlobal.mvps = (statsGlobal.mvps || 0) + 1;
         console.log(`🏆 MVP registrado para ${nombreMVP} en cancha válida (${mapaActual})`);
@@ -1561,18 +1573,49 @@ function limpiarMemoriaPeriodicamente() {
     }
 }
 
-function otorgarXP(nombreJugador, accion, cantidad = null) {
+function otorgarXP(identificador, accion, cantidad = null) {
     // Verificar que estadisticasGlobales y jugadores existan
     if (!estadisticasGlobales || !estadisticasGlobales.jugadores) {
         console.error('❌ Error: estadisticasGlobales no inicializado en otorgarXP');
         return;
     }
     
-    if (!estadisticasGlobales.jugadores[nombreJugador]) {
-        registrarJugadorGlobal(nombreJugador);
+    // Determinar authID y nombre a mostrar
+    let authID = null;
+    let nombreMostrar = null;
+    
+    if (identificador && typeof identificador === 'object' && 'id' in identificador) {
+        // Objeto jugador de HaxBall
+        authID = jugadoresUID.get(identificador.id) || null;
+        nombreMostrar = obtenerNombreOriginal(identificador);
+    } else if (typeof identificador === 'string') {
+        // Buscar jugador conectado con ese nombre original
+        const coincidencias = room.getPlayerList().filter(p => obtenerNombreOriginal(p) === identificador);
+        if (coincidencias.length !== 1) {
+            console.warn(`🚫 otorgarXP cancelado: ${coincidencias.length} coincidencias para nombre "${identificador}"`);
+            return;
+        }
+        const jugador = coincidencias[0];
+        authID = jugadoresUID.get(jugador.id) || null;
+        nombreMostrar = identificador;
+    } else if (typeof identificador === 'string' && identificador.length > 20) {
+        // Podría ser un authID directamente
+        authID = identificador;
+        // Intentar obtener nombre desde memoria si está conectado
+        const p = room.getPlayerList().find(p => jugadoresUID.get(p.id) === authID);
+        nombreMostrar = p ? obtenerNombreOriginal(p) : 'Jugador';
     }
     
-    const stats = estadisticasGlobales.jugadores[nombreJugador];
+    if (!authID) {
+        console.warn('🚫 otorgarXP cancelado: sin authID resoluble');
+        return;
+    }
+    
+    if (!estadisticasGlobales.jugadores[authID]) {
+        registrarJugadorGlobal(authID, nombreMostrar);
+    }
+    
+    const stats = estadisticasGlobales.jugadores[authID];
     if (!stats) {
         console.error(`❌ Error: No se pudo crear/obtener estadísticas para ${nombreJugador}`);
         return;
@@ -1641,9 +1684,17 @@ let ultimaActualizacionNombres = 0;
 
 // Función para obtener el nivel de un jugador
 function obtenerNivelJugador(nombreJugador) {
-    const stats = estadisticasGlobales.jugadores[nombreJugador];
-    if (!stats || !stats.xp) return 1;
-    return stats.nivel || Math.floor(stats.xp / 100) + 1;
+    try {
+        const jugador = room.getPlayerList().find(p => obtenerNombreOriginal(p) === nombreJugador);
+        if (!jugador) return 1;
+        const authID = jugadoresUID.get(jugador.id);
+        if (!authID) return 1;
+        const stats = estadisticasGlobales.jugadores[authID];
+        if (!stats || !stats.xp) return 1;
+        return stats.nivel || Math.floor(stats.xp / 100) + 1;
+    } catch {
+        return 1;
+    }
 }
 
 // Función para actualizar el nombre de un jugador con su nivel
@@ -10779,8 +10830,15 @@ async function cargarEstadisticasGlobalesCompletas() {
                 // Convertir cada jugador al formato interno
                 let totalPartidos = 0;
                 todosJugadores.forEach(jugadorDB => {
-                    estadisticasGlobales.jugadores[jugadorDB.nombre] = {
+                    // Política: solo indexar por auth_id; ignorar registros sin auth_id
+                    const claveAuth = jugadorDB.auth_id;
+                    if (!claveAuth) {
+                        return;
+                    }
+                    estadisticasGlobales.jugadores[claveAuth] = {
+                        auth_id: jugadorDB.auth_id,
                         nombre: jugadorDB.nombre,
+                        nombre_display: jugadorDB.nombre_display || jugadorDB.nombre,
                         partidos: jugadorDB.partidos || 0,
                         victorias: jugadorDB.victorias || 0,
                         derrotas: jugadorDB.derrotas || 0,
@@ -14412,9 +14470,10 @@ setTimeout(() => {
         
         // Registrar jugador en estadísticas globales si no existe
         try {
-            if (!estadisticasGlobales.jugadores[jugador.name]) {
-                registrarJugadorGlobal(jugador.name);
-                console.log(`✅ DEBUG: Jugador nuevo registrado: ${jugador.name} con XP inicial y nivel 1`);
+            const authIDJoin = jugadoresUID.get(jugador.id) || jugador.auth;
+            if (authIDJoin && !estadisticasGlobales.jugadores[authIDJoin]) {
+                registrarJugadorGlobal(authIDJoin, jugador.name);
+                console.log(`✅ DEBUG: Jugador nuevo registrado: ${jugador.name} (${authIDJoin}) con XP inicial y nivel 1`);
                 
                 // Actualizar formato de nombre para jugadores nuevos después de un breve delay
                 setTimeout(() => {

@@ -11366,6 +11366,64 @@ async function mostrarTopJugadores(solicitante, estadistica) {
         .filter(j => j.partidos > 0 && (j.authID || j.auth_id)); // Solo jugadores registrados con auth_id
     
     if (jugadores.length === 0) {
+        // Intentar TOP directo desde la base de datos
+        try {
+            if (typeof nodeObtenerTopJugadores === 'function') {
+                let campo = 'goles';
+                switch(estadistica) {
+                    case 'goles': campo = 'goles'; break;
+                    case 'asistencias':
+                    case 'asis': campo = 'asistencias'; break;
+                    case 'vallas':
+                    case 'vallasInvictas':
+                    case 'vallasinvictas': campo = 'vallasInvictas'; break;
+                    case 'autogoles': campo = 'autogoles'; break;
+                    case 'mvps': campo = 'mvps'; break;
+                    case 'partidos':
+                    case 'pj': campo = 'partidos'; break;
+                    default: campo = 'goles'; break;
+                }
+                const topDB = await nodeObtenerTopJugadores(campo, 10);
+                if (Array.isArray(topDB) && topDB.length > 0) {
+                    let titulo = '';
+                    switch(estadistica) {
+                        case 'goles': titulo = "[PV] ⚽ Gᴏʟᴇs ❯❯❯"; break;
+                        case 'asistencias':
+                        case 'asis': titulo = "[PV] 👟 Asɪsᴛᴇɴᴄɪᴀs ❯❯❯"; break;
+                        case 'vallas':
+                        case 'vallasInvictas':
+                        case 'vallasinvictas': titulo = "[PV] 🥅 Vᴀʟʟᴀs ❯❯❯"; break;
+                        case 'autogoles': titulo = "[PV] 😱 Aᴜᴛᴏɢᴏʟᴇs ❯❯❯"; break;
+                        case 'mvps': titulo = "[PV] 👑 MVPꜱ ❯❯❯"; break;
+                        case 'partidos':
+                        case 'pj': titulo = "[PV] 🎮 Pᴀʀᴛɪᴅᴏꜱ ❯❯❯"; break;
+                        default: titulo = "[PV] 🏆 Top ❯❯❯"; break;
+                    }
+                    const lineas = [ `${titulo}` ];
+                    topDB.forEach((jug, i) => {
+                        let posicionEmoji = '';
+                        if (i === 0) posicionEmoji = '🥇';
+                        else if (i === 1) posicionEmoji = '🥈';
+                        else if (i === 2) posicionEmoji = '🥉';
+                        else if (i === 9) posicionEmoji = '🔟';
+                        else posicionEmoji = `${i + 1}.`;
+                        const nombreMostrar = jug.nombre_display || jug.nombre;
+                        const valor = jug[campo] ?? 0;
+                        const nombreFancy = estilizarSmallCaps(nombreMostrar);
+                        const valorFancy = estilizarSmallCaps(String(valor));
+                        lineas.push(`${posicionEmoji} ${nombreFancy} [${valorFancy}]`);
+                    });
+                    room.sendAnnouncement(lineas[0], solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
+                    const separador = " ❯ ";
+                    const jugadoresEnLinea = lineas.slice(1).join(separador);
+                    room.sendAnnouncement(jugadoresEnLinea, solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
+                    return;
+                }
+            }
+        } catch (e) {
+            console.log('⚠️ TOP desde DB falló:', e?.message || e);
+        }
+        
         // Fallback simple: mostrar 10 jugadores aleatorios de la base con valor 0
         try {
             if (typeof nodeObtenerTodosJugadores === 'function') {
@@ -11421,7 +11479,7 @@ async function mostrarTopJugadores(solicitante, estadistica) {
         }
         // Si no hay datos, mensaje informativo
         anunciarError("❌ No hay estadísticas disponibles aún.", solicitante);
-        anunciarInfo("💡 Solo los jugadores logueados tienen estadísticas guardadas", solicitante);
+        anunciarInfo("💡 Las estadísticas se mostrarán automáticamente cuando haya datos registrados.", solicitante);
         return;
     }
     

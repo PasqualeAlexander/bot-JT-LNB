@@ -1626,7 +1626,7 @@ const roomConfig = {
     password: null,
     maxPlayers: 18,
     public: true,  // Cambiar a true para que la sala sea pública
-    token: "thr1.AAAAAGjPUTqz62ifV5LpLA.x3lm7WMRsOY", // Token actualizado
+    token: "thr1.AAAAAGjPk_7SlH5Rujzw5g.sjMWOoJs9oM", // Token actualizado
     geo: { code: 'AR', lat: -34.7000, lon: -58.2800 },  // Ajustado para Quilmes, Buenos Aires
     noPlayer: true
 };
@@ -1705,7 +1705,6 @@ const webhooks = {
         await page.exposeFunction('nodeGuardarJugadorPorAuth', dbFunctions.guardarJugadorPorAuth);
         await page.exposeFunction('nodeObtenerJugadorPorAuth', dbFunctions.obtenerJugadorPorAuth);
         await page.exposeFunction('nodeMigrarJugadorAAuth', dbFunctions.migrarJugadorAAuth);
-        await page.exposeFunction('nodeActualizarNombreJugador', dbFunctions.actualizarNombreJugador);
         await page.exposeFunction('nodeRegistrarNombreJugador', dbFunctions.registrarNombreJugador);
         await page.exposeFunction('nodeObtenerTopJugadores', dbFunctions.obtenerTopJugadores);
         await page.exposeFunction('nodeObtenerTopDesdeBackup', dbFunctions.obtenerTopDesdeBackup);

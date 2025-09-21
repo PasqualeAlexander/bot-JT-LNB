@@ -252,6 +252,57 @@ const dbFunctions = {
             throw error;
         }
     },
+
+    // Obtener Top desde la última tabla de backup (fallback de temporada anterior)
+    obtenerTopDesdeBackup: async (campo, limite = 10) => {
+        try {
+            const validCampos = ['goles', 'asistencias', 'partidos', 'victorias', 'hatTricks', 'vallasInvictas', 'mvps', 'autogoles'];
+            if (!validCampos.includes(campo)) {
+                throw new Error('Campo inválido');
+            }
+
+            const schema = process.env.DB_NAME || 'lnb_estadisticas';
+
+            // Buscar las últimas tablas de backup por nombre (YYYY_MM_DD_HHMMSS ordena lexicográficamente)
+            const tablas = await executeQuery(
+                `SELECT table_name AS nombre FROM information_schema.tables
+                 WHERE table_schema = ? AND table_name LIKE 'temporada_backup_%'
+                 ORDER BY table_name DESC LIMIT 5`,
+                [schema]
+            );
+
+            if (!tablas || tablas.length === 0) {
+                return { success: false, reason: 'sin_tablas_backup', data: [] };
+            }
+
+            // Validar límite
+            const limiteNumero = parseInt(limite);
+            const lim = (isNaN(limiteNumero) || limiteNumero <= 0 || limiteNumero > 100) ? 10 : limiteNumero;
+
+            // Probar tablas en orden hasta encontrar una con datos
+            for (const t of tablas) {
+                const tabla = t.nombre;
+                // Verificar si hay datos
+                const countRes = await executeQuery(`SELECT COUNT(*) AS total FROM \`${tabla}\``);
+                const total = (countRes && countRes[0] && countRes[0].total) ? countRes[0].total : 0;
+                if (total === 0) continue;
+
+                // Traer el top por el campo solicitado
+                const query = `SELECT nombre, nombre_display, partidos, victorias, derrotas, goles, asistencias, autogoles,
+                                      mejorRachaGoles, mejorRachaAsistencias, hatTricks, mvps, vallasInvictas, tiempoJugado
+                               FROM \`${tabla}\`
+                               ORDER BY ${campo} DESC, partidos DESC, nombre ASC
+                               LIMIT ${lim}`;
+                const rows = await executeQuery(query, []);
+                return { success: true, table: tabla, data: rows };
+            }
+
+            return { success: false, reason: 'tablas_sin_datos', data: [] };
+        } catch (error) {
+            console.error('❌ Error en obtenerTopDesdeBackup:', error);
+            return { success: false, error: error.message, data: [] };
+        }
+    },
     
     // ====================== FUNCIONES DE PARTIDOS ======================
     

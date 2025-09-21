@@ -1649,6 +1649,7 @@ const webhooks = {
         await page.exposeFunction('nodeGuardarJugador', dbFunctions.guardarJugador);
         await page.exposeFunction('nodeObtenerJugador', dbFunctions.obtenerJugador);
         await page.exposeFunction('nodeObtenerTopJugadores', dbFunctions.obtenerTopJugadores);
+        await page.exposeFunction('nodeObtenerTopDesdeBackup', dbFunctions.obtenerTopDesdeBackup);
         await page.exposeFunction('nodeGuardarPartido', dbFunctions.guardarPartido);
         
         // Exponer función para obtener todos los jugadores (para carga completa de estadísticas)

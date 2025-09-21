@@ -11186,7 +11186,7 @@ function mostrarRecords(solicitante) {
             else if (i === 2) posicionEmoji = "🥉";
             else posicionEmoji = `${i + 1}.`;
             
-            const wr = ((jugador.victorias/jugador.partidos)*100).toFixed(1);
+            const wr = jugador.partidos > 0 ? ((jugador.victorias / jugador.partidos) * 100).toFixed(1) : '0.0';
             winRateCompacto.push(`${posicionEmoji} ${jugador.nombre}: ${wr}% (${jugador.victorias}/${jugador.partidos})`);
         });
         
@@ -11214,7 +11214,7 @@ function estilizarSmallCaps(texto) {
     return out;
 }
 
-function mostrarTopJugadores(solicitante, estadistica) {
+async function mostrarTopJugadores(solicitante, estadistica) {
     // SEGURIDAD: Verificar que el solicitante tenga auth_id
     const authIDSolicitante = jugadoresUID.get(solicitante.id);
     if (!authIDSolicitante) {
@@ -11228,6 +11228,60 @@ function mostrarTopJugadores(solicitante, estadistica) {
         .filter(j => j.partidos > 0 && j.authID); // Solo jugadores registrados con auth_id
     
     if (jugadores.length === 0) {
+        // Fallback simple: mostrar 10 jugadores aleatorios de la base con valor 0
+        try {
+            if (typeof nodeObtenerTodosJugadores === 'function') {
+                const todos = await nodeObtenerTodosJugadores();
+                if (Array.isArray(todos) && todos.length > 0) {
+                    // Mezclar aleatoriamente y tomar 10
+                    const mezclados = todos
+                        .map(v => ({ v, r: Math.random() }))
+                        .sort((a, b) => a.r - b.r)
+                        .slice(0, 10)
+                        .map(x => x.v);
+
+                    let titulo = '';
+                    switch(estadistica) {
+                        case 'goles': titulo = "[PV] ⚽ Gᴏʟᴇs ❯❯❯"; break;
+                        case 'asistencias':
+                        case 'asis': titulo = "[PV] 👟 Asɪsᴛᴇɴᴄɪᴀs ❯❯❯"; break;
+                        case 'vallas':
+                        case 'vallasInvictas':
+                        case 'vallasinvictas': titulo = "[PV] 🥅 Vᴀʟʟᴀs ❯❯❯"; break;
+                        case 'autogoles': titulo = "[PV] 😱 Aᴜᴛᴏɢᴏʟᴇs ❯❯❯"; break;
+                        case 'mvps': titulo = "[PV] 👑 MVPꜱ ❯❯❯"; break;
+                        case 'partidos':
+                        case 'pj': titulo = "[PV] 🎮 Pᴀʀᴛɪᴅᴏꜱ ❯❯❯"; break;
+                        default: titulo = "[PV] 🏆 Top ❯❯❯"; break;
+                    }
+
+                    const lineas = [ `${titulo}` ];
+                    mezclados.forEach((jug, i) => {
+                        let posicionEmoji = '';
+                        if (i === 0) posicionEmoji = '🥇';
+                        else if (i === 1) posicionEmoji = '🥈';
+                        else if (i === 2) posicionEmoji = '🥉';
+                        else if (i === 9) posicionEmoji = '🔟';
+                        else posicionEmoji = `${i + 1}.`;
+
+                        const nombreMostrar = jug.nombre_display || jug.nombre;
+                        const nombreFancy = estilizarSmallCaps(nombreMostrar);
+                        const valorFancy = estilizarSmallCaps(String(0));
+                        lineas.push(`${posicionEmoji} ${nombreFancy} [${valorFancy}]`);
+                    });
+
+                    // Enviar título y línea compacta
+                    room.sendAnnouncement(lineas[0], solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
+                    const separador = " ❯ ";
+                    const jugadoresEnLinea = lineas.slice(1).join(separador);
+                    room.sendAnnouncement(jugadoresEnLinea, solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
+                    return;
+                }
+            }
+        } catch (e) {
+            console.log('⚠️ Fallback aleatorio falló:', e?.message || e);
+        }
+        // Si no hay datos, mensaje informativo
         anunciarError("❌ No hay estadísticas disponibles aún.", solicitante);
         anunciarInfo("💡 Solo los jugadores logueados tienen estadísticas guardadas", solicitante);
         return;
@@ -11536,7 +11590,8 @@ function recuperarEstadisticas(jugador, codigo) {
             dispositivo: "recuperado"
         };
         
-        const mensaje = `[PV] ✅ Stats recuperadas: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A | ${statsOriginales.victorias} V | ${statsOriginales.derrotas} D | Win Rate: ${((statsOriginales.victorias/statsOriginales.partidos)*100).toFixed(1)}%`;
+        const wrRec = statsOriginales.partidos > 0 ? ((statsOriginales.victorias / statsOriginales.partidos) * 100).toFixed(1) : '0.0';
+        const mensaje = `[PV] ✅ Stats recuperadas: ${statsOriginales.partidos} PJ | ${statsOriginales.goles} G | ${statsOriginales.asistencias} A | ${statsOriginales.victorias} V | ${statsOriginales.derrotas} D | Win Rate: ${wrRec}%`;
         room.sendAnnouncement(mensaje, jugador.id, parseInt("00FF00", 16), "normal", 0);
     }
     

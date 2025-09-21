@@ -1029,31 +1029,19 @@ const dbFunctions = {
         }
     },
     
-    // Buscar jugador por auth_id o nombre (fallback)
+    // Buscar jugador SOLO por auth_id (sin fallback por nombre)
     buscarJugador: async (busqueda, tipoPreferido = 'auth') => {
         try {
-            let jugador = null;
-            
-            if (tipoPreferido === 'auth' && busqueda) {
-                // Primero intentar por auth_id
-                jugador = await dbFunctions.obtenerJugadorPorAuth(busqueda);
-                if (jugador) {
-                    console.log(`🔍 [AUTH-ID] Jugador encontrado por auth: ${jugador.nombre_display || jugador.nombre}`);
-                    return jugador;
-                }
-            }
-            
-            // Fallback: buscar por nombre
-            jugador = await dbFunctions.obtenerJugador(busqueda);
+            if (!busqueda) return null;
+            const jugador = await dbFunctions.obtenerJugadorPorAuth(busqueda);
             if (jugador) {
-                console.log(`🔍 [NOMBRE] Jugador encontrado por nombre: ${jugador.nombre}`);
+                console.log(`🔍 [AUTH-ID] Jugador encontrado por auth: ${jugador.nombre_display || jugador.nombre}`);
                 return jugador;
             }
-            
-            console.log(`❌ Jugador no encontrado: ${busqueda}`);
+            console.log(`❌ [AUTH-ID] Jugador no encontrado por auth: ${busqueda}`);
             return null;
         } catch (error) {
-            console.error('❌ Error buscando jugador:', error);
+            console.error('❌ Error buscando jugador por auth:', error);
             return null;
         }
     },

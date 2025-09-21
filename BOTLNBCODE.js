@@ -673,26 +673,85 @@ function inicializarBaseDatos() {
     };
 }
 
-async function obtenerEstadisticasJugador(nombre) {
+// ==================== FUNCIÓN CORREGIDA: AUTH_ID (SIN USAR NOMBRE COMO IDENTIFICADOR) ====================
+async function obtenerEstadisticasJugador(identificador) {
     try {
-        if (typeof nodeObtenerJugador !== 'undefined') {
-            return await nodeObtenerJugador(nombre);
-        } else {
-            console.warn('⚠️ Sistema de base de datos no disponible');
+        // Requiere objeto jugador de HaxBall
+        if (typeof identificador === 'object' && identificador.name) {
+            return await obtenerEstadisticasJugadorSeguro(identificador);
+        }
+        
+        // Si llega un string (nombre), rechazar por política
+        if (typeof identificador === 'string') {
+            console.warn('🚫 Política activa: el nombre no se usa como identificador. Pase el objeto jugador.');
             return null;
         }
+        
+        console.warn('⚠️ Identificador inválido para obtenerEstadisticasJugador');
+        return null;
+        
     } catch (error) {
         console.error("❌ Error al obtener estadísticas del jugador:", error);
         return null;
     }
 }
 
-async function registrarJugador(nombre) {
+// Nueva función segura que usa auth_id (sin migración por nombre ni fallback por nombre)
+async function obtenerEstadisticasJugadorSeguro(jugadorHB) {
     try {
-        const jugadorExistente = await obtenerEstadisticasJugador(nombre);
+        const authId = jugadorHB.auth;
+        const nombre = jugadorHB.name;
         
-        if (!jugadorExistente && typeof nodeGuardarJugador !== 'undefined') {
+        console.log('🔍 Obteniendo estadísticas:', nombre, '(Auth:', authId || 'SIN_AUTH', ')');
+        
+        // Buscar únicamente por auth_id
+        if (authId && typeof nodeObtenerJugadorPorAuth !== 'undefined') {
+            const resultado = await nodeObtenerJugadorPorAuth(authId);
+            if (resultado) {
+                console.log('✅ Encontrado por auth_id:', authId);
+                return resultado;
+            }
+        }
+        
+        // Si no tiene auth_id, no persistimos ni buscamos por nombre
+        if (!authId) {
+            console.warn('🚫 Jugador sin auth_id: no se consultan ni persisten estadísticas por nombre.');
+            return null;
+        }
+        
+        return null;
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo estadísticas por auth:', error);
+        return null;
+    }
+}
+
+// ==================== FUNCIÓN CORREGIDA: REGISTRAR SOLO POR AUTH_ID ====================
+async function registrarJugador(jugadorHB) {
+    try {
+        // Rechazar strings por política (nunca usar nombre como identificador)
+        if (typeof jugadorHB === 'string') {
+            console.warn('🚫 registrarJugador: el nombre no se usa como identificador. Pase el objeto jugador.');
+            return;
+        }
+        
+        const authId = jugadorHB.auth;
+        const nombre = jugadorHB.name;
+        
+        console.log('🔍 Registrando jugador:', nombre, '(Auth:', authId || 'SIN_AUTH', ')');
+        
+        if (!authId) {
+            console.warn('🚫 Jugador sin auth_id: no se registrará en DB.');
+            return;
+        }
+        
+        // Verificar si ya existe usando función segura (solo auth)
+        const jugadorExistente = await obtenerEstadisticasJugadorSeguro(jugadorHB);
+        
+        if (!jugadorExistente) {
             const nuevoJugador = {
+                auth_id: authId,
                 nombre: nombre,
                 partidos: 0,
                 victorias: 0,
@@ -713,8 +772,10 @@ async function registrarJugador(nombre) {
                 nivel: 1
             };
             
-            await nodeGuardarJugador(nombre, nuevoJugador);
-            console.log(`✅ Nuevo jugador registrado: ${nombre}`);
+            await nodeGuardarJugadorPorAuth(authId, nombre, nuevoJugador);
+            console.log('✅ Registrado por auth_id:', nombre, '(' + authId + ')');
+        } else {
+            console.log('ℹ️ Jugador ya existe (auth):', nombre);
         }
     } catch (error) {
         console.error("❌ Error al registrar jugador:", error);
@@ -15259,7 +15320,7 @@ const mejorJugador = calcularMejorJugador();
 
 // Función para mostrar puntuación de jugador
 function mostrarPuntuacionJugador(jugador) {
-    const stats = obtenerEstadisticasJugador(jugador.name);
+const stats = obtenerEstadisticasJugador(jugador);
     
     if (stats) {
         // Calcular puntuación total

@@ -1701,6 +1701,12 @@ const webhooks = {
         // Exponer funciones de Node.js al contexto del navegador
         await page.exposeFunction('nodeGuardarJugador', dbFunctions.guardarJugador);
         await page.exposeFunction('nodeObtenerJugador', dbFunctions.obtenerJugador);
+        // NUEVO: Exponer funciones basadas en auth_id
+        await page.exposeFunction('nodeGuardarJugadorPorAuth', dbFunctions.guardarJugadorPorAuth);
+        await page.exposeFunction('nodeObtenerJugadorPorAuth', dbFunctions.obtenerJugadorPorAuth);
+        await page.exposeFunction('nodeMigrarJugadorAAuth', dbFunctions.migrarJugadorAAuth);
+        await page.exposeFunction('nodeActualizarNombreJugador', dbFunctions.actualizarNombreJugador);
+        await page.exposeFunction('nodeRegistrarNombreJugador', dbFunctions.registrarNombreJugador);
         await page.exposeFunction('nodeObtenerTopJugadores', dbFunctions.obtenerTopJugadores);
         await page.exposeFunction('nodeObtenerTopDesdeBackup', dbFunctions.obtenerTopDesdeBackup);
         await page.exposeFunction('nodeGuardarPartido', dbFunctions.guardarPartido);

@@ -79,14 +79,13 @@ class AuthIdSystem {
         if (!this.dbFunctions || !busqueda) return null;
         
         try {
-            // Auto-detectar el tipo si no se especifica
-            const tipo = tipoPreferido || this.determinarTipoIdentificador(busqueda);
+            // Forzar búsqueda únicamente por auth_id
+            const tipo = 'auth';
+            console.log(`🔍 [AUTH-ID] Buscando jugador SOLO por auth_id: "${busqueda}"`);
             
-            console.log(`🔍 [AUTH-ID] Buscando jugador: "${busqueda}" (tipo: ${tipo})`);
-            
-            return await this.dbFunctions.buscarJugador(busqueda, tipo);
+            return await this.dbFunctions.obtenerJugadorPorAuth(busqueda);
         } catch (error) {
-            console.error('❌ [AUTH-ID] Error buscando jugador:', error);
+            console.error('❌ [AUTH-ID] Error buscando jugador por auth_id:', error);
             return null;
         }
     }
@@ -115,10 +114,9 @@ class AuthIdSystem {
                 console.log(`✅ [AUTH-ID] Estadísticas guardadas por auth_id`);
                 return true;
             } else {
-                // Fallback: usar sistema por nombre
-                await this.dbFunctions.guardarJugador(nombre, estadisticas);
-                console.log(`✅ [NOMBRE] Estadísticas guardadas por nombre (fallback)`);
-                return true;
+                // Política: no guardar por nombre
+                console.warn('🚫 [AUTH-ID] Jugador sin auth_id: no se guardarán estadísticas por nombre.');
+                return false;
             }
         } catch (error) {
             console.error('❌ [AUTH-ID] Error guardando estadísticas:', error);
@@ -151,23 +149,8 @@ class AuthIdSystem {
                 return { migrado: false, razon: 'ya_tiene_auth_id' };
             }
             
-            // Buscar por nombre (jugador existente sin auth_id)
-            const jugadorPorNombre = await this.dbFunctions.obtenerJugador(nombre);
-            if (jugadorPorNombre && !jugadorPorNombre.auth_id) {
-                // Migrar este jugador al sistema auth_id
-                const resultadoMigracion = await this.dbFunctions.migrarJugadorAAuth(nombre, authId);
-                
-                if (resultadoMigracion.migrado) {
-                    console.log(`🎯 [MIGRACIÓN] Jugador migrado exitosamente: ${nombre} -> ${authId}`);
-                    return { migrado: true, jugador: resultadoMigracion.jugadorMigrado };
-                } else {
-                    console.log(`⚠️ [MIGRACIÓN] No se pudo migrar: ${resultadoMigracion.razon}`);
-                    return resultadoMigracion;
-                }
-            }
-            
-            // Jugador nuevo, no necesita migración
-            return { migrado: false, razon: 'jugador_nuevo' };
+            // Política: no migrar ni buscar por nombre
+            return { migrado: false, razon: 'politica_sin_nombre' };
             
         } catch (error) {
             console.error('❌ [MIGRACIÓN] Error en migración automática:', error);
@@ -256,8 +239,8 @@ class AuthIdSystem {
             const resultadoMigracion = await this.migrarJugadorSiEsNecesario(jugadorHaxball);
             resultado.migrado = resultadoMigracion.migrado;
             
-            // Buscar estadísticas existentes
-            resultado.estadisticas_existentes = await this.buscarJugador(resultado.identificador_unico);
+            // Buscar estadísticas existentes SOLO por auth
+            resultado.estadisticas_existentes = resultado.auth_id ? await this.buscarJugador(resultado.identificador_unico) : null;
             resultado.es_nuevo = !resultado.estadisticas_existentes;
             
             console.log(`🔗 [AUTH-ID] Conexión procesada: ${resultado.nombre} (${resultado.identificador_unico})`);

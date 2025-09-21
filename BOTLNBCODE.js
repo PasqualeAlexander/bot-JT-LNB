@@ -11418,6 +11418,43 @@ async function mostrarTopJugadores(solicitante, estadistica) {
                     const jugadoresEnLinea = lineas.slice(1).join(separador);
                     room.sendAnnouncement(jugadoresEnLinea, solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
                     return;
+                } else if (typeof nodeObtenerTopDesdeBackup === 'function') {
+                    const backup = await nodeObtenerTopDesdeBackup(campo, 10);
+                    if (backup && backup.success && Array.isArray(backup.data) && backup.data.length > 0) {
+                        let titulo = '';
+                        switch(estadistica) {
+                            case 'goles': titulo = "[PV] ⚽ Gᴏʟᴇs ❯❯❯"; break;
+                            case 'asistencias':
+                            case 'asis': titulo = "[PV] 👟 Asɪsᴛᴇɴᴄɪᴀs ❯❯❯"; break;
+                            case 'vallas':
+                            case 'vallasInvictas':
+                            case 'vallasinvictas': titulo = "[PV] 🥅 Vᴀʟʟᴀs ❯❯❯"; break;
+                            case 'autogoles': titulo = "[PV] 😱 Aᴜᴛᴏɢᴏʟᴇs ❯❯❯"; break;
+                            case 'mvps': titulo = "[PV] 👑 MVPꜱ ❯❯❯"; break;
+                            case 'partidos':
+                            case 'pj': titulo = "[PV] 🎮 Pᴀʀᴛɪᴅᴏꜱ ❯❯❯"; break;
+                            default: titulo = "[PV] 🏆 Top ❯❯❯"; break;
+                        }
+                        const lineas = [ `${titulo}` ];
+                        backup.data.forEach((jug, i) => {
+                            let posicionEmoji = '';
+                            if (i === 0) posicionEmoji = '🥇';
+                            else if (i === 1) posicionEmoji = '🥈';
+                            else if (i === 2) posicionEmoji = '🥉';
+                            else if (i === 9) posicionEmoji = '🔟';
+                            else posicionEmoji = `${i + 1}.`;
+                            const nombreMostrar = jug.nombre_display || jug.nombre;
+                            const valor = jug[campo] ?? 0;
+                            const nombreFancy = estilizarSmallCaps(nombreMostrar);
+                            const valorFancy = estilizarSmallCaps(String(valor));
+                            lineas.push(`${posicionEmoji} ${nombreFancy} [${valorFancy}]`);
+                        });
+                        room.sendAnnouncement(lineas[0], solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
+                        const separador = " ❯ ";
+                        const jugadoresEnLinea = lineas.slice(1).join(separador);
+                        room.sendAnnouncement(jugadoresEnLinea, solicitante.id, parseInt(COLORES.DORADO, 16), "bold", 0);
+                        return;
+                    }
                 }
             }
         } catch (e) {

@@ -16,6 +16,18 @@ const path = require('path');
 const fetch = require('node-fetch');
 const FormData = require('form-data');
 
+// Manejadores globales para diagnóstico y evitar cierres silenciosos
+process.on('unhandledRejection', (err) => {
+    try {
+        console.error('❌ [GLOBAL] UnhandledRejection:', err && err.stack ? err.stack : err);
+    } catch (_) {}
+});
+process.on('uncaughtException', (err) => {
+    try {
+        console.error('❌ [GLOBAL] UncaughtException:', err && err.stack ? err.stack : err);
+    } catch (_) {}
+});
+
 // Cargar variables de entorno si existe archivo .env ANTES de importar configuraciones
 if (fs.existsSync('.env')) {
     require('dotenv').config();
@@ -61,6 +73,16 @@ testConnection().then(isConnected => {
         console.error('❌ No se pudo conectar a MySQL. Verifica la configuración.');
         process.exit(1);
     }
+    // Keep-alive de MySQL para evitar cierres de conexiones por inactividad
+    try {
+        setInterval(async () => {
+            try {
+                await executeQuery('SELECT 1');
+            } catch (e) {
+                console.warn('⚠️ [DB KEEPALIVE] Falló ping SELECT 1:', e.message);
+            }
+        }, 5 * 60 * 1000); // cada 5 minutos
+    } catch {}
 });
 
 // Crear tablas de base de datos
@@ -1629,16 +1651,47 @@ const webhooks = {
         // Crear tablas de base de datos
         crearTablas();
         
-        // Lanzar Puppeteer
+        // Ajustes de entorno para evitar uso de D-Bus y runtime dirs inexistentes
+        try {
+            if (!process.env.XDG_RUNTIME_DIR) process.env.XDG_RUNTIME_DIR = '/tmp';
+            process.env.DBUS_SESSION_BUS_ADDRESS = '/dev/null';
+            process.env.DBUS_SYSTEM_BUS_ADDRESS = '/dev/null';
+            process.env.USE_DBUS = '0';
+            process.env.QT_QUICK_BACKEND = 'software';
+        } catch {}
+
+        // Lanzar Puppeteer (flags adicionales para mayor estabilidad)
         const browser = await puppeteer.launch({ 
-            headless: 'new', 
+            headless: 'new',
+            dumpio: true,
             args: [
                 '--no-sandbox',
+                '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-web-security',
-                '--disable-features=VizDisplayCompositor'
+                '--disable-features=VizDisplayCompositor,AudioServiceOutOfProcess,AudioServiceSandbox,MojoVideoCapture,UseOzonePlatform',
+                '--disable-gpu',
+                '--disable-software-rasterizer',
+                '--no-zygote',
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--disable-extensions',
+                '--disable-background-timer-throttling',
+                '--disable-renderer-backgrounding',
+                '--use-fake-ui-for-media-stream',
+                '--use-fake-device-for-media-stream',
+'--force-color-profile=srgb',
+                '--disable-features=WebRtcHideLocalIpsWithMdns',
+                '--force-webrtc-ip-handling-policy=default_public_interface_only'
             ]
         });
+        
+        try {
+            const execPath = (typeof puppeteer.executablePath === 'function') ? puppeteer.executablePath() : 'N/A';
+            console.log('[PUPPETEER] Executable path:', execPath);
+        } catch (e) {
+            console.log('[PUPPETEER] Executable path error:', e.message);
+        }
         
         const page = await browser.newPage();
         
@@ -1720,9 +1773,33 @@ const webhooks = {
         await page.exposeFunction('nodeRegistrarSalidaJugador', dbFunctions.registrarSalidaJugador);
         await page.exposeFunction('nodeObtenerUltimasSalidas', dbFunctions.obtenerUltimasSalidas);
 
-        // Integrar sistemas compartidos
-        await page.exposeFunction('cargarEstadisticasGlobales', dbFunctions.cargarEstadisticasGlobales);
-        await page.exposeFunction('guardarEstadisticasGlobales', dbFunctions.guardarEstadisticasGlobales);
+// Integrar sistemas compartidos con medición y manejo de errores adicional
+await page.exposeFunction('cargarEstadisticasGlobales', async () => {
+    const t0 = Date.now();
+    try {
+        const res = await dbFunctions.cargarEstadisticasGlobales();
+        const ms = Date.now() - t0;
+        console.log(`⏱️ [DB] cargarEstadisticasGlobales completado en ${ms} ms`);
+        return res;
+    } catch (e) {
+        const ms = Date.now() - t0;
+        console.error(`❌ [DB] cargarEstadisticasGlobales falló tras ${ms} ms:`, e.message);
+        throw e;
+    }
+});
+await page.exposeFunction('guardarEstadisticasGlobales', async (datos) => {
+    const t0 = Date.now();
+    try {
+        const res = await dbFunctions.guardarEstadisticasGlobales(datos);
+        const ms = Date.now() - t0;
+        console.log(`⏱️ [DB] guardarEstadisticasGlobales completado en ${ms} ms`);
+        return res;
+    } catch (e) {
+        const ms = Date.now() - t0;
+        console.error(`❌ [DB] guardarEstadisticasGlobales falló tras ${ms} ms:`, e.message);
+        throw e;
+    }
+});
         
         // Exponer funciones del sistema de roles persistentes
         await page.exposeFunction('nodeGetRole', async (authID, playerName = null) => {
@@ -2149,40 +2226,62 @@ const webhooks = {
             throw error;
         }
         
-        // Función adicional para obtener el enlace directamente después de unos segundos
+        // Helper: obtener enlace con reintentos para evitar errores transitorios de contexto
+        async function obtenerEnlaceConReintentos(page, { retries = 12, delay = 1500 } = {}) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const enlace = await page.evaluate(() => {
+                        if (typeof enlaceRealSala !== 'undefined' && enlaceRealSala && !enlaceRealSala.includes('abcd1234')) {
+                            return enlaceRealSala;
+                        }
+                        if (typeof room !== 'undefined' && room) {
+                            if (typeof room.getLink === 'function') {
+                                try {
+                                    const linkActual = room.getLink();
+                                    if (linkActual && !linkActual.includes('abcd1234')) return linkActual;
+                                } catch (e) {
+                                    console.log('⚠️ DEBUG: getLink() lanzó error:', e.message);
+                                }
+                            }
+                            try {
+                                const playerList = room.getPlayerList ? room.getPlayerList() : [];
+                                console.log('👥 DEBUG: Jugadores en sala:', playerList.length);
+                            } catch (e) {
+                                console.log('⚠️ DEBUG: getPlayerList() lanzó error:', e.message);
+                            }
+                        }
+                        return null;
+                    });
+                    if (enlace) return enlace;
+                } catch (err) {
+                    const msg = String(err && err.message ? err.message : err);
+                    if (/detached Frame|Execution context was destroyed|Target closed|Protocol error/i.test(msg)) {
+                        console.warn('⚠️ Reintentando obtener enlace (contexto transitorio)... intento', i + 1, 'de', retries);
+                    } else {
+                        throw err;
+                    }
+                }
+                await new Promise(r => setTimeout(r, delay));
+            }
+            return null;
+        }
+
+        // Intentar obtener el enlace directamente después de unos segundos, con reintentos robustos
         setTimeout(async () => {
             try {
-                
-                // Ejecutar código en el navegador para obtener el enlace
-                const enlace = await page.evaluate(() => {
-                    // Intentar obtener el enlace desde las variables globales del bot
-                    if (typeof enlaceRealSala !== 'undefined' && enlaceRealSala && !enlaceRealSala.includes('abcd1234')) {
-                        return enlaceRealSala;
-                    }
-                    
-                    // Intentar obtener desde room si está disponible
-                    if (typeof room !== 'undefined' && room && room.getPlayerList) {
-                        try {
-                            // El enlace debería estar disponible en este punto
-                            const playerList = room.getPlayerList ? room.getPlayerList() : [];
-                            console.log('👥 DEBUG: Jugadores en sala:', playerList.length);
-                            return 'SALA_ACTIVA_SIN_ENLACE_DISPONIBLE';
-                        } catch (e) {
-                            console.log('❌ DEBUG: Error al verificar sala:', e.message);
-                            return 'ERROR_VERIFICANDO_SALA';
-                        }
-                    }
-                    
-                    return null;
-                });
-                
+                const enlace = await obtenerEnlaceConReintentos(page, { retries: 12, delay: 1500 });
                 if (enlace && enlace.startsWith('https://www.haxball.com/play?c=')) {
-                } else if (enlace === 'SALA_ACTIVA_SIN_ENLACE_DISPONIBLE') {
-                } else {
+                    console.log('🔗 DEBUG: Enlace confirmado tras reintentos:', enlace);
+                } else if (enlace === null) {
+                    console.log('⚠️ DEBUG: No se pudo confirmar el enlace tras reintentos');
                 }
-                
             } catch (error) {
-                console.error('❌ Error al intentar obtener el enlace:', error.message);
+                const msg = String(error && error.message ? error.message : error);
+                if (/detached Frame|Execution context was destroyed|Target closed|Protocol error/i.test(msg)) {
+                    console.warn('⚠️ (transitorio) Error al intentar obtener el enlace:', msg);
+                } else {
+                    console.error('❌ Error al intentar obtener el enlace (reintentos):', msg);
+                }
             }
         }, 10000); // Esperar 10 segundos
         
@@ -2212,7 +2311,79 @@ const webhooks = {
             }
         });
         
-        // Log adicional para confirmar que el listener está funcionando
+        // ==================== WATCHDOG DESHABILITADO ====================
+        // NOTA: WATCHDOG comentado para evitar reinicios automáticos cada 5 minutos
+        // El bot seguirá funcionando sin verificaciones de contexto periódicas
+        // PM2 manejará los reinicios solo si el proceso Node.js muere completamente
+        
+        /*
+        // Watchdog y autorecuperación mediante PM2: si la página o el navegador se cierran,
+        // o si el contexto de la sala desaparece repetidamente, salir para que PM2 reinicie.
+        let watchdogFailures = 0;
+        const watchdogIntervalMs = 60_000; // 60s
+        const WATCHDOG_THRESHOLD = 5; // menos agresivo para evitar reinicios falsos
+        
+        // Reinicio asistido por PM2 ante cierre/desconexión
+        browser.on('disconnected', () => {
+            console.error('❌ [WATCHDOG] Browser desconectado. Saliendo para reinicio vía PM2...');
+            process.exit(43);
+        });
+        
+        page.on('close', () => {
+            console.error('❌ [WATCHDOG] Page cerrada. Saliendo para reinicio vía PM2...');
+            process.exit(44);
+        });
+        
+        // Verificación periódica de que el contexto siga vivo
+        setInterval(async () => {
+            try {
+                if (page.isClosed && page.isClosed()) {
+                    console.error('❌ [WATCHDOG] La página está cerrada. Reinicio...');
+                    process.exit(44);
+                    return;
+                }
+                if (browser.isConnected && !browser.isConnected()) {
+                    console.error('❌ [WATCHDOG] Browser desconectado (verificación). Reinicio...');
+                    process.exit(43);
+                    return;
+                }
+
+                const ok = await page.evaluate(() => {
+                    try {
+                        return (typeof room !== 'undefined' && !!room);
+                    } catch (e) {
+                        return false;
+                    }
+                });
+                if (!ok) {
+                    watchdogFailures++;
+                    console.warn(`⚠️ [WATCHDOG] Contexto de sala no disponible (fallo ${watchdogFailures})`);
+                } else {
+                    if (watchdogFailures > 0) {
+                        console.log('✅ [WATCHDOG] Contexto de sala recuperado');
+                    }
+                    watchdogFailures = 0;
+                }
+            } catch (err) {
+                const msg = (err && err.message) ? err.message : String(err);
+                // Solo contar fallos que indiquen problema real de contexto
+                if (/Execution context was destroyed|Cannot find context|Target closed|Protocol error/i.test(msg)) {
+                    watchdogFailures++;
+                    console.warn(`⚠️ [WATCHDOG] Fallo al evaluar contexto (fallo ${watchdogFailures}): ${msg}`);
+                } else {
+                    console.warn(`⚠️ [WATCHDOG] Error no crítico al evaluar contexto: ${msg}`);
+                }
+            }
+            
+            if (watchdogFailures >= WATCHDOG_THRESHOLD) {
+                console.error('❌ [WATCHDOG] Fallos consecutivos detectados. Saliendo para reinicio vía PM2...');
+                process.exit(42);
+            }
+        }, watchdogIntervalMs);
+        */
+        
+        console.log('ℹ️ WATCHDOG deshabilitado - El bot funcionará sin verificaciones periódicas de contexto');
+        console.log('ℹ️ PM2 manejará los reinicios solo si el proceso Node.js falla completamente');
         
         // ====================== SISTEMA DE LIMPIEZA AUTOMÁTICA ======================
         // Función para ejecutar la limpieza de cuentas inactivas

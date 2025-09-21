@@ -1421,7 +1421,20 @@ function programarGuardadoThrottled() {
     }, 2000);
 }
 
-// Sistema de guardado automático en lotes cada 30 segundos
+// Heurística: ¿Podemos guardar ahora sin afectar el juego/conectividad?
+let guardadoEnCurso = false;
+function puedeGuardarAhora() {
+    try {
+        const jugadores = (typeof room !== 'undefined' && room && typeof room.getPlayerList === 'function') ? room.getPlayerList() : [];
+        const enPartido = (typeof partidoEnCurso !== 'undefined') ? !!partidoEnCurso : false;
+        // Guardar solo si no hay partido en curso y hay pocos jugadores (<= 2)
+        return !guardadoEnCurso && !enPartido && jugadores.length <= 2;
+    } catch (_) {
+        return !guardadoEnCurso;
+    }
+}
+
+// Sistema de guardado automático en lotes cada 30 segundos (idle saver)
 let intervalGuardadoAutomatico = null;
 
 function iniciarGuardadoAutomatico() {
@@ -1431,22 +1444,20 @@ function iniciarGuardadoAutomatico() {
     }
     
     intervalGuardadoAutomatico = setInterval(() => {
-        if (cambiosPendientes) {
-            try {
+        try {
+            // Solo intentar guardar si hay cambios pendientes y estamos en condiciones "idle"
+            if (cambiosPendientes && puedeGuardarAhora()) {
                 guardarEstadisticasGlobalesCompletas();
                 cambiosPendientes = false;
-                
-                // También actualizar cache de mensajes periódicamente
-                actualizarCacheMensajes();
-            } catch (error) {
-                console.error('❌ Error en guardado automático:', error);
             }
+        } catch (error) {
+            console.error('❌ Error en guardado automático/idle:', error);
         }
         
         // LIMPIEZA DE MEMORIA: Limpiar Maps que pueden crecer indefinidamente
         limpiarMemoriaPeriodicamente();
         
-    }, 120000); // Cada 2 minutos en lugar de 30 segundos
+    }, 30000); // Comprobar cada 30s para guardar en momentos "idle"
 }
 
 // FUNCIÓN DE LIMPIEZA PERIÓDICA DE MEMORIA
@@ -10803,8 +10814,22 @@ function guardarEstadisticasGlobalesCompletas() {
             console.error('❌ No se puede guardar: estadisticasGlobales es null');
             return false;
         }
-        return guardarEstadisticasGlobalesDB(estadisticasGlobales);
+        // Si no conviene guardar ahora, marcar pendiente y salir
+        if (!puedeGuardarAhora()) {
+            cambiosPendientes = true;
+            return false;
+        }
+        guardadoEnCurso = true;
+        const res = guardarEstadisticasGlobalesDB(estadisticasGlobales);
+        // Si el guardado es una promesa, monitorear finalización
+        if (res && typeof res.then === 'function') {
+            res.finally(() => { guardadoEnCurso = false; });
+        } else {
+            guardadoEnCurso = false;
+        }
+        return res;
     } catch (error) {
+        guardadoEnCurso = false;
         console.error('❌ Error al guardar estadísticas globales:', error);
         return false;
     }

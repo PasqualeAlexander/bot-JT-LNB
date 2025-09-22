@@ -814,7 +814,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjQaTYcpUwOdRdrWg.utE0M100t0M";
+const token = "thr1.AAAAAGjQ6vpcghIaLmIBSw.4c4TkDjP7fQ";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -3820,6 +3820,7 @@ let intentosAutoStartBloqueados = 0; // Contador de intentos bloqueados
 // SISTEMA AFK
 let jugadoresAFK = new Map(); // {id: {ultimaActividad: timestamp, posicionAnterior: {x, y}}}
 const TIEMPO_AFK = 15000; // 15 segundos en milisegundos para mover a espectadores
+const TIEMPO_AFK_KICK = 120000; // 2 minutos en milisegundos para kickear por inactividad
 const TIEMPO_AFK_SALA_LLENA = 120000; // 2 minutos en milisegundos para expulsar cuando sala está llena
 const MINIMO_MOVIMIENTO_AFK = 2; // Distancia mínima para no ser considerado AFK
 const COOLDOWN_COMANDO = 15000; // 15 segundos de cooldown para comandos
@@ -6491,6 +6492,9 @@ function verificarInactividad() {
 
         // Excluir arqueros del sistema AFK
         if (stats && stats.arquero) return;
+        
+        // Excluir administradores del sistema AFK
+        if (esAdminBasico(jugador)) return;
 
         if (infoAFK && jugador.position) {
             const { ultimaActividad, posicionAnterior } = infoAFK;
@@ -6508,18 +6512,23 @@ function verificarInactividad() {
                 let accion = null; // 'expulsar' o 'mover'
                 let motivo = '';
 
-                if (salaLlena) {
+                // Verificar si debe ser kickeado (2 minutos AFK)
+                if (ahora - ultimaActividad > TIEMPO_AFK_KICK) {
+                    tiempoParaAccion = TIEMPO_AFK_KICK;
+                    accion = 'expulsar';
+                    motivo = "2 minutos AFK = 👋";
+                } else if (salaLlena && ahora - ultimaActividad > TIEMPO_AFK_KICK_SALA_LLENA) {
                     tiempoParaAccion = TIEMPO_AFK_KICK_SALA_LLENA;
                     accion = 'expulsar';
-                    motivo = "Expulsado por inactividad (5 minutos en sala llena)";
-                } else {
+                    motivo = "Expulsado por inactividad (2 minutos en sala llena)";
+                } else if (ahora - ultimaActividad > TIEMPO_AFK) {
                     // Mover a espectadores por inactividad (tiempo más corto)
                     tiempoParaAccion = TIEMPO_AFK;
                     accion = 'mover';
                     motivo = "Movido a espectadores por inactividad";
                 }
 
-                if (ahora - ultimaActividad > tiempoParaAccion) {
+                if (tiempoParaAccion && ahora - ultimaActividad > tiempoParaAccion) {
                     // OPTIMIZACIÓN: Agregar a batch para procesamiento
                     jugadoresParaProcesar.push({
                         jugador,
@@ -8423,7 +8432,7 @@ async function procesarComando(jugador, mensaje) {
                 room.setPlayerTeam(jugador.id, equipoDestino);
                 
                 const equipoNombre = equipoDestino === 1 ? '🔴 ROJO' : '🔵 AZUL';
-                anunciarGeneral(`🔙 ✨ ${jugador.name} regresó del AFK al equipo ${equipoNombre} ✨`, "00FF00", "bold");
+                // anunciarGeneral(`🔙 ✨ ${jugador.name} regresó del AFK al equipo ${equipoNombre} ✨`, "00FF00", "bold");
                 
                 // Limpiar datos AFK y establecer cooldown
                 jugadoresAFK.delete(jugador.id);
@@ -8480,7 +8489,7 @@ async function procesarComando(jugador, mensaje) {
             room.setPlayerTeam(jugador.id, equipoDestino);
             
             const equipoNombre = equipoDestino === 1 ? '🔴 ROJO' : '🔵 AZUL';
-            anunciarGeneral(`🔙 ✨ ${jugador.name} regresó del AFK al equipo ${equipoNombre} ✨`, "00FF00", "bold");
+            // anunciarGeneral(`🔙 ✨ ${jugador.name} regresó del AFK al equipo ${equipoNombre} ✨`, "00FF00", "bold");
             
             // Limpiar datos AFK y establecer cooldown
             jugadoresAFK.delete(jugador.id);
@@ -9657,46 +9666,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                 }
             }
             
-            // Fallback a comandos básicos VIP para compatibilidad
-            if (comando === "activarvip" || (comando === "givevip" && !vipBot)) {
-                if (!esSuperAdmin(jugador)) {
-                    anunciarError("❌ Solo los Super Admins pueden activar VIP", jugador);
-                    return;
-                }
-                
-                if (args[1]) {
-                    const nombreJugador = args[1];
-                    const jugadorObjetivo = obtenerJugadorPorNombre(nombreJugador);
-                    
-                    if (jugadorObjetivo) {
-                        if (jugadoresVIP.has(jugadorObjetivo.id)) {
-                            anunciarError(`❌ ${jugadorObjetivo.name} ya tiene VIP activo`, jugador);
-                            return;
-                        }
-                        
-                        // Activar VIP básico
-                        activarVIPJugador(jugadorObjetivo.id, jugadorObjetivo.name);
-                        anunciarExito(`👑 VIP básico activado para ${jugadorObjetivo.name} por ${jugador.name}`);
-                        
-                        // Notificar al jugador
-                        room.sendAnnouncement(
-                            "👑 ¡VIP básico activado! Usa !viphelp para comandos avanzados",
-                            jugadorObjetivo.id,
-                            parseInt("FFD700", 16),
-                            "bold",
-                            1
-                        );
-                    } else {
-                        anunciarError("❌ Jugador no encontrado", jugador);
-                    }
-                } else {
-                    anunciarError("📝 Uso: !activarVIP <jugador> (comando básico - usa !givevip para completo)", jugador);
-                }
-                break;
-            }
             
-            // Si llegamos aquí sin sistema VIP, mostrar mensaje informativo
-            anunciarError("⚠️ Sistema VIP avanzado no disponible. Usa !activarVIP para VIP básico", jugador);
             break;
             
         case "activarvip":
@@ -9709,8 +9679,15 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                 }
                 
                 if (args[1]) {
-                    const nombreJugador = args[1];
-                    const jugadorObjetivo = obtenerJugadorPorNombre(nombreJugador);
+                    const idJugador = args[1];
+                    
+                    // Verificar que sea un ID válido (debe empezar con #)
+                    if (!idJugador.startsWith('#')) {
+                        anunciarError("📝 Uso: !activarvip #ID\n💡 Ejemplo: !activarvip #3\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)", jugador);
+                        return;
+                    }
+                    
+                    const jugadorObjetivo = obtenerJugadorPorID(idJugador.substring(1));
                     
                     if (jugadorObjetivo) {
                         if (jugadoresVIP.has(jugadorObjetivo.id)) {
@@ -9729,10 +9706,10 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                             1
                         );
                     } else {
-                        anunciarError("❌ Jugador no encontrado", jugador);
+                        anunciarError("❌ Jugador no encontrado. Usa # para ver lista de IDs", jugador);
                     }
                 } else {
-                    anunciarError("📝 Uso: !activarVIP <jugador>", jugador);
+                    anunciarError("📝 Uso: !activarvip #ID\n💡 Ejemplo: !activarvip #3\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)", jugador);
                 }
             } else if (comando === "desactivarvip") {
                 if (!esSuperAdmin(jugador)) {
@@ -9741,8 +9718,15 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                 }
                 
                 if (args[1]) {
-                    const nombreJugador = args[1];
-                    const jugadorObjetivo = obtenerJugadorPorNombre(nombreJugador);
+                    const idJugador = args[1];
+                    
+                    // Verificar que sea un ID válido (debe empezar con #)
+                    if (!idJugador.startsWith('#')) {
+                        anunciarError("📝 Uso: !desactivarvip #ID\n💡 Ejemplo: !desactivarvip #3\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)", jugador);
+                        return;
+                    }
+                    
+                    const jugadorObjetivo = obtenerJugadorPorID(idJugador.substring(1));
                     
                     if (jugadorObjetivo) {
                         if (!jugadoresVIP.has(jugadorObjetivo.id)) {
@@ -9761,10 +9745,10 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                             1
                         );
                     } else {
-                        anunciarError("❌ Jugador no encontrado", jugador);
+                        anunciarError("❌ Jugador no encontrado. Usa # para ver lista de IDs", jugador);
                     }
                 } else {
-                    anunciarError("📝 Uso: !desactivarVIP <jugador>", jugador);
+                    anunciarError("📝 Uso: !desactivarvip #ID\n💡 Ejemplo: !desactivarvip #3\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)", jugador);
                 }
             }
             break;

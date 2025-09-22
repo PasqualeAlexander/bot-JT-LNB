@@ -6,36 +6,28 @@
 const VIPSystem = require('./vip_system');
 const { executeQuery } = require('./config/database');
 
-// Función auxiliar para obtener jugador por nombre o ID desde el room
-function obtenerJugadorPorNombreOID(room, input) {
+// Función auxiliar para obtener jugador SOLO por ID desde el room
+function obtenerJugadorPorID(room, input) {
     if (!input || typeof input !== 'string' || !room) {
         return null;
     }
     
+    // SOLO aceptar IDs que empiecen con #
+    if (!input.startsWith('#')) {
+        return null; // Rechazar cualquier entrada que no sea un ID
+    }
+    
     const jugadores = room.getPlayerList().filter(j => j.id !== 0); // Sin host
     
-    // Verificar si es un ID numérico (empieza con #)
-    if (input.startsWith('#')) {
-        const id = input.substring(1);
-        const idNum = parseInt(id);
-        
-        if (isNaN(idNum) || idNum < 0) {
-            return null;
-        }
-        
-        // Buscar jugador por ID real
-        return jugadores.find(j => j.id === idNum);
-    } else {
-        // Búsqueda por nombre
-        const nombreBusqueda = input.toLowerCase().trim();
-        
-        // Coincidencia exacta
-        let jugador = jugadores.find(j => j.name.toLowerCase() === nombreBusqueda);
-        if (jugador) return jugador;
-        
-        // Coincidencia parcial
-        return jugadores.find(j => j.name.toLowerCase().includes(nombreBusqueda));
+    const id = input.substring(1);
+    const idNum = parseInt(id);
+    
+    if (isNaN(idNum) || idNum < 0) {
+        return null;
     }
+    
+    // Buscar jugador por ID real
+    return jugadores.find(j => j.id === idNum);
 }
 
 class VIPCommands {
@@ -147,20 +139,26 @@ class VIPCommands {
         }
 
         if (args.length < 2) {
-            return "❌ Uso: !givevip <jugador|#ID> [días] [razón]\n💡 Ejemplo: !givevip Carlos o !givevip #5";
+            return "❌ Uso: !givevip #ID [días] [razón]\n💡 Ejemplo: !givevip #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
         }
 
         const targetInput = args[1];
-        let targetPlayerName = targetInput;
         
-        // Si usa #ID, convertir a nombre
-        if (this.room && targetInput.startsWith('#')) {
-            const jugador = obtenerJugadorPorNombreOID(this.room, targetInput);
-            if (!jugador) {
-                return `❌ No se encontró jugador con ID ${targetInput}`;
-            }
-            targetPlayerName = jugador.name;
+        // SOLO permitir IDs - rechazar nombres
+        if (!targetInput.startsWith('#')) {
+            return "❌ Solo se permiten IDs de jugadores. Usa: !givevip #ID\n💡 Ejemplo: !givevip #5 para dar VIP al jugador con ID 5";
         }
+        
+        if (!this.room) {
+            return "❌ Error: No hay referencia de sala disponible";
+        }
+        
+        const jugador = obtenerJugadorPorID(this.room, targetInput);
+        if (!jugador) {
+            return `❌ No se encontró jugador con ID ${targetInput}\n💡 Usa el comando !list para ver los IDs de jugadores disponibles`;
+        }
+        
+        const targetPlayerName = jugador.name;
         
         const durationDays = args[2] ? parseInt(args[2]) : null;
         const reason = args.slice(3).join(' ') || "Otorgado por administrador";
@@ -187,20 +185,26 @@ class VIPCommands {
         }
 
         if (args.length < 2) {
-            return "❌ Uso: !giveultravip <jugador|#ID> [días] [razón]\n💡 Ejemplo: !giveultravip Carlos o !giveultravip #5";
+            return "❌ Uso: !giveultravip #ID [días] [razón]\n💡 Ejemplo: !giveultravip #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
         }
 
         const targetInput = args[1];
-        let targetPlayerName = targetInput;
         
-        // Si usa #ID, convertir a nombre
-        if (this.room && targetInput.startsWith('#')) {
-            const jugador = obtenerJugadorPorNombreOID(this.room, targetInput);
-            if (!jugador) {
-                return `❌ No se encontró jugador con ID ${targetInput}`;
-            }
-            targetPlayerName = jugador.name;
+        // SOLO permitir IDs - rechazar nombres
+        if (!targetInput.startsWith('#')) {
+            return "❌ Solo se permiten IDs de jugadores. Usa: !giveultravip #ID\n💡 Ejemplo: !giveultravip #5 para dar Ultra VIP al jugador con ID 5";
         }
+        
+        if (!this.room) {
+            return "❌ Error: No hay referencia de sala disponible";
+        }
+        
+        const jugador = obtenerJugadorPorID(this.room, targetInput);
+        if (!jugador) {
+            return `❌ No se encontró jugador con ID ${targetInput}\n💡 Usa el comando !list para ver los IDs de jugadores disponibles`;
+        }
+        
+        const targetPlayerName = jugador.name;
         
         const durationDays = args[2] ? parseInt(args[2]) : null;
         const reason = args.slice(3).join(' ') || "Otorgado por administrador";
@@ -227,20 +231,26 @@ class VIPCommands {
         }
 
         if (args.length < 2) {
-            return "❌ Uso: !removevip <jugador|#ID> [razón]\n💡 Ejemplo: !removevip Carlos o !removevip #5";
+            return "❌ Uso: !removevip #ID [razón]\n💡 Ejemplo: !removevip #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
         }
 
         const targetInput = args[1];
-        let targetPlayerName = targetInput;
         
-        // Si usa #ID, convertir a nombre
-        if (this.room && targetInput.startsWith('#')) {
-            const jugador = obtenerJugadorPorNombreOID(this.room, targetInput);
-            if (!jugador) {
-                return `❌ No se encontró jugador con ID ${targetInput}`;
-            }
-            targetPlayerName = jugador.name;
+        // SOLO permitir IDs - rechazar nombres
+        if (!targetInput.startsWith('#')) {
+            return "❌ Solo se permiten IDs de jugadores. Usa: !removevip #ID\n💡 Ejemplo: !removevip #5 para remover VIP al jugador con ID 5";
         }
+        
+        if (!this.room) {
+            return "❌ Error: No hay referencia de sala disponible";
+        }
+        
+        const jugador = obtenerJugadorPorID(this.room, targetInput);
+        if (!jugador) {
+            return `❌ No se encontró jugador con ID ${targetInput}\n💡 Usa el comando !list para ver los IDs de jugadores disponibles`;
+        }
+        
+        const targetPlayerName = jugador.name;
         
         const reason = args.slice(2).join(' ') || "Removido por administrador";
 
@@ -286,20 +296,26 @@ class VIPCommands {
         }
 
         if (args.length < 2) {
-            return "❌ Uso: !vipinfo <jugador|#ID>\n💡 Ejemplo: !vipinfo Carlos o !vipinfo #5";
+            return "❌ Uso: !vipinfo #ID\n💡 Ejemplo: !vipinfo #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
         }
 
         const targetInput = args[1];
-        let targetPlayerName = targetInput;
         
-        // Si usa #ID, convertir a nombre
-        if (this.room && targetInput.startsWith('#')) {
-            const jugador = obtenerJugadorPorNombreOID(this.room, targetInput);
-            if (!jugador) {
-                return `❌ No se encontró jugador con ID ${targetInput}`;
-            }
-            targetPlayerName = jugador.name;
+        // SOLO permitir IDs - rechazar nombres
+        if (!targetInput.startsWith('#')) {
+            return "❌ Solo se permiten IDs de jugadores. Usa: !vipinfo #ID\n💡 Ejemplo: !vipinfo #5 para ver info VIP del jugador con ID 5";
         }
+        
+        if (!this.room) {
+            return "❌ Error: No hay referencia de sala disponible";
+        }
+        
+        const jugador = obtenerJugadorPorID(this.room, targetInput);
+        if (!jugador) {
+            return `❌ No se encontró jugador con ID ${targetInput}\n💡 Usa el comando !list para ver los IDs de jugadores disponibles`;
+        }
+        
+        const targetPlayerName = jugador.name;
 
         try {
             const vipStatus = await this.vipSystem.checkVIPStatus(targetPlayerName);

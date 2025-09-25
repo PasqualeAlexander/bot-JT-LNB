@@ -7042,7 +7042,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx1");
-            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de training a x1...`);
+            // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de training a x1...`);
             
             setTimeout(() => {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos
@@ -7084,7 +7084,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx3");
-            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x1 a x3...`);
+            // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x1 a x3...`);
             
             setTimeout(() => {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos
@@ -7126,7 +7126,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx5");
-            anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x3 a x5...`);
+            // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x3 a x5...`);
             
             setTimeout(() => {
                 autoBalanceEquipos();
@@ -11262,6 +11262,12 @@ async function mostrarTopJugadores(solicitante, estadistica) {
                         if (i === 0) posicionEmoji = '🥇';
                         else if (i === 1) posicionEmoji = '🥈';
                         else if (i === 2) posicionEmoji = '🥉';
+                        else if (i === 3) posicionEmoji = '4️⃣';
+                        else if (i === 4) posicionEmoji = '5️⃣';
+                        else if (i === 5) posicionEmoji = '6️⃣';
+                        else if (i === 6) posicionEmoji = '7️⃣';
+                        else if (i === 7) posicionEmoji = '8️⃣';
+                        else if (i === 8) posicionEmoji = '9️⃣';
                         else if (i === 9) posicionEmoji = '🔟';
                         else posicionEmoji = `${i + 1}.`;
                         const nombreMostrar = jug.nombre_display || jug.nombre;
@@ -11298,6 +11304,12 @@ async function mostrarTopJugadores(solicitante, estadistica) {
                             if (i === 0) posicionEmoji = '🥇';
                             else if (i === 1) posicionEmoji = '🥈';
                             else if (i === 2) posicionEmoji = '🥉';
+                            else if (i === 3) posicionEmoji = '4️⃣';
+                            else if (i === 4) posicionEmoji = '5️⃣';
+                            else if (i === 5) posicionEmoji = '6️⃣';
+                            else if (i === 6) posicionEmoji = '7️⃣';
+                            else if (i === 7) posicionEmoji = '8️⃣';
+                            else if (i === 8) posicionEmoji = '9️⃣';
                             else if (i === 9) posicionEmoji = '🔟';
                             else posicionEmoji = `${i + 1}.`;
                             const nombreMostrar = jug.nombre_display || jug.nombre;
@@ -11351,6 +11363,12 @@ async function mostrarTopJugadores(solicitante, estadistica) {
                         if (i === 0) posicionEmoji = '🥇';
                         else if (i === 1) posicionEmoji = '🥈';
                         else if (i === 2) posicionEmoji = '🥉';
+                        else if (i === 3) posicionEmoji = '4️⃣';
+                        else if (i === 4) posicionEmoji = '5️⃣';
+                        else if (i === 5) posicionEmoji = '6️⃣';
+                        else if (i === 6) posicionEmoji = '7️⃣';
+                        else if (i === 7) posicionEmoji = '8️⃣';
+                        else if (i === 8) posicionEmoji = '9️⃣';
                         else if (i === 9) posicionEmoji = '🔟';
                         else posicionEmoji = `${i + 1}.`;
 

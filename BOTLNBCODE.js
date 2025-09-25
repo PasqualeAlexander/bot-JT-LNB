@@ -6552,7 +6552,7 @@ function verificarInactividad() {
         jugadoresParaProcesar.forEach(({jugador, accion, motivo}) => {
             if (accion === 'expulsar') {
                 room.kickPlayer(jugador.id, motivo, false);
-                anunciarAdvertencia(`🚫 ${jugador.name} fue expulsado. Motivo: ${motivo}`, null);
+                // anunciarAdvertencia(`🚫 ${jugador.name} fue expulsado. Motivo: ${motivo}`, null);
             } else if (accion === 'mover') {
                 movimientoIniciadorPorBot.add(jugador.id);
                 room.setPlayerTeam(jugador.id, 0);

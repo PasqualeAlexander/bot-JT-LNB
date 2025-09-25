@@ -64,7 +64,9 @@ class VIPCommands {
         const args = message.slice(1).split(' ');
         const command = args[0].toLowerCase();
         
+        // Log de entrada del comando VIP
         try {
+            console.log(`🔧 [VIP CMD] ${playerName}${playerAuth ? ' (' + playerAuth + ')' : ''} -> ${message}`);
             switch (command) {
                 // === COMANDOS DE ADMINISTRACIÓN ===
                 case 'givevip':
@@ -134,28 +136,40 @@ class VIPCommands {
     // === COMANDOS DE ADMINISTRACIÓN ===
 
     async handleGiveVIP(args, playerName, playerAuth) {
+        console.log(`🔧 [VIP] handleGiveVIP invocado por ${playerName}${playerAuth ? ' (' + playerAuth + ')' : ''} con args:`, args);
         if (!this.isOwner(playerName, playerAuth)) {
-            return "❌ Solo los OWNERS pueden usar este comando.";
+            const msg = "❌ Solo los OWNERS pueden usar este comando.";
+            console.warn(`[VIP] Permiso denegado para ${playerName} en !givevip`);
+            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "bold", 1);
+            return msg;
         }
 
         if (args.length < 2) {
-            return "❌ Uso: !givevip #ID [días] [razón]\n💡 Ejemplo: !givevip #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
+            const msg = "❌ Uso: !givevip #ID [días] [razón]\n💡 Ejemplo: !givevip #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
+            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "normal", 1);
+            return msg;
         }
 
         const targetInput = args[1];
         
         // SOLO permitir IDs - rechazar nombres
         if (!targetInput.startsWith('#')) {
-            return "❌ Solo se permiten IDs de jugadores. Usa: !givevip #ID\n💡 Ejemplo: !givevip #5 para dar VIP al jugador con ID 5";
+            const msg = "❌ Solo se permiten IDs de jugadores. Usa: !givevip #ID\n💡 Ejemplo: !givevip #5 para dar VIP al jugador con ID 5";
+            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "normal", 1);
+            return msg;
         }
         
         if (!this.room) {
-            return "❌ Error: No hay referencia de sala disponible";
+            const msg = "❌ Error: No hay referencia de sala disponible";
+            console.error(`[VIP] ${msg}`);
+            return msg;
         }
         
         const jugador = obtenerJugadorPorID(this.room, targetInput);
         if (!jugador) {
-            return `❌ No se encontró jugador con ID ${targetInput}\n💡 Usa el comando !list para ver los IDs de jugadores disponibles`;
+            const msg = `❌ No se encontró jugador con ID ${targetInput}\n💡 Usa el comando !list para ver los IDs de jugadores disponibles`;
+            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "normal", 1);
+            return msg;
         }
         
         const targetPlayerName = jugador.name;
@@ -164,6 +178,7 @@ class VIPCommands {
         const reason = args.slice(3).join(' ') || "Otorgado por administrador";
 
         try {
+            console.log(`🔧 [VIP] Otorgando VIP a ${targetPlayerName} (auth: ${jugador.auth || 'N/A'}) por ${durationDays || 'permanente'} días. Razón: ${reason}`);
             const result = await this.vipSystem.grantVIP(targetPlayerName, 'VIP', playerName, durationDays, reason, jugador.auth);
             
             let response = `✅ ${result.message}`;
@@ -173,19 +188,28 @@ class VIPCommands {
                 response += ` permanentemente`;
             }
             
+            if (this.room) this.room.sendAnnouncement(response, null, 0x00FF00, "normal", 1);
             return response;
         } catch (error) {
-            return `❌ Error: ${error.message}`;
+            const errMsg = `❌ Error: ${error.message}`;
+            console.error(`[VIP] Error en !givevip:`, error);
+            if (this.room) this.room.sendAnnouncement(errMsg, null, 0xFF6347, "bold", 1);
+            return errMsg;
         }
     }
 
     async handleGiveUltraVIP(args, playerName, playerAuth) {
+        console.log(`🔧 [VIP] handleGiveUltraVIP invocado por ${playerName}${playerAuth ? ' (' + playerAuth + ')' : ''} con args:`, args);
         if (!this.isOwner(playerName, playerAuth)) {
-            return "❌ Solo los OWNERS pueden usar este comando.";
+            const msg = "❌ Solo los OWNERS pueden usar este comando.";
+            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "bold", 1);
+            return msg;
         }
 
         if (args.length < 2) {
-            return "❌ Uso: !giveultravip #ID [días] [razón]\n💡 Ejemplo: !giveultravip #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
+            const msg = "❌ Uso: !giveultravip #ID [días] [razón]\n💡 Ejemplo: !giveultravip #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
+            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "normal", 1);
+            return msg;
         }
 
         const targetInput = args[1];
@@ -210,6 +234,7 @@ class VIPCommands {
         const reason = args.slice(3).join(' ') || "Otorgado por administrador";
 
         try {
+            console.log(`🔧 [VIP] Otorgando ULTRA_VIP a ${targetPlayerName} (auth: ${jugador.auth || 'N/A'}) por ${durationDays || 'permanente'} días. Razón: ${reason}`);
             const result = await this.vipSystem.grantVIP(targetPlayerName, 'ULTRA_VIP', playerName, durationDays, reason, jugador.auth);
             
             let response = `✅ ${result.message}`;
@@ -219,15 +244,22 @@ class VIPCommands {
                 response += ` permanentemente`;
             }
             
+            if (this.room) this.room.sendAnnouncement(response, null, 0x00FF00, "normal", 1);
             return response;
         } catch (error) {
-            return `❌ Error: ${error.message}`;
+            const errMsg = `❌ Error: ${error.message}`;
+            console.error(`[VIP] Error en !giveultravip:`, error);
+            if (this.room) this.room.sendAnnouncement(errMsg, null, 0xFF6347, "bold", 1);
+            return errMsg;
         }
     }
 
     async handleRemoveVIP(args, playerName, playerAuth) {
+        console.log(`🔧 [VIP] handleRemoveVIP invocado por ${playerName}${playerAuth ? ' (' + playerAuth + ')' : ''} con args:`, args);
         if (!this.isOwner(playerName, playerAuth)) {
-            return "❌ Solo los OWNERS pueden usar este comando.";
+            const msg = "❌ Solo los OWNERS pueden usar este comando.";
+            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "bold", 1);
+            return msg;
         }
 
         if (args.length < 2) {
@@ -255,10 +287,16 @@ class VIPCommands {
         const reason = args.slice(2).join(' ') || "Removido por administrador";
 
         try {
+            console.log(`🔧 [VIP] Removiendo VIP a ${targetPlayerName} (auth: ${jugador.auth || 'N/A'}) Razón: ${reason}`);
             const result = await this.vipSystem.removeVIP(targetPlayerName, playerName, reason, jugador.auth);
-            return `✅ ${result.message}`;
+            const msg = `✅ ${result.message}`;
+            if (this.room) this.room.sendAnnouncement(msg, null, 0xFFA500, "normal", 1);
+            return msg;
         } catch (error) {
-            return `❌ Error: ${error.message}`;
+            const errMsg = `❌ Error: ${error.message}`;
+            console.error(`[VIP] Error en !removevip:`, error);
+            if (this.room) this.room.sendAnnouncement(errMsg, null, 0xFF6347, "bold", 1);
+            return errMsg;
         }
     }
 

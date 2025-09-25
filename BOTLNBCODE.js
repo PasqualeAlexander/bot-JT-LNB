@@ -6427,7 +6427,7 @@ function verificarAutoStop(jugadorDesconectado = null) {
     
     // Parar partido si quedan muy pocos jugadores
     if (totalJugadores < 2 || jugadoresRed === 0 || jugadoresBlue === 0) {
-        anunciarAdvertencia("⏹️ Auto parando partido por falta de jugadores...", null);
+        anunciarInfo("⏹️ Auto parando partido por falta de jugadores...");
         room.stopGame();
     }
 }

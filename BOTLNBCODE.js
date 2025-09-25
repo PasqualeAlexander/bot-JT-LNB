@@ -815,7 +815,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjQ6vpcghIaLmIBSw.4c4TkDjP7fQ";
+const token = "thr1.AAAAAGjU1P-3-AiU1xpWzw.Z5amjCgXTpA";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room

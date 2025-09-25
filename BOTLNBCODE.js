@@ -815,7 +815,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjU1P-3-AiU1xpWzw.Z5amjCgXTpA";
+const token = "thr1.AAAAAGjVamQUV8VXhjyfvg.cRMYqup3-CA";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -1642,7 +1642,7 @@ function otorgarXP(identificador, accion, cantidad = null) {
     
     const stats = estadisticasGlobales.jugadores[authID];
     if (!stats) {
-        console.error(`❌ Error: No se pudo crear/obtener estadísticas para ${nombreJugador}`);
+        console.error(`❌ Error: No se pudo crear/obtener estadísticas para ${nombreMostrar}`);
         return;
     }
     
@@ -6915,7 +6915,8 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx5");
-            anunciarInfo(`🔄 Menos de 8 jugadores durante partido (${jugadoresActivos}). Cambiando de x7 a x4...`);
+            // NO anunciar en chat el cambio por pocos jugadores durante partido
+            // anunciarInfo(`🔄 Menos de 8 jugadores durante partido (${jugadoresActivos}). Cambiando de x7 a x4...`);
             
             setTimeout(() => {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos
@@ -6957,7 +6958,8 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
             room.stopGame();
             cambiarMapa("biggerx3");
-            anunciarInfo(`🔄 Menos de 5 jugadores durante partido (${jugadoresActivos}). Cambiando de x4 a x3...`);
+            // NO anunciar en chat el cambio por pocos jugadores durante partido
+            // anunciarInfo(`🔄 Menos de 5 jugadores durante partido (${jugadoresActivos}). Cambiando de x4 a x3...`);
             
             setTimeout(() => {
                 // CORRECCIÓN: Secuencia optimizada para evitar conflictos
@@ -8453,8 +8455,8 @@ async function procesarComando(jugador, mensaje) {
             // Marcar que este jugador se va voluntariamente para evitar mensajes duplicados
             jugadoresSaliendoVoluntariamente.add(jugador.id);
             
-            // Mostrar solo UN mensaje de despedida
-            anunciarGeneral(`👋 ${jugador.name} abandonó la sala. ¡Hasta la vista!`, "888888");
+            // NO mostrar mensaje de despedida en chat (mensaje oculto según configuración)
+            // anunciarGeneral(`👋 ${jugador.name} abandonó la sala. ¡Hasta la vista!`, "888888");
             
             // Usar setTimeout para permitir que el mensaje se muestre antes de la expulsión
             setTimeout(() => {
@@ -10852,6 +10854,9 @@ function registrarJugadorGlobal(authID, nombre) {
 }
 
 // ====================== FUNCIÓN DE VALIDACIÓN DE CANCHA ======================
+// Flag para habilitar actualización inmediata de DB en goles/asistencias
+const ACTUALIZACION_INMEDIATA_DB = true;
+
 function esPartidoValido() {
     // Verificar que el partido se jugó en cancha x4 o x7
     const canchasValidas = ['biggerx4', 'biggerx7'];
@@ -10864,6 +10869,43 @@ function esPartidoValido() {
     }
     
     return esValido;
+}
+
+// Persistencia inmediata de incrementos (goles, asistencias, autogoles)
+async function persistirActualizacionInmediata(authId, nombre, cambios = { goles: 0, asistencias: 0, autogoles: 0 }) {
+    try {
+        if (!ACTUALIZACION_INMEDIATA_DB) return;
+        if (!authId) return;
+        if (!esPartidoValido()) return; // Mantener la misma política que el guardado final
+
+        // Asegurar estructura en memoria y actualizar en tiempo real para !me y tops
+        const stats = registrarJugadorGlobal(authId, nombre);
+        if (!stats) return;
+
+        // Aplicar cambios en memoria
+        if (cambios.goles) stats.goles = (stats.goles || 0) + cambios.goles;
+        if (cambios.asistencias) stats.asistencias = (stats.asistencias || 0) + cambios.asistencias;
+        if (cambios.autogoles) stats.autogoles = (stats.autogoles || 0) + cambios.autogoles;
+        stats.fechaUltimoPartido = new Date().toISOString();
+        // Recalcular promedios en base al número de partidos actual
+        const pj = stats.partidos || 0;
+        if (pj > 0) {
+            stats.promedioGoles = Number((stats.goles / pj).toFixed(2));
+            stats.promedioAsistencias = Number((stats.asistencias / pj).toFixed(2));
+        }
+
+        // Persistir al instante usando función expuesta de Node (upsert por auth)
+        if (typeof nodeGuardarJugadorPorAuth === 'function') {
+            // Ejecutar sin bloquear el hilo principal
+            setTimeout(() => {
+                nodeGuardarJugadorPorAuth(authId, nombre, stats).catch(err => {
+                    console.error('❌ Error en persistirActualizacionInmediata:', err?.message || err);
+                });
+            }, 0);
+        }
+    } catch (e) {
+        console.error('❌ Error en persistirActualizacionInmediata:', e);
+    }
 }
 
 function actualizarEstadisticasGlobales(datosPartido) {
@@ -12101,6 +12143,12 @@ async function registrarGol(goleador, equipo, asistente) {
         // CORRECCIÓN: Usar goleador.team en lugar de statsGoleador.equipo para verificar el equipo actual
         if (goleador.team === equipo) {
             statsGoleador.goles++;
+
+            // Persistencia inmediata en DB y actualización en memoria para tops/!me
+            try {
+                const authG = jugadoresUID.get(goleador.id);
+                if (authG) persistirActualizacionInmediata(authG, nombreGoleador, { goles: 1 });
+            } catch (_) {}
             
             // Otorgar XP por gol con bonificación VIP de forma asíncrona para evitar lag
             setTimeout(async () => {
@@ -12135,6 +12183,13 @@ async function registrarGol(goleador, equipo, asistente) {
                     
                     // Registrar asistencia y XP con bonificación VIP de forma asíncrona
                     statsAsistente.asistencias++;
+
+                    // Persistencia inmediata en DB y actualización en memoria para tops/!me
+                    try {
+                        const authA = jugadoresUID.get(asistente.id);
+                        if (authA) persistirActualizacionInmediata(authA, nombreAsistente, { asistencias: 1 });
+                    } catch (_) {}
+
                     setTimeout(async () => {
                         if (vipBot) {
                             try {
@@ -12261,6 +12316,11 @@ async function registrarGol(goleador, equipo, asistente) {
             // Asistencia ya procesada arriba y incluida en el mensaje del gol - no enviar mensaje separado
         } else {
             statsGoleador.autogoles++;
+            // Persistencia inmediata en DB y actualización en memoria para tops/!me (autogol)
+            try {
+                const authAuto = jugadoresUID.get(goleador.id);
+                if (authAuto) persistirActualizacionInmediata(authAuto, nombreGoleador, { autogoles: 1 });
+            } catch (_) {}
             // Formato autogol igual que gol normal pero con "Gol en contra"
             const mensajeAutogol = `🔵 [${tiempoFormateado}]  ⚽💀 Gol en contra de ${nombreGoleador.toLowerCase()} • Velocidad de disparo: ${velocidadDisparo}km/h 🔵`;
             anunciarGeneral(mensajeAutogol, "FF6B6B", "bold");

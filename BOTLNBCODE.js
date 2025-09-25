@@ -10834,7 +10834,10 @@ function registrarJugadorGlobal(authID, nombre) {
             fechaPrimerPartido: new Date().toISOString(),
             fechaUltimoPartido: new Date().toISOString(),
             xp: 40,  // XP inicial para jugadores nuevos
-            nivel: 1 // Nivel inicial
+            nivel: 1, // Nivel inicial
+            codigoRecuperacion: null, // Inicializar como null para evitar generación repetida
+            fechaCodigoCreado: null, // Fecha de creación del código
+            codigoGenerado: false // Flag para evitar generación repetida
         };
         console.log(`✅ Nuevo jugador registrado: ${nombre} (${authID})`);
     } else {
@@ -10966,8 +10969,20 @@ function actualizarEstadisticasGlobales(datosPartido) {
         statsGlobal.promedioAsistencias = (statsGlobal.asistencias / statsGlobal.partidos).toFixed(2);
         
         // ====================== GENERACIÓN AUTOMÁTICA DE CÓDIGO DE RECUPERACIÓN ======================
-// Generar código automáticamente cuando el jugador alcanza exactamente 5 partidos
-        if (statsGlobal.partidos === 5 && !statsGlobal.codigoRecuperacion) {
+        // Generar código automáticamente cuando el jugador alcanza exactamente 5 partidos
+        // CORRECCIÓN: Verificar también que no tenga fecha de creación para evitar duplicados
+        if (statsGlobal.partidos === 5 && !statsGlobal.codigoRecuperacion && !statsGlobal.fechaCodigoCreado) {
+            console.log(`🔐 DEBUG: Generando código de recuperación para ${jugadorPartido.nombre} - Partidos: ${statsGlobal.partidos}, Código actual: ${statsGlobal.codigoRecuperacion}, Fecha: ${statsGlobal.fechaCodigoCreado}`);
+            
+            // Verificación adicional por si acaso
+            if (statsGlobal.codigoGenerado === true) {
+                console.log(`⚠️ DEBUG: Código ya marcado como generado para ${jugadorPartido.nombre}, saltando...`);
+                return;
+            }
+            
+            // Marcar inmediatamente como generado para evitar duplicados
+            statsGlobal.codigoGenerado = true;
+            
             statsGlobal.codigoRecuperacion = generarCodigoRecuperacion(jugadorPartido.nombre);
             statsGlobal.fechaCodigoCreado = new Date().toISOString();
             
@@ -14444,6 +14459,49 @@ setTimeout(() => {
             
         } catch (error) {
             console.error('❌ Error enviando mensajes de bienvenida:', error);
+        }
+        
+        // NUEVO: Cargar datos existentes de la BD antes del registro para evitar duplicados
+        try {
+            const authIDJoin = jugadoresUID.get(jugador.id) || jugador.auth;
+            if (authIDJoin) {
+                // Intentar cargar estadísticas existentes de la BD
+                const statsExistentes = await obtenerEstadisticasJugadorSeguro(jugador);
+                if (statsExistentes) {
+                    console.log(`📊 DEBUG: Cargando datos existentes de BD para ${jugador.name} - Partidos: ${statsExistentes.partidos}, Código: ${statsExistentes.codigoRecuperacion ? 'SÍ' : 'NO'}`);
+                    
+                    // Sincronizar datos de BD con memoria
+                    estadisticasGlobales.jugadores[authIDJoin] = {
+                        authID: authIDJoin,
+                        nombre: jugador.name,
+                        partidos: statsExistentes.partidos || 0,
+                        victorias: statsExistentes.victorias || 0,
+                        derrotas: statsExistentes.derrotas || 0,
+                        goles: statsExistentes.goles || 0,
+                        asistencias: statsExistentes.asistencias || 0,
+                        autogoles: statsExistentes.autogoles || 0,
+                        mejorRachaGoles: statsExistentes.mejorRachaGoles || 0,
+                        mejorRachaAsistencias: statsExistentes.mejorRachaAsistencias || 0,
+                        hatTricks: statsExistentes.hatTricks || 0,
+                        mvps: statsExistentes.mvps || 0,
+                        vallasInvictas: statsExistentes.vallasInvictas || 0,
+                        tiempoJugado: statsExistentes.tiempoJugado || 0,
+                        promedioGoles: statsExistentes.promedioGoles || 0,
+                        promedioAsistencias: statsExistentes.promedioAsistencias || 0,
+                        fechaPrimerPartido: statsExistentes.fechaPrimerPartido || new Date().toISOString(),
+                        fechaUltimoPartido: statsExistentes.fechaUltimoPartido || new Date().toISOString(),
+                        xp: statsExistentes.xp || 40,
+                        nivel: statsExistentes.nivel || 1,
+                        codigoRecuperacion: statsExistentes.codigoRecuperacion || null,
+                        fechaCodigoCreado: statsExistentes.fechaCodigoCreado || null,
+                        codigoGenerado: !!statsExistentes.codigoRecuperacion // Marcar como generado si ya existe
+                    };
+                    
+                    console.log(`✅ DEBUG: Datos sincronizados desde BD: ${jugador.name} - Partidos: ${estadisticasGlobales.jugadores[authIDJoin].partidos}, Código generado: ${estadisticasGlobales.jugadores[authIDJoin].codigoGenerado}`);
+                }
+            }
+        } catch (error) {
+            console.error(`❌ Error cargando datos existentes de BD para ${jugador.name}:`, error);
         }
         
         // Registrar jugador en estadísticas globales si no existe

@@ -69,7 +69,7 @@ class BotVIPIntegration {
     async onPlayerJoin(playerName, playerAuth) {
         try {
             // Verificar estado VIP del jugador
-            const vipStatus = await this.vipSystem.checkVIPStatus(playerName);
+            const vipStatus = await this.vipSystem.checkVIPStatus(playerName, playerAuth);
             
             if (vipStatus) {
                 const benefits = this.vipSystem.getVIPBenefits(vipStatus.vip_type);

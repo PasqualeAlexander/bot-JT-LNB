@@ -137,119 +137,142 @@ class VIPSystem {
     }
 
     // Otorgar VIP a un jugador
-    async grantVIP(playerName, vipType, grantedBy, durationDays = null, reason = "Otorgado por admin") {
-        try {
-            // Verificar si el jugador existe
-            const player = await executeQuery('SELECT nombre FROM jugadores WHERE nombre = ?', [playerName]);
-            if (player.length === 0) {
-                throw new Error(`Jugador ${playerName} no encontrado en la base de datos`);
-            }
-
-            // Verificar si el tipo VIP existe
-            const vipTypeData = await executeQuery('SELECT * FROM vip_types WHERE type_name = ?', [vipType]);
-            if (vipTypeData.length === 0) {
-                throw new Error(`Tipo VIP ${vipType} no válido`);
-            }
-
-            // Calcular fecha de expiración
-            let expiryDate = null;
-            if (durationDays) {
-                const expiry = new Date();
-                expiry.setDate(expiry.getDate() + durationDays);
-                expiryDate = expiry.toISOString().slice(0, 19).replace('T', ' ');
-            }
-
-            // Usar transacción para garantizar consistencia
-            const queries = [
-                {
-                    query: 'UPDATE vip_memberships SET is_active = FALSE WHERE player_name = ?',
-                    params: [playerName]
-                },
-                {
-                    query: `INSERT INTO vip_memberships 
-                           (player_name, vip_type, granted_by, expiry_date, reason) 
-                           VALUES (?, ?, ?, ?, ?)`,
-                    params: [playerName, vipType, grantedBy, expiryDate, reason]
-                },
-                {
-                    query: 'UPDATE jugadores SET esVIP = ?, fechaVIP = CURRENT_TIMESTAMP WHERE nombre = ?',
-                    params: [vipType === 'ULTRA_VIP' ? 2 : 1, playerName]
-                }
-            ];
-
-            await executeTransaction(queries);
-
-            return {
-                success: true,
-                message: `${vipTypeData[0].color} ${playerName} ahora es ${vipType}`,
-                vipLevel: vipType === 'ULTRA_VIP' ? 2 : 1,
-                expiryDate: expiryDate
-            };
-        } catch (error) {
-            console.error('❌ Error otorgando VIP:', error);
-            throw error;
+  async grantVIP(playerName, vipType, grantedBy, durationDays = null, reason = "Otorgado por admin", playerAuth = null) {
+    try {
+      // Resolver auth_id preferentemente por auth, si no por nombre
+      let authId = playerAuth;
+      if (!authId) {
+        const player = await executeQuery('SELECT auth_id FROM jugadores WHERE nombre = ? LIMIT 1', [playerName]);
+        if (player.length === 0 || !player[0].auth_id) {
+          throw new Error(`No se pudo resolver auth_id de ${playerName}`);
         }
+        authId = player[0].auth_id;
+      }
+
+      // Verificar tipo VIP existe
+      const vipTypeData = await executeQuery('SELECT * FROM vip_types WHERE type_name = ?', [vipType]);
+      if (vipTypeData.length === 0) {
+        throw new Error(`Tipo VIP ${vipType} no válido`);
+      }
+
+      // Calcular expiración
+      let expiryDate = null;
+      if (durationDays) {
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + durationDays);
+        expiryDate = expiry.toISOString().slice(0, 19).replace('T', ' ');
+      }
+
+      // Transacción: desactivar membresías previas por auth_id, insertar nueva, actualizar flag en jugadores por auth_id
+      const queries = [
+        {
+          query: 'UPDATE vip_memberships SET is_active = FALSE WHERE auth_id = ? AND is_active = TRUE',
+          params: [authId]
+        },
+        {
+          query: `INSERT INTO vip_memberships 
+                 (auth_id, player_name, vip_type, granted_by, expiry_date, reason) 
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+          params: [authId, playerName, vipType, grantedBy, expiryDate, reason]
+        },
+        {
+          query: 'UPDATE jugadores SET esVIP = ?, fechaVIP = CURRENT_TIMESTAMP WHERE auth_id = ?',
+          params: [vipType === 'ULTRA_VIP' ? 2 : 1, authId]
+        }
+      ];
+
+      await executeTransaction(queries);
+
+      return {
+        success: true,
+        message: `${vipTypeData[0].color} ${playerName} ahora es ${vipType}`,
+        vipLevel: vipType === 'ULTRA_VIP' ? 2 : 1,
+        expiryDate: expiryDate
+      };
+    } catch (error) {
+      console.error('❌ Error otorgando VIP:', error);
+      throw error;
     }
+  }
 
     // Remover VIP de un jugador
-    async removeVIP(playerName, removedBy, reason = "Removido por admin") {
-        try {
-            // Verificar si el jugador tiene VIP activo
-            const activeMembership = await executeQuery(
-                'SELECT * FROM vip_memberships WHERE player_name = ? AND is_active = TRUE',
-                [playerName]
-            );
-
-            if (activeMembership.length === 0) {
-                throw new Error(`${playerName} no tiene VIP activo`);
-            }
-
-            // Usar transacción para desactivar VIP
-            const queries = [
-                {
-                    query: 'UPDATE vip_memberships SET is_active = FALSE WHERE player_name = ? AND is_active = TRUE',
-                    params: [playerName]
-                },
-                {
-                    query: 'UPDATE jugadores SET esVIP = 0, fechaVIP = NULL WHERE nombre = ?',
-                    params: [playerName]
-                }
-            ];
-
-            await executeTransaction(queries);
-
-            return {
-                success: true,
-                message: `VIP removido de ${playerName}`,
-                removedBy: removedBy,
-                reason: reason
-            };
-        } catch (error) {
-            console.error('❌ Error removiendo VIP:', error);
-            throw error;
+  async removeVIP(playerName, removedBy, reason = "Removido por admin", playerAuth = null) {
+    try {
+      // Resolver auth_id
+      let authId = playerAuth;
+      if (!authId) {
+        const player = await executeQuery('SELECT auth_id FROM jugadores WHERE nombre = ? LIMIT 1', [playerName]);
+        if (player.length === 0 || !player[0].auth_id) {
+          throw new Error(`No se pudo resolver auth_id de ${playerName}`);
         }
+        authId = player[0].auth_id;
+      }
+
+      // Verificar VIP activo por auth_id
+      const activeMembership = await executeQuery(
+          'SELECT * FROM vip_memberships WHERE auth_id = ? AND is_active = TRUE',
+          [authId]
+      );
+
+      if (activeMembership.length === 0) {
+        throw new Error(`${playerName} no tiene VIP activo`);
+      }
+
+      // Transacción para desactivar por auth_id
+      const queries = [
+        {
+          query: 'UPDATE vip_memberships SET is_active = FALSE WHERE auth_id = ? AND is_active = TRUE',
+          params: [authId]
+        },
+        {
+          query: 'UPDATE jugadores SET esVIP = 0, fechaVIP = NULL WHERE auth_id = ?',
+          params: [authId]
+        }
+      ];
+
+      await executeTransaction(queries);
+
+      return {
+        success: true,
+        message: `VIP removido de ${playerName}`,
+        removedBy: removedBy,
+        reason: reason
+      };
+    } catch (error) {
+      console.error('❌ Error removiendo VIP:', error);
+      throw error;
     }
+  }
 
     // Verificar estado VIP de un jugador
-    async checkVIPStatus(playerName) {
-        try {
-            const query = `
-                SELECT vm.*, vt.level, vt.color, vt.benefits 
-                FROM vip_memberships vm
-                JOIN vip_types vt ON vm.vip_type = vt.type_name
-                WHERE vm.player_name = ? AND vm.is_active = TRUE
-                AND (vm.expiry_date IS NULL OR vm.expiry_date > NOW())
-                ORDER BY vt.level DESC
-                LIMIT 1
-            `;
+  async checkVIPStatus(playerName, playerAuth = null) {
+    try {
+      // Preferir auth_id si está disponible
+      let authId = playerAuth;
+      if (!authId) {
+        const row = await executeQuery('SELECT auth_id FROM jugadores WHERE nombre = ? LIMIT 1', [playerName]);
+        authId = row && row[0] ? row[0].auth_id : null;
+      }
 
-            const result = await executeQuery(query, [playerName]);
-            return result.length > 0 ? result[0] : null;
-        } catch (error) {
-            console.error('❌ Error verificando estado VIP:', error);
-            throw error;
-        }
+      if (!authId) return null;
+
+      const query = `
+          SELECT vm.*, vt.level, vt.color, vt.benefits 
+          FROM vip_memberships vm
+          JOIN vip_types vt ON vm.vip_type = vt.type_name
+          WHERE vm.auth_id = ? AND vm.is_active = TRUE
+          AND (vm.expiry_date IS NULL OR vm.expiry_date > NOW())
+          ORDER BY vt.level DESC
+          LIMIT 1
+      `;
+
+      const result = await executeQuery(query, [authId]);
+      return result.length > 0 ? result[0] : null;
+    } catch (error) {
+      console.error('❌ Error verificando estado VIP:', error);
+      throw error;
     }
+  }
 
     // Listar todos los VIPs activos
     async listActiveVIPs() {
@@ -331,44 +354,44 @@ class VIPSystem {
     }
 
     // Limpiar VIPs expirados
-    async cleanupExpiredVIPs() {
-        try {
-            // Obtener VIPs expirados antes de limpiar
-            const expiredVIPs = await executeQuery(
-                `SELECT player_name, vip_type FROM vip_memberships 
+  async cleanupExpiredVIPs() {
+    try {
+      // Obtener VIPs expirados antes de limpiar
+      const expiredVIPs = await executeQuery(
+          `SELECT auth_id, player_name, vip_type FROM vip_memberships 
+           WHERE expiry_date IS NOT NULL 
+           AND expiry_date <= NOW() 
+           AND is_active = TRUE`
+      );
+
+      if (expiredVIPs.length === 0) {
+        return { expiredCount: 0, message: 'No hay VIPs expirados para limpiar' };
+      }
+
+      // Usar transacción para limpiar VIPs expirados
+      const queries = [
+        {
+          query: `UPDATE vip_memberships 
+                 SET is_active = FALSE 
                  WHERE expiry_date IS NOT NULL 
                  AND expiry_date <= NOW() 
-                 AND is_active = TRUE`
-            );
+                 AND is_active = TRUE`,
+          params: []
+        },
+        {
+          query: `UPDATE jugadores 
+                 SET esVIP = 0, fechaVIP = NULL 
+                 WHERE auth_id IN (
+                     SELECT auth_id FROM vip_memberships 
+                     WHERE expiry_date IS NOT NULL 
+                     AND expiry_date <= NOW() 
+                     AND is_active = FALSE
+                 )`,
+          params: []
+        }
+      ];
 
-            if (expiredVIPs.length === 0) {
-                return { expiredCount: 0, message: 'No hay VIPs expirados para limpiar' };
-            }
-
-            // Usar transacción para limpiar VIPs expirados
-            const queries = [
-                {
-                    query: `UPDATE vip_memberships 
-                           SET is_active = FALSE 
-                           WHERE expiry_date IS NOT NULL 
-                           AND expiry_date <= NOW() 
-                           AND is_active = TRUE`,
-                    params: []
-                },
-                {
-                    query: `UPDATE jugadores 
-                           SET esVIP = 0, fechaVIP = NULL 
-                           WHERE nombre IN (
-                               SELECT player_name FROM vip_memberships 
-                               WHERE expiry_date IS NOT NULL 
-                               AND expiry_date <= NOW() 
-                               AND is_active = FALSE
-                           )`,
-                    params: []
-                }
-            ];
-
-            await executeTransaction(queries);
+      await executeTransaction(queries);
 
             console.log(`🧹 ${expiredVIPs.length} VIPs expirados limpiados automáticamente`);
             return {

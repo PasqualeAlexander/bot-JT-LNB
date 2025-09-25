@@ -164,7 +164,7 @@ class VIPCommands {
         const reason = args.slice(3).join(' ') || "Otorgado por administrador";
 
         try {
-            const result = await this.vipSystem.grantVIP(targetPlayerName, 'VIP', playerName, durationDays, reason);
+            const result = await this.vipSystem.grantVIP(targetPlayerName, 'VIP', playerName, durationDays, reason, jugador.auth);
             
             let response = `✅ ${result.message}`;
             if (durationDays) {
@@ -210,7 +210,7 @@ class VIPCommands {
         const reason = args.slice(3).join(' ') || "Otorgado por administrador";
 
         try {
-            const result = await this.vipSystem.grantVIP(targetPlayerName, 'ULTRA_VIP', playerName, durationDays, reason);
+            const result = await this.vipSystem.grantVIP(targetPlayerName, 'ULTRA_VIP', playerName, durationDays, reason, jugador.auth);
             
             let response = `✅ ${result.message}`;
             if (durationDays) {
@@ -255,7 +255,7 @@ class VIPCommands {
         const reason = args.slice(2).join(' ') || "Removido por administrador";
 
         try {
-            const result = await this.vipSystem.removeVIP(targetPlayerName, playerName, reason);
+            const result = await this.vipSystem.removeVIP(targetPlayerName, playerName, reason, jugador.auth);
             return `✅ ${result.message}`;
         } catch (error) {
             return `❌ Error: ${error.message}`;
@@ -318,7 +318,7 @@ class VIPCommands {
         const targetPlayerName = jugador.name;
 
         try {
-            const vipStatus = await this.vipSystem.checkVIPStatus(targetPlayerName);
+            const vipStatus = await this.vipSystem.checkVIPStatus(targetPlayerName, jugador.auth);
             
             if (!vipStatus) {
                 return `📋 ${targetPlayerName} no tiene VIP activo.`;

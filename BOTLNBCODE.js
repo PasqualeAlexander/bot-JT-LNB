@@ -14453,6 +14453,14 @@ setTimeout(() => {
                 registrarJugadorGlobal(authIDJoin, jugador.name);
                 console.log(`✅ DEBUG: Jugador nuevo registrado: ${jugador.name} (${authIDJoin}) con XP inicial y nivel 1`);
                 
+                // NUEVO: Registrar también en la base de datos con auth_id
+                try {
+                    await registrarJugador(jugador);
+                    console.log(`💾 DEBUG: Jugador registrado en BD: ${jugador.name} (${authIDJoin})`);
+                } catch (dbError) {
+                    console.error(`❌ Error registrando jugador en BD: ${jugador.name}`, dbError);
+                }
+                
                 // Actualizar formato de nombre para jugadores nuevos después de un breve delay
                 setTimeout(() => {
                     try {
@@ -14465,6 +14473,19 @@ setTimeout(() => {
             }
         } catch (error) {
             console.error('❌ Error registrando jugador global:', error);
+        }
+        
+        // NUEVO: Asegurar que todos los jugadores (nuevos y existentes) estén en la base de datos
+        try {
+            const authIDForDB = jugadoresUID.get(jugador.id) || jugador.auth;
+            if (authIDForDB) {
+                await registrarJugador(jugador);
+                console.log(`💾 DEBUG: Verificado/registrado en BD: ${jugador.name} (${authIDForDB})`);
+            } else {
+                console.warn(`⚠️ DEBUG: Jugador sin auth_id no se registrará en BD: ${jugador.name}`);
+            }
+        } catch (dbError) {
+            console.error(`❌ Error verificando/registrando jugador en BD: ${jugador.name}`, dbError);
         }
         
         // ====================== TRACKING DE JUGADORES - SISTEMA INTEGRADO ======================

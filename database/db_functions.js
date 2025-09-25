@@ -191,10 +191,14 @@ const dbFunctions = {
                         jugadoresGuardados.push(`${nombreJugador} (Auth: ${authId})`);
                         console.log(`🔄 [AUTH-ID] Guardado: ${nombreJugador} -> ${authId}`);
                     } else {
-                        // Fallback: usar sistema anterior por nombre
-                        await dbFunctions.guardarJugador(nombreJugador, stats);
-                        jugadoresGuardados.push(`${nombreJugador} (Nombre)`);
-                        console.log(`🔄 [NOMBRE] Guardado: ${nombreJugador}`);
+                        // POLÍTICA: NO guardar jugadores sin auth_id
+                        console.warn(`🚫 [POLÍTICA] Jugador sin auth_id NO guardado: ${nombreJugador}`);
+                        erroresDetallados.push({
+                            identificador: identificador,
+                            nombre: nombreJugador,
+                            auth_id: 'N/A',
+                            error: 'Sin auth_id - política activa'
+                        });
                     }
                 } catch (error) {
                     const errorInfo = {

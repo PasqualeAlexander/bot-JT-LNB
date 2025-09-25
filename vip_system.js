@@ -139,6 +139,7 @@ class VIPSystem {
     // Otorgar VIP a un jugador
   async grantVIP(playerName, vipType, grantedBy, durationDays = null, reason = "Otorgado por admin", playerAuth = null) {
     try {
+      console.log(`🔧 [VIP SYSTEM] grantVIP → jugador='${playerName}', tipo='${vipType}', por='${grantedBy}', dias='${durationDays ?? 'permanente'}', razon='${reason}'`);
       // Resolver auth_id preferentemente por auth, si no por nombre
       let authId = playerAuth;
       if (!authId) {
@@ -148,6 +149,7 @@ class VIPSystem {
         }
         authId = player[0].auth_id;
       }
+      console.log(`🔑 [VIP SYSTEM] grantVIP → auth_id resuelto='${authId}'`);
 
       // Verificar tipo VIP existe
       const vipTypeData = await executeQuery('SELECT * FROM vip_types WHERE type_name = ?', [vipType]);
@@ -162,6 +164,7 @@ class VIPSystem {
         expiry.setDate(expiry.getDate() + durationDays);
         expiryDate = expiry.toISOString().slice(0, 19).replace('T', ' ');
       }
+      console.log(`⏰ [VIP SYSTEM] grantVIP → expiry='${expiryDate || 'NULL'}'`);
 
       // Transacción: desactivar membresías previas por auth_id, insertar nueva, actualizar flag en jugadores por auth_id
       const queries = [
@@ -181,7 +184,9 @@ class VIPSystem {
         }
       ];
 
+      console.log(`🧾 [VIP SYSTEM] grantVIP → ejecutando transacción (3 pasos) para auth_id='${authId}'`);
       await executeTransaction(queries);
+      console.log(`✅ [VIP SYSTEM] grantVIP → COMPLETADO jugador='${playerName}' auth_id='${authId}' tipo='${vipType}' expiry='${expiryDate || 'NULL'}'`);
 
       return {
         success: true,
@@ -198,6 +203,7 @@ class VIPSystem {
     // Remover VIP de un jugador
   async removeVIP(playerName, removedBy, reason = "Removido por admin", playerAuth = null) {
     try {
+      console.log(`🔧 [VIP SYSTEM] removeVIP → jugador='${playerName}', por='${removedBy}', razon='${reason}'`);
       // Resolver auth_id
       let authId = playerAuth;
       if (!authId) {
@@ -207,12 +213,14 @@ class VIPSystem {
         }
         authId = player[0].auth_id;
       }
+      console.log(`🔑 [VIP SYSTEM] removeVIP → auth_id resuelto='${authId}'`);
 
       // Verificar VIP activo por auth_id
       const activeMembership = await executeQuery(
           'SELECT * FROM vip_memberships WHERE auth_id = ? AND is_active = TRUE',
           [authId]
       );
+      console.log(`📋 [VIP SYSTEM] removeVIP → membresias_activas=${activeMembership.length}`);
 
       if (activeMembership.length === 0) {
         throw new Error(`${playerName} no tiene VIP activo`);
@@ -230,7 +238,9 @@ class VIPSystem {
         }
       ];
 
+      console.log(`🧾 [VIP SYSTEM] removeVIP → ejecutando transacción (2 pasos) para auth_id='${authId}'`);
       await executeTransaction(queries);
+      console.log(`✅ [VIP SYSTEM] removeVIP → COMPLETADO jugador='${playerName}' auth_id='${authId}'`);
 
       return {
         success: true,
@@ -247,6 +257,7 @@ class VIPSystem {
     // Verificar estado VIP de un jugador
   async checkVIPStatus(playerName, playerAuth = null) {
     try {
+      console.log(`🔎 [VIP SYSTEM] checkVIPStatus → jugador='${playerName}', auth_provisto='${playerAuth ? 'sí' : 'no'}'`);
       // Preferir auth_id si está disponible
       let authId = playerAuth;
       if (!authId) {
@@ -254,7 +265,10 @@ class VIPSystem {
         authId = row && row[0] ? row[0].auth_id : null;
       }
 
-      if (!authId) return null;
+      if (!authId) {
+        console.log(`ℹ️ [VIP SYSTEM] checkVIPStatus → sin auth_id, retornando null`);
+        return null;
+      }
 
       const query = `
           SELECT vm.*, vt.level, vt.color, vt.benefits 
@@ -267,6 +281,7 @@ class VIPSystem {
       `;
 
       const result = await executeQuery(query, [authId]);
+      console.log(`📊 [VIP SYSTEM] checkVIPStatus → encontrado=${result.length > 0 ? 'sí' : 'no'}`);
       return result.length > 0 ? result[0] : null;
     } catch (error) {
       console.error('❌ Error verificando estado VIP:', error);

@@ -6912,7 +6912,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             // Log eliminado para mejor rendimiento
-            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx5");
             // NO anunciar en chat el cambio por pocos jugadores durante partido
@@ -6955,7 +6955,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             // Log eliminado para mejor rendimiento
-            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx3");
             // NO anunciar en chat el cambio por pocos jugadores durante partido
@@ -6998,7 +6998,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             // Log eliminado para mejor rendimiento
-            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx1");
             // Cambio de mapa silencioso de x3 a x1
@@ -7041,7 +7041,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG CR�ÍTICO: Cambiando de training a x1 durante partido (${jugadoresActivos} >= 2)`);
-            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx1");
             // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de training a x1...`);
@@ -7083,7 +7083,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG: Cambiando de x1 a x3 durante partido (${jugadoresActivos} >= 3)`);
-            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx3");
             // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x1 a x3...`);
@@ -7125,7 +7125,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG: Cambiando de x3 a x5 durante partido (${jugadoresActivos} >= 7)`);
-            anunciarAdvertencia("⏹️ Deteniendo partido para cambio de mapa...");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx5");
             // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x3 a x5...`);

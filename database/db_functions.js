@@ -11,43 +11,16 @@ const { executeQuery, executeTransaction } = require('../config/database');
 const dbFunctions = {
     // ====================== FUNCIONES DE JUGADORES ======================
     
-    // Guardar/actualizar jugador (por auth_id o nombre como fallback)
+    // Guardar/actualizar jugador (solo por auth_id)
     guardarJugador: async (identificador, stats, authId = null) => {
-        // Si se proporciona authId, usar sistema basado en auth_id
-        if (authId) {
-            return await dbFunctions.guardarJugadorPorAuth(authId, identificador, stats);
-        }
-        
-        // Fallback: sistema anterior por nombre
-        const query = `INSERT INTO jugadores 
-                      (nombre, partidos, victorias, derrotas, goles, asistencias, autogoles, 
-                       mejorRachaGoles, mejorRachaAsistencias, hatTricks, vallasInvictas, 
-                       tiempoJugado, promedioGoles, promedioAsistencias, fechaPrimerPartido, 
-                       fechaUltimoPartido, xp, nivel, codigoRecuperacion, fechaCodigoCreado, mvps, updated_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                      ON DUPLICATE KEY UPDATE
-                      partidos = VALUES(partidos), victorias = VALUES(victorias), derrotas = VALUES(derrotas),
-                      goles = VALUES(goles), asistencias = VALUES(asistencias), autogoles = VALUES(autogoles),
-                      mejorRachaGoles = VALUES(mejorRachaGoles), mejorRachaAsistencias = VALUES(mejorRachaAsistencias),
-                      hatTricks = VALUES(hatTricks), vallasInvictas = VALUES(vallasInvictas),
-                      tiempoJugado = VALUES(tiempoJugado), promedioGoles = VALUES(promedioGoles),
-                      promedioAsistencias = VALUES(promedioAsistencias), fechaPrimerPartido = VALUES(fechaPrimerPartido),
-                      fechaUltimoPartido = VALUES(fechaUltimoPartido), xp = VALUES(xp), nivel = VALUES(nivel),
-                      codigoRecuperacion = VALUES(codigoRecuperacion), fechaCodigoCreado = VALUES(fechaCodigoCreado),
-                      mvps = VALUES(mvps), updated_at = CURRENT_TIMESTAMP`;
-        
         try {
-            const result = await executeQuery(query, [
-                identificador, stats.partidos, stats.victorias, stats.derrotas, stats.goles, 
-                stats.asistencias, stats.autogoles, stats.mejorRachaGoles, stats.mejorRachaAsistencias, 
-                stats.hatTricks, stats.vallasInvictas, stats.tiempoJugado, stats.promedioGoles, 
-                stats.promedioAsistencias, stats.fechaPrimerPartido, stats.fechaUltimoPartido, 
-                stats.xp ?? 40, stats.nivel ?? 1, stats.codigoRecuperacion ?? null, stats.fechaCodigoCreado ?? null,
-                stats.mvps ?? 0
-            ]);
-            return result.insertId || result.affectedRows;
+            if (!authId) {
+                console.warn('🚫 [POLÍTICA] guardarJugador requiere authId. Use guardarJugadorPorAuth(authId, nombre, stats).');
+                return null;
+            }
+            return await dbFunctions.guardarJugadorPorAuth(authId, identificador, stats);
         } catch (error) {
-            console.error('ÔØî Error guardando jugador:', error);
+            console.error('❌ Error en guardarJugador (auth):', error);
             throw error;
         }
     },
@@ -329,83 +302,125 @@ const dbFunctions = {
     
     // ====================== FUNCIONES VIP ======================
     
-    // Activar VIP para un jugador
-    activarVIP: async (nombreJugador) => {
+    // Activar VIP por auth_id (nuevo flujo recomendado)
+    activarVIPPorAuth: async (authId) => {
         const fechaVIP = new Date().toISOString();
-        const query = `UPDATE jugadores SET esVIP = 1, fechaVIP = ? WHERE nombre = ?`;
-        
+        const query = `UPDATE jugadores SET esVIP = 1, fechaVIP = ? WHERE auth_id = ?`;
         try {
-            const result = await executeQuery(query, [fechaVIP, nombreJugador]);
+            const result = await executeQuery(query, [fechaVIP, authId]);
             if (result.affectedRows === 0) {
-                throw new Error('Jugador no encontrado');
+                throw new Error('Jugador no encontrado por auth_id');
             }
-            console.log(`Ô£à VIP activado para ${nombreJugador} en ${fechaVIP}`);
-            return { nombreJugador, fechaVIP, cambios: result.affectedRows };
+            console.log(`Ô£à VIP activado (auth) para ${authId} en ${fechaVIP}`);
+            return { authId, fechaVIP, cambios: result.affectedRows };
         } catch (error) {
-            console.error('ÔØî Error activando VIP:', error);
+            console.error('ÔØî Error activando VIP (auth):', error);
+            throw error;
+        }
+    },
+
+    // Compat: activar VIP por nombre (resuelve y delega a auth)
+    activarVIP: async (nombreJugador) => {
+        try {
+            console.warn('⚠️ activarVIP(nombre) está deprecado. Usar activarVIPPorAuth(authId). Resolviendo auth_id...');
+            const rows = await executeQuery(
+                'SELECT auth_id FROM jugadores WHERE nombre = ? AND auth_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1',
+                [nombreJugador]
+            );
+            if (!rows || rows.length === 0 || !rows[0].auth_id) {
+                throw new Error('No se pudo resolver auth_id para el nombre indicado');
+            }
+            return await dbFunctions.activarVIPPorAuth(rows[0].auth_id);
+        } catch (error) {
+            console.error('ÔØî Error activando VIP (por nombre):', error);
             throw error;
         }
     },
     
-    // Desactivar VIP para un jugador
+    // Desactivar VIP por auth_id (nuevo flujo recomendado)
+    desactivarVIPPorAuth: async (authId) => {
+        const query = `UPDATE jugadores SET esVIP = 0, fechaVIP = NULL WHERE auth_id = ?`;
+        try {
+            const result = await executeQuery(query, [authId]);
+            if (result.affectedRows === 0) {
+                throw new Error('Jugador no encontrado por auth_id');
+            }
+            console.log(`Ô£à VIP desactivado (auth) para ${authId}`);
+            return { authId, cambios: result.affectedRows };
+        } catch (error) {
+            console.error('ÔØî Error desactivando VIP (auth):', error);
+            throw error;
+        }
+    },
+
+    // Compat: desactivar VIP por nombre (resuelve y delega a auth)
     desactivarVIP: async (nombreJugador) => {
-        const query = `UPDATE jugadores SET esVIP = 0, fechaVIP = NULL WHERE nombre = ?`;
-        
         try {
-            const result = await executeQuery(query, [nombreJugador]);
-            if (result.affectedRows === 0) {
-                throw new Error('Jugador no encontrado');
+            console.warn('⚠️ desactivarVIP(nombre) está deprecado. Usar desactivarVIPPorAuth(authId). Resolviendo auth_id...');
+            const rows = await executeQuery(
+                'SELECT auth_id FROM jugadores WHERE nombre = ? AND auth_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1',
+                [nombreJugador]
+            );
+            if (!rows || rows.length === 0 || !rows[0].auth_id) {
+                throw new Error('No se pudo resolver auth_id para el nombre indicado');
             }
-            console.log(`ÔØî VIP desactivado para ${nombreJugador}`);
-            return { nombreJugador, cambios: result.affectedRows };
+            return await dbFunctions.desactivarVIPPorAuth(rows[0].auth_id);
         } catch (error) {
-            console.error('ÔØî Error desactivando VIP:', error);
+            console.error('ÔØî Error desactivando VIP (por nombre):', error);
             throw error;
         }
     },
     
-    // Verificar si un jugador es VIP
-    esJugadorVIP: async (nombreJugador) => {
-        const query = `SELECT esVIP, fechaVIP FROM jugadores WHERE nombre = ?`;
-        
+    // Verificar VIP por auth_id (nuevo flujo recomendado)
+    esJugadorVIPPorAuth: async (authId) => {
+        const query = `SELECT esVIP, fechaVIP FROM jugadores WHERE auth_id = ?`;
         try {
-            const results = await executeQuery(query, [nombreJugador]);
-            const row = results[0];
-            
-            if (!row) {
-                return { esVIP: false, fechaVIP: null };
-            }
-            
+            const results = await executeQuery(query, [authId]);
+            const row = results && results[0];
+            if (!row) return { esVIP: false, fechaVIP: null };
+
             const esVIP = row.esVIP === 1;
             const fechaVIP = row.fechaVIP;
-            
-            // Si es VIP, verificar que no haya expirado (30 d├¡as)
             if (esVIP && fechaVIP) {
                 const fechaOtorgamiento = new Date(fechaVIP);
-                const fechaExpiracion = new Date(fechaOtorgamiento.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 d├¡as
+                const fechaExpiracion = new Date(fechaOtorgamiento.getTime() + (30 * 24 * 60 * 60 * 1000));
                 const ahora = new Date();
-                
                 if (ahora > fechaExpiracion) {
-                    // VIP expirado - desactivar autom├íticamente
                     try {
-                        await dbFunctions.desactivarVIP(nombreJugador);
+                        await dbFunctions.desactivarVIPPorAuth(authId);
                         return { esVIP: false, fechaVIP: null, expirado: true };
                     } catch (error) {
-                        console.error(`Error al desactivar VIP expirado para ${nombreJugador}:`, error);
+                        console.error(`Error al desactivar VIP expirado (auth: ${authId}):`, error);
                         return { esVIP: false, fechaVIP: null, expirado: true };
                     }
                 } else {
                     return { esVIP: true, fechaVIP: fechaVIP, diasRestantes: Math.ceil((fechaExpiracion - ahora) / (24 * 60 * 60 * 1000)) };
                 }
-            } else {
-                return { esVIP: false, fechaVIP: null };
             }
+            return { esVIP: false, fechaVIP: null };
         } catch (error) {
-            console.error('ÔØî Error verificando VIP:', error);
+            console.error('ÔØî Error verificando VIP (auth):', error);
             throw error;
         }
     },
-    
+
+    // Compat: verificar VIP por nombre (resuelve y delega a auth)
+    esJugadorVIP: async (nombreJugador) => {
+        try {
+            console.warn('⚠️ esJugadorVIP(nombre) está deprecado. Usar esJugadorVIPPorAuth(authId). Resolviendo auth_id...');
+            const rows = await executeQuery(
+                'SELECT auth_id FROM jugadores WHERE nombre = ? AND auth_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1',
+                [nombreJugador]
+            );
+            if (!rows || rows.length === 0 || !rows[0].auth_id) {
+                return { esVIP: false, fechaVIP: null };
+            }
+            return await dbFunctions.esJugadorVIPPorAuth(rows[0].auth_id);
+        } catch (error) {
+            console.error('ÔØî Error verificando VIP (por nombre):', error);
+            throw error;
+        }
+    },
     // Obtener lista de jugadores VIP activos
     obtenerJugadoresVIP: async () => {
         const query = `SELECT nombre, fechaVIP FROM jugadores WHERE esVIP = 1 ORDER BY fechaVIP DESC`;

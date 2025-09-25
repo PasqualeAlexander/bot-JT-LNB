@@ -441,18 +441,24 @@ const dbFunctionsOld = {
                 
                 console.log(`💾 [DB] Guardando estadísticas de ${Object.keys(datos.jugadores).length} jugadores...`);
                 
-                // Guardar cada jugador individualmente
+                // Guardar cada jugador individualmente (solo por auth_id)
                 const jugadoresGuardados = [];
                 for (const [nombre, stats] of Object.entries(datos.jugadores)) {
                     try {
-                        await dbFunctions.guardarJugador(nombre, stats);
-                        jugadoresGuardados.push(nombre);
+                        const authId = stats.auth_id || stats.authId || null;
+                        const nombreMostrar = stats.nombre_display || stats.nombre || nombre;
+                        if (!authId) {
+                            console.warn(`🚫 [DB] Saltando guardado de '${nombreMostrar}' por no tener auth_id`);
+                            continue;
+                        }
+                        await dbFunctions.guardarJugadorPorAuth(authId, nombreMostrar, stats);
+                        jugadoresGuardados.push(`${nombreMostrar} (auth)`);
                     } catch (error) {
                         console.error(`❌ [DB] Error guardando jugador ${nombre}:`, error);
                     }
                 }
                 
-                console.log(`✅ [DB] ${jugadoresGuardados.length} jugadores guardados exitosamente`);
+                console.log(`✅ [DB] ${jugadoresGuardados.length} jugadores guardados exitosamente (por auth_id)`);
                 
                 // TODO: Implementar guardado de records y otras estadísticas globales
                 

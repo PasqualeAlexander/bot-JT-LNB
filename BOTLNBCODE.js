@@ -3,14 +3,15 @@ let intervalTopAleatorio = null;
 function iniciarTopAleatorioAutomatico() {
     if (intervalTopAleatorio) clearInterval(intervalTopAleatorio);
     
-    // Lista de tipos de top disponibles
+    // Lista de tipos de top disponibles (solo valores válidos según mostrarTopJugadores)
     const tiposTops = [
         'goles',
-        'asistencias', 
-        'partidos',
-        'victorias',
-        'rank',
-        'mvps'
+        'asistencias', // también acepta 'asis'
+        'vallas', // también acepta 'vallasInvictas'
+        'autogoles',
+        'partidos', // también acepta 'pj' 
+        'mvps',
+        'rank'
     ];
     
     // Ejecutar una vez tras 5 minutos para no spamear al iniciar

@@ -8,6 +8,26 @@
 
 const { executeQuery, executeTransaction } = require('../config/database');
 
+// Auto-esquema: asegurar columnas requeridas
+const ensureColumnExists = async (schema, table, column, definition) => {
+    try {
+        const rows = await executeQuery(
+            `SELECT COUNT(*) AS cnt FROM information_schema.columns WHERE table_schema = ? AND table_name = ? AND column_name = ?`,
+            [schema, table, column]
+        );
+        const exists = rows && rows[0] && rows[0].cnt > 0;
+        if (!exists) {
+            console.warn(`[DB] Columna faltante detectada: ${table}.${column}. Agregando...`);
+            await executeQuery(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+            console.log(`✅ Columna agregada: ${table}.${column}`);
+        }
+    } catch (e) {
+        console.error(`[DB] Error verificando/agregando columna ${table}.${column}:`, e.message);
+    }
+};
+
+
+
 const dbFunctions = {
     // ====================== FUNCIONES DE JUGADORES ======================
     
@@ -32,13 +52,16 @@ const dbFunctions = {
             const results = await executeQuery(query, [nombre]);
             return results[0] || null;
         } catch (error) {
-            console.error('ÔØî Error obteniendo jugador:', error);
+            console.error('❌ [DB] Error obteniendo jugador:', error);
             throw error;
         }
     },
 
-    // Cargar estad├¡sticas globales (ACTUALIZADO PARA USAR AUTH_ID)
+    // Cargar estadísticas globales (ACTUALIZADO PARA USAR AUTH_ID)
     cargarEstadisticasGlobales: async () => {
+        const schema = process.env.DB_NAME || 'lnb_estadisticas';
+        await ensureColumnExists(schema, 'jugadores', 'nombre_display', 'VARCHAR(255) NULL AFTER nombre');
+        await ensureColumnExists(schema, 'jugadores', 'updated_at', 'TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
         const query = 'SELECT * FROM jugadores ORDER BY partidos DESC';
         try {
             const rows = await executeQuery(query);
@@ -63,17 +86,17 @@ const dbFunctions = {
             // NUEVO: Usar auth_id como clave principal, con fallback a nombre
             if (rows && rows.length > 0) {
                 rows.forEach(row => {
-                    // Identificador ├║nico: usar auth_id si est├í disponible, sino usar nombre
+                    // Identificador único: usar auth_id si está disponible, sino usar nombre
                     const identificadorUnico = row.auth_id || row.nombre;
                     const nombreMostrar = row.nombre_display || row.nombre;
                     
                     estadisticasFormateadas.jugadores[identificadorUnico] = {
-                        // Informaci├│n de identificaci├│n
+                        // Información de identificación
                         auth_id: row.auth_id,
                         nombre: row.nombre,
                         nombre_display: nombreMostrar,
                         
-                        // Estad├¡sticas del jugador
+                        // Estadísticas del jugador
                         partidos: row.partidos || 0,
                         victorias: row.victorias || 0,
                         derrotas: row.derrotas || 0,
@@ -95,12 +118,12 @@ const dbFunctions = {
                         fechaCodigoCreado: row.fechaCodigoCreado || null,
                         mvps: row.mvps || 0,
                         
-                        // Metadata de identificaci├│n
+                        // Metadata de identificación
                         tipo_identificacion: row.auth_id ? 'auth' : 'nombre'
                     };
                 });
                 
-                // Calcular records b├ísicos
+                // Calcular records básicos
                 let maxGoles = 0, maxAsistencias = 0;
                 Object.values(estadisticasFormateadas.jugadores).forEach(jugador => {
                     if (jugador.goles > maxGoles) {
@@ -126,26 +149,26 @@ const dbFunctions = {
             const jugadoresConAuth = Object.values(estadisticasFormateadas.jugadores).filter(j => j.auth_id).length;
             const jugadoresSinAuth = Object.values(estadisticasFormateadas.jugadores).filter(j => !j.auth_id).length;
             
-            console.log(`­ƒôè [AUTH-ID] Cargadas estad├¡sticas: ${Object.keys(estadisticasFormateadas.jugadores).length} jugadores`);
+            console.log(`ℹ️ [DB] [AUTH-ID] Cargadas estadísticas: ${Object.keys(estadisticasFormateadas.jugadores).length} jugadores`);
             console.log(`   - Con auth_id: ${jugadoresConAuth}`);
             console.log(`   - Sin auth_id: ${jugadoresSinAuth}`);
             
             return estadisticasFormateadas;
         } catch (error) {
-            console.error('ÔØî Error cargando estad├¡sticas globales:', error);
+            console.error('❌ [DB] Error cargando estadísticas globales:', error);
             throw error;
         }
     },
 
-    // Guardar estad├¡sticas globales (ACTUALIZADO PARA USAR AUTH_ID)
+    // Guardar estadísticas globales (ACTUALIZADO PARA USAR AUTH_ID)
     guardarEstadisticasGlobales: async (datos) => {
         try {
             if (!datos || !datos.jugadores) {
-                console.error('ÔØî [DB] Datos inv├ílidos para guardar estad├¡sticas globales');
+                console.error('❌ [DB] [DB] Datos inválidos para guardar estadísticas globales');
                 return false;
             }
             
-            console.log(`­ƒÆ¥ [AUTH-ID] Guardando estad├¡sticas de ${Object.keys(datos.jugadores).length} jugadores...`);
+            console.log(`ℹ️ [DB] [AUTH-ID] Guardando estadísticas de ${Object.keys(datos.jugadores).length} jugadores...`);
             
             // Guardar cada jugador individualmente usando el sistema auth_id
             const jugadoresGuardados = [];
@@ -162,15 +185,15 @@ const dbFunctions = {
                         // Usar sistema basado en auth_id
                         await dbFunctions.guardarJugadorPorAuth(authId, nombreJugador, stats);
                         jugadoresGuardados.push(`${nombreJugador} (Auth: ${authId})`);
-                        console.log(`­ƒöä [AUTH-ID] Guardado: ${nombreJugador} -> ${authId}`);
+                        console.log(`✅ [DB] [AUTH-ID] Guardado: ${nombreJugador} -> ${authId}`);
                     } else {
-                        // POL├ìTICA: NO guardar jugadores sin auth_id
-                        console.warn(`­ƒÜ½ [POL├ìTICA] Jugador sin auth_id NO guardado: ${nombreJugador}`);
+                        // POLÍTICA: NO guardar jugadores sin auth_id
+                        console.warn(`⚠️ [DB] [POLÍTICA] Jugador sin auth_id NO guardado: ${nombreJugador}`);
                         erroresDetallados.push({
                             identificador: identificador,
                             nombre: nombreJugador,
                             auth_id: 'N/A',
-                            error: 'Sin auth_id - pol├¡tica activa'
+                            error: 'Sin auth_id - política activa'
                         });
                     }
                 } catch (error) {
@@ -181,7 +204,7 @@ const dbFunctions = {
                         error: error.message
                     };
                     erroresDetallados.push(errorInfo);
-                    console.error(`ÔØî [DB] Error guardando jugador ${identificador}:`, error.message);
+                    console.error(`❌ [DB] [DB] Error guardando jugador ${identificador}:`, error.message);
                 }
             }
             
@@ -190,10 +213,10 @@ const dbFunctions = {
             const exitosos = jugadoresGuardados.length;
             const errores = erroresDetallados.length;
             
-            console.log(`Ô£à [AUTH-ID] Guardado completado: ${exitosos}/${totalJugadores} jugadores`);
+            console.log(`✅ [DB] [AUTH-ID] Guardado completado: ${exitosos}/${totalJugadores} jugadores`);
             
             if (errores > 0) {
-                console.warn(`ÔÜá´©Å [AUTH-ID] ${errores} errores durante el guardado:`);
+                console.warn(`⚠️ [DB] [AUTH-ID] ${errores} errores durante el guardado:`);
                 erroresDetallados.forEach((err, i) => {
                     console.warn(`   ${i+1}. ${err.nombre} (ID: ${err.identificador}): ${err.error}`);
                 });
@@ -201,7 +224,7 @@ const dbFunctions = {
             
             return exitosos > 0;
         } catch (error) {
-            console.error('ÔØî [DB] Error cr├¡tico en guardarEstadisticasGlobales:', error);
+            console.error('❌ [DB] [DB] Error crítico en guardarEstadisticasGlobales:', error);
             throw error;
         }
     },
@@ -210,37 +233,37 @@ const dbFunctions = {
     obtenerTopJugadores: async (campo, limite = 10) => {
         const validCampos = ['goles', 'asistencias', 'partidos', 'victorias', 'hatTricks', 'vallasInvictas', 'mvps'];
         if (!validCampos.includes(campo)) {
-            throw new Error('Campo inv├ílido');
+            throw new Error('Campo inválido');
         }
         
-        // Validar que limite sea un n├║mero v├ílido para evitar inyecci├│n SQL
+        // Validar que limite sea un número válido para evitar inyección SQL
         const limiteNumero = parseInt(limite);
         if (isNaN(limiteNumero) || limiteNumero <= 0 || limiteNumero > 100) {
-            throw new Error('L├¡mite inv├ílido');
+            throw new Error('Límite inválido');
         }
         
-        // Construir query con LIMIT literal (no como par├ímetro preparado)
+        // Construir query con LIMIT literal (no como parámetro preparado)
         const query = `SELECT * FROM jugadores WHERE partidos > 0 ORDER BY ${campo} DESC LIMIT ${limiteNumero}`;
         try {
             const results = await executeQuery(query, []);
             return results;
         } catch (error) {
-            console.error('ÔØî Error obteniendo top jugadores:', error);
+            console.error('❌ [DB] Error obteniendo top jugadores:', error);
             throw error;
         }
     },
 
-    // Obtener Top desde la ├║ltima tabla de backup (fallback de temporada anterior)
+    // Obtener Top desde la última tabla de backup (fallback de temporada anterior)
     obtenerTopDesdeBackup: async (campo, limite = 10) => {
         try {
             const validCampos = ['goles', 'asistencias', 'partidos', 'victorias', 'hatTricks', 'vallasInvictas', 'mvps', 'autogoles'];
             if (!validCampos.includes(campo)) {
-                throw new Error('Campo inv├ílido');
+                throw new Error('Campo inválido');
             }
 
             const schema = process.env.DB_NAME || 'lnb_estadisticas';
 
-            // Buscar las ├║ltimas tablas de backup por nombre (YYYY_MM_DD_HHMMSS ordena lexicogr├íficamente)
+            // Buscar las últimas tablas de backup por nombre (YYYY_MM_DD_HHMMSS ordena lexicográficamente)
             const tablas = await executeQuery(
                 `SELECT table_name AS nombre FROM information_schema.tables
                  WHERE table_schema = ? AND table_name LIKE 'temporada_backup_%'
@@ -252,7 +275,7 @@ const dbFunctions = {
                 return { success: false, reason: 'sin_tablas_backup', data: [] };
             }
 
-            // Validar l├¡mite
+            // Validar límite
             const limiteNumero = parseInt(limite);
             const lim = (isNaN(limiteNumero) || limiteNumero <= 0 || limiteNumero > 100) ? 10 : limiteNumero;
 
@@ -260,14 +283,14 @@ const dbFunctions = {
             for (const t of tablas) {
                 const tabla = t.nombre;
                 // Verificar si hay datos
-                const countRes = await executeQuery(`SELECT COUNT(*) AS total FROM \`${tabla}\``);
+                const countRes = await executeQuery(`SELECT COUNT(*) AS total FROM lexible${tabla}flexiblelexible`);
                 const total = (countRes && countRes[0] && countRes[0].total) ? countRes[0].total : 0;
                 if (total === 0) continue;
 
                 // Traer el top por el campo solicitado
                 const query = `SELECT nombre, nombre_display, partidos, victorias, derrotas, goles, asistencias, autogoles,
                                       mejorRachaGoles, mejorRachaAsistencias, hatTricks, mvps, vallasInvictas, tiempoJugado
-                               FROM \`${tabla}\`
+                               FROM lexible${tabla}flexiblelexible
                                ORDER BY ${campo} DESC, partidos DESC, nombre ASC
                                LIMIT ${lim}`;
                 const rows = await executeQuery(query, []);
@@ -276,7 +299,7 @@ const dbFunctions = {
 
             return { success: false, reason: 'tablas_sin_datos', data: [] };
         } catch (error) {
-            console.error('ÔØî Error en obtenerTopDesdeBackup:', error);
+            console.error('❌ [DB] Error en obtenerTopDesdeBackup:', error);
             return { success: false, error: error.message, data: [] };
         }
     },
@@ -295,7 +318,7 @@ const dbFunctions = {
             ]);
             return result.insertId;
         } catch (error) {
-            console.error('ÔØî Error guardando partido:', error);
+            console.error('❌ [DB] Error guardando partido:', error);
             throw error;
         }
     },
@@ -311,10 +334,10 @@ const dbFunctions = {
             if (result.affectedRows === 0) {
                 throw new Error('Jugador no encontrado por auth_id');
             }
-            console.log(`Ô£à VIP activado (auth) para ${authId} en ${fechaVIP}`);
+            console.log(`✅ [DB] VIP activado (auth) para ${authId} en ${fechaVIP}`);
             return { authId, fechaVIP, cambios: result.affectedRows };
         } catch (error) {
-            console.error('ÔØî Error activando VIP (auth):', error);
+            console.error('❌ [DB] Error activando VIP (auth):', error);
             throw error;
         }
     },
@@ -332,7 +355,7 @@ const dbFunctions = {
             }
             return await dbFunctions.activarVIPPorAuth(rows[0].auth_id);
         } catch (error) {
-            console.error('ÔØî Error activando VIP (por nombre):', error);
+            console.error('❌ [DB] Error activando VIP (por nombre):', error);
             throw error;
         }
     },
@@ -345,10 +368,10 @@ const dbFunctions = {
             if (result.affectedRows === 0) {
                 throw new Error('Jugador no encontrado por auth_id');
             }
-            console.log(`Ô£à VIP desactivado (auth) para ${authId}`);
+            console.log(`✅ [DB] VIP desactivado (auth) para ${authId}`);
             return { authId, cambios: result.affectedRows };
         } catch (error) {
-            console.error('ÔØî Error desactivando VIP (auth):', error);
+            console.error('❌ [DB] Error desactivando VIP (auth):', error);
             throw error;
         }
     },
@@ -366,7 +389,7 @@ const dbFunctions = {
             }
             return await dbFunctions.desactivarVIPPorAuth(rows[0].auth_id);
         } catch (error) {
-            console.error('ÔØî Error desactivando VIP (por nombre):', error);
+            console.error('❌ [DB] Error desactivando VIP (por nombre):', error);
             throw error;
         }
     },
@@ -399,7 +422,7 @@ const dbFunctions = {
             }
             return { esVIP: false, fechaVIP: null };
         } catch (error) {
-            console.error('ÔØî Error verificando VIP (auth):', error);
+            console.error('❌ [DB] Error verificando VIP (auth):', error);
             throw error;
         }
     },
@@ -417,7 +440,7 @@ const dbFunctions = {
             }
             return await dbFunctions.esJugadorVIPPorAuth(rows[0].auth_id);
         } catch (error) {
-            console.error('ÔØî Error verificando VIP (por nombre):', error);
+            console.error('❌ [DB] Error verificando VIP (por nombre):', error);
             throw error;
         }
     },
@@ -443,12 +466,12 @@ const dbFunctions = {
             
             return jugadoresVIP;
         } catch (error) {
-            console.error('ÔØî Error obteniendo jugadores VIP:', error);
+            console.error('❌ [DB] Error obteniendo jugadores VIP:', error);
             throw error;
         }
     },
     
-    // Limpiar VIPs expirados autom├íticamente
+    // Limpiar VIPs expirados automáticamente
     limpiarVIPsExpirados: async () => {
         try {
             // Primero obtener los VIPs que van a expirar
@@ -470,7 +493,7 @@ const dbFunctions = {
             
             const result = await executeQuery(updateQuery);
             
-            console.log(`­ƒº╣ ${result.affectedRows} VIPs expirados limpiados autom├íticamente`);
+            console.log(`🧹 [DB] ${result.affectedRows} VIPs expirados limpiados automáticamente`);
             return { 
                 vipsExpirados: result.affectedRows, 
                 jugadores: expiredVips.map(r => ({
@@ -480,30 +503,30 @@ const dbFunctions = {
                 }))
             };
         } catch (error) {
-            console.error('ÔØî Error limpiando VIPs expirados:', error);
+            console.error('❌ [DB] Error limpiando VIPs expirados:', error);
             throw error;
         }
     },
     
     // ====================== FUNCIONES DE CONEXIONES ======================
     
-    // Registrar nueva conexi├│n
+    // Registrar nueva conexión
     registrarConexion: async (nombreJugador, authJugador, ipSimulada, identificadorConexion) => {
         try {
-            // Primero eliminar conexi├│n existente si hay una
+            // Primero eliminar conexión existente si hay una
             const deleteQuery = `DELETE FROM conexiones_activas WHERE identificador_conexion = ?`;
             await executeQuery(deleteQuery, [identificadorConexion]);
             
-            // Insertar nueva conexi├│n
+            // Insertar nueva conexión
             const insertQuery = `INSERT INTO conexiones_activas 
                                 (nombre_jugador, auth_jugador, ip_simulada, identificador_conexion)
                                 VALUES (?, ?, ?, ?)`;
             
             const result = await executeQuery(insertQuery, [nombreJugador, authJugador, ipSimulada, identificadorConexion]);
-            console.log(`­ƒöù Nueva conexi├│n registrada: ${nombreJugador} (${ipSimulada})`);
+            console.log(`🔗 [DB] Nueva conexión registrada: ${nombreJugador} (${ipSimulada})`);
             return result.insertId;
         } catch (error) {
-            console.error('ÔØî Error registrando conexi├│n:', error);
+            console.error('❌ [DB] Error registrando conexión:', error);
             throw error;
         }
     },
@@ -511,7 +534,7 @@ const dbFunctions = {
     // Verificar conexiones existentes
     verificarConexionesExistentes: async (nombreJugador, authJugador = null) => {
         try {
-            // Primero limpiar conexiones inactivas autom├íticamente
+            // Primero limpiar conexiones inactivas automáticamente
             await dbFunctions.limpiarConexionesInactivas();
             
             let query = `SELECT * FROM conexiones_activas 
@@ -529,13 +552,13 @@ const dbFunctions = {
             const conexionesActivas = results.length;
             const tieneConexionesMultiples = conexionesActivas >= 2;
             
-            console.log(`­ƒöì Verificaci├│n de conexiones para ${nombreJugador}: ${conexionesActivas} activas`);
+            console.log(`🔍 [DB] Verificación de conexiones para ${nombreJugador}: ${conexionesActivas} activas`);
             
-            // Si hay exactamente una conexi├│n activa, verificar si es del mismo jugador
+            // Si hay exactamente una conexión activa, verificar si es del mismo jugador
             if (conexionesActivas === 1 && results.length > 0) {
                 const conexionExistente = results[0];
                 if (conexionExistente.auth_jugador === authJugador) {
-                    console.log(`Ô£à Conexi├│n permitida: misma sesi├│n de ${nombreJugador}`);
+                    console.log(`✅ [DB] Conexión permitida: misma sesión de ${nombreJugador}`);
                     return {
                         tieneConexionesMultiples: false,
                         conexionesActivas: 0,
@@ -550,7 +573,7 @@ const dbFunctions = {
                 detalles: results
             };
         } catch (error) {
-            console.error('ÔØî Error verificando conexiones existentes:', error);
+            console.error('❌ [DB] Error verificando conexiones existentes:', error);
             throw error;
         }
     },
@@ -565,11 +588,11 @@ const dbFunctions = {
         try {
             const result = await executeQuery(query);
             if (result.affectedRows > 0) {
-                console.log(`­ƒº╣ ${result.affectedRows} conexiones inactivas limpiadas`);
+                console.log(`🧹 [DB] ${result.affectedRows} conexiones inactivas limpiadas`);
             }
             return result.affectedRows;
         } catch (error) {
-            console.error('ÔØî Error limpiando conexiones inactivas:', error);
+            console.error('❌ [DB] Error limpiando conexiones inactivas:', error);
             throw error;
         }
     },
@@ -579,10 +602,10 @@ const dbFunctions = {
     // Crear baneo en la nueva tabla baneos
         // PARCHE ZONA HORARIA UTC - Asegurar que se use UTC
     crearBaneo: async (authId, nombre, razon, admin, duracion = 0) => {
-        // Si no se proporciona raz├│n, usar valor por defecto
+        // Si no se proporciona razón, usar valor por defecto
         const razonFinal = razon || 'Baneado por admin';
         
-        // PARCHE: Establecer zona horaria UTC para esta operaci├│n
+        // PARCHE: Establecer zona horaria UTC para esta operación
         await executeQuery("SET SESSION time_zone = '+00:00'");
         
         const query = `INSERT INTO baneos (auth_id, nombre, razon, admin, fecha, duracion, activo)
@@ -590,7 +613,7 @@ const dbFunctions = {
         
         try {
             const result = await executeQuery(query, [authId, nombre, razonFinal, admin, duracion]);
-            console.log(`Ô£à Nuevo baneo creado: ${nombre} (ID: ${result.insertId})`);
+            console.log(`✅ [DB] Nuevo baneo creado: ${nombre} (ID: ${result.insertId})`);
             return {
                 id: result.insertId,
                 authId: authId,
@@ -600,19 +623,19 @@ const dbFunctions = {
                 duracion: duracion
             };
         } catch (error) {
-            console.error('ÔØî Error creando baneo:', error);
+            console.error('❌ [DB] Error creando baneo:', error);
             throw error;
         }
     },
     
-    // PARCHE ZONA HORARIA UTC - Verificar si un jugador est├í baneado (nueva tabla) - versi├│n que devuelve promesa
+    // PARCHE ZONA HORARIA UTC - Verificar si un jugador está baneado (nueva tabla) - versión que devuelve promesa
     estaBaneadoPromise: async (authId) => {
         try {
-            // PARCHE: Establecer zona horaria UTC para esta operaci├│n
+            // PARCHE: Establecer zona horaria UTC para esta operación
             await executeQuery("SET SESSION time_zone = '+00:00'");
             
             const query = `SELECT * FROM baneos 
-                          WHERE nombre = ? AND activo = 1 
+                          WHERE auth_id = ? AND activo = 1 
                           ORDER BY fecha DESC LIMIT 1`;
             
             const results = await executeQuery(query, [authId]);
@@ -624,17 +647,17 @@ const dbFunctions = {
             
             // Verificar si el baneo temporal ha expirado
             if (row.duracion > 0) {
-                // PARCHE: Usar la fecha directamente de MySQL (ya est├í en UTC por UTC_TIMESTAMP())
+                // PARCHE: Usar la fecha directamente de MySQL (ya está en UTC por UTC_TIMESTAMP())
                 const fechaBan = new Date(row.fecha); // MySQL ya devuelve fecha UTC correcta
                 const ahora = new Date(); // UTC
                 const tiempoTranscurrido = ahora.getTime() - fechaBan.getTime();
                 const tiempoLimite = row.duracion * 60 * 1000; // duracion en minutos a milisegundos
                 
                 if (tiempoTranscurrido >= tiempoLimite) {
-                    // Baneo temporal expirado, desactivar autom├íticamente
+                    // Baneo temporal expirado, desactivar automáticamente
                     try {
                         await dbFunctions.desactivarBaneo(row.id);
-                        console.log(`ÔÅ░ Baneo temporal expirado autom├íticamente: ${row.nombre}`);
+                        console.log(`⏰ [DB] Baneo temporal expirado automáticamente: ${row.nombre}`);
                         return false;
                     } catch (error) {
                         return false;
@@ -644,25 +667,25 @@ const dbFunctions = {
             
             return row;
         } catch (error) {
-            console.error('ÔØî Error verificando baneo:', error);
+            console.error('❌ [DB] Error verificando baneo:', error);
             return false;
         }
     },
     
-    // Verificar si un jugador est├í baneado (nueva tabla) - versi├│n callback mejorada
+    // Verificar si un jugador está baneado (nueva tabla) - versión callback mejorada
     estaBaneado: (authId, callback) => {
-        // Validar que callback sea una funci├│n y crear un callback por defecto si no es v├ílido
+        // Validar que callback sea una función y crear un callback por defecto si no es válido
         if (typeof callback !== 'function') {
-            console.error('ÔØî ERROR: estaBaneado requiere un callback v├ílido como segundo par├ímetro');
-            console.error('ÔØî Tipo de callback recibido:', typeof callback);
-            console.error('ÔØî Valor de callback:', callback);
+            console.error('❌ [DB] ERROR: estaBaneado requiere un callback válido como segundo parámetro');
+            console.error('❌ [DB] Tipo de callback recibido:', typeof callback);
+            console.error('❌ [DB] Valor de callback:', callback);
             // Usar un callback por defecto en lugar de fallar
             callback = (result) => {
-                console.log('ÔÜá´©Å Usando callback por defecto para estaBaneado, resultado:', result ? 'baneado' : 'no baneado');
+                console.log('⚠️ [DB] Usando callback por defecto para estaBaneado, resultado:', result ? 'baneado' : 'no baneado');
             };
         }
         
-        // Usar la versi├│n de promesa internamente
+        // Usar la versión de promesa internamente
         dbFunctions.estaBaneadoPromise(authId)
             .then(result => {
                 if (typeof callback === 'function') {
@@ -670,7 +693,7 @@ const dbFunctions = {
                 }
             })
             .catch(error => {
-                console.error('ÔØî Error en estaBaneado callback:', error);
+                console.error('❌ [DB] Error en estaBaneado callback:', error);
                 if (typeof callback === 'function') {
                     callback(false);
                 }
@@ -683,13 +706,13 @@ const dbFunctions = {
         
         try {
             const result = await executeQuery(query, [baneoId]);
-            console.log(`Ô£à Baneo desactivado: ID ${baneoId}`);
+            console.log(`✅ [DB] Baneo desactivado: ID ${baneoId}`);
             return {
                 baneoId: baneoId,
                 cambios: result.affectedRows
             };
         } catch (error) {
-            console.error('ÔØî Error desactivando baneo:', error);
+            console.error('❌ [DB] Error desactivando baneo:', error);
             throw error;
         }
     },
@@ -697,20 +720,20 @@ const dbFunctions = {
     // Desbanear por auth_id
     desbanearJugadorNuevo: async (authId) => {
         try {
-            // Primero obtener informaci├│n del baneo activo
-            const selectQuery = `SELECT * FROM baneos WHERE nombre = ? AND activo = 1 LIMIT 1`;
+            // Primero obtener información del baneo activo
+            const selectQuery = `SELECT * FROM baneos WHERE auth_id = ? AND activo = 1 LIMIT 1`;
             const results = await executeQuery(selectQuery, [authId]);
             const baneo = results[0];
             
             if (!baneo) {
-                throw new Error('No se encontr├│ baneo activo para este jugador');
+                throw new Error('No se encontró baneo activo para este jugador');
             }
             
             // Desactivar el baneo
-            const updateQuery = `UPDATE baneos SET activo = 0 WHERE nombre = ? AND activo = 1`;
+            const updateQuery = `UPDATE baneos SET activo = 0 WHERE auth_id = ? AND activo = 1`;
             const result = await executeQuery(updateQuery, [authId]);
             
-            console.log(`Ô£à Jugador desbaneado: ${baneo.nombre} (Auth: ${authId})`);
+            console.log(`✅ [DB] Jugador desbaneado: ${baneo.nombre} (Auth: ${authId})`);
             return {
                 authId: authId,
                 nombre: baneo.nombre,
@@ -720,7 +743,40 @@ const dbFunctions = {
                 cambios: result.affectedRows
             };
         } catch (error) {
-            console.error('ÔØî Error desbaneando jugador:', error);
+            console.error('❌ [DB] Error desbaneando jugador:', error);
+            throw error;
+        }
+    },
+
+    // Banear a un jugador que no está en la sala (offline) usando su auth_id
+    banearJugadorOffline: async (authId, razon, admin, duracion = 0) => {
+        try {
+            if (!authId) {
+                throw new Error('Se requiere un authId para realizar un baneo offline.');
+            }
+
+            // 1. Buscar el último nombre conocido del jugador usando su auth_id.
+            const jugador = await dbFunctions.obtenerJugadorPorAuth(authId);
+            
+            let nombreParaRegistro;
+            if (jugador && jugador.nombre) {
+                nombreParaRegistro = jugador.nombre;
+                console.log(`✅ [DB] [BAN OFFLINE] Jugador encontrado: ${nombreParaRegistro}. Procediendo a banear.`);
+            } else {
+                // Si el jugador no existe en nuestra DB, no podemos obtener un nombre.
+                // Usaremos el authId como nombre para el registro del baneo.
+                nombreParaRegistro = authId;
+                console.warn(`⚠️ [DB] [BAN OFFLINE] No se encontró un jugador con authId: ${authId}. Se usará el authId como nombre en el registro del baneo.`);
+            }
+
+            // 2. Llamar a la función de baneo moderna con los datos recopilados.
+            const resultadoBaneo = await dbFunctions.crearBaneo(authId, nombreParaRegistro, razon, admin, duracion);
+            
+            console.log(`✅ [DB] [BAN OFFLINE] Baneo offline exitoso para authId: ${authId}`);
+            return { success: true, ...resultadoBaneo };
+
+        } catch (error) {
+            console.error('❌ Error en banearJugadorOffline:', error);
             throw error;
         }
     },
@@ -729,7 +785,7 @@ const dbFunctions = {
         // PARCHE ZONA HORARIA UTC - Obtener baneos activos
     obtenerBaneosActivos: async () => {
         try {
-            // PARCHE: Establecer zona horaria UTC para esta operaci├│n
+            // PARCHE: Establecer zona horaria UTC para esta operación
             await executeQuery("SET SESSION time_zone = '+00:00'");
             
             const query = `SELECT * FROM baneos WHERE activo = 1 ORDER BY fecha DESC`;
@@ -739,18 +795,18 @@ const dbFunctions = {
             const baneosRealmenteActivos = [];
             const baneosExpiradosALimpiar = [];
             
-            // Procesar cada baneo para verificar si realmente est├í activo
+            // Procesar cada baneo para verificar si realmente está activo
             for (const row of rows) {
                 // Verificar si es baneo temporal
                 if (row.duracion > 0) {
-                    // PARCHE: Usar la fecha directamente de MySQL (ya est├í en UTC por UTC_TIMESTAMP())
+                    // PARCHE: Usar la fecha directamente de MySQL (ya está en UTC por UTC_TIMESTAMP())
                     const fechaBan = new Date(row.fecha); // MySQL ya devuelve fecha UTC correcta
                     const tiempoTranscurrido = ahora.getTime() - fechaBan.getTime();
-                    const tiempoLimite = row.duracion * 60 * 1000; // duraci├│n en minutos a milisegundos
+                    const tiempoLimite = row.duracion * 60 * 1000; // duracion en minutos a milisegundos
                     
                     if (tiempoTranscurrido >= tiempoLimite) {
                         // Baneo temporal expirado
-                        console.log(`ÔÅ░ Detectado baneo temporal expirado: ${row.nombre} (${Math.floor(tiempoTranscurrido / (60 * 1000))} min transcurridos de ${row.duracion} min l├¡mite)`);
+                        console.log(`⏰ [DB] Detectado baneo temporal expirado: ${row.nombre} (${Math.floor(tiempoTranscurrido / (60 * 1000))} min transcurridos de ${row.duracion} min límite)`);
                         baneosExpiradosALimpiar.push(row.id);
                         continue; // No incluir en la lista de activos
                     }
@@ -769,29 +825,29 @@ const dbFunctions = {
                 });
             }
             
-            // Limpiar autom├íticamente baneos temporales expirados
+            // Limpiar automáticamente baneos temporales expirados
             if (baneosExpiradosALimpiar.length > 0) {
-                console.log(`­ƒº╣ Limpiando autom├íticamente ${baneosExpiradosALimpiar.length} baneos temporales expirados...`);
+                console.log(`🧹 [DB] Limpiando automáticamente ${baneosExpiradosALimpiar.length} baneos temporales expirados...`);
                 
                 for (const baneoId of baneosExpiradosALimpiar) {
                     try {
                         await dbFunctions.desactivarBaneo(baneoId);
-                        console.log(`Ô£à Baneo temporal expirado limpiado: ID ${baneoId}`);
+                        console.log(`✅ [DB] Baneo temporal expirado limpiado: ID ${baneoId}`);
                     } catch (cleanupError) {
-                        console.error(`ÔØî Error limpiando baneo expirado ID ${baneoId}:`, cleanupError);
+                        console.error(`❌ [DB] Error limpiando baneo expirado ID ${baneoId}:`, cleanupError);
                     }
                 }
             }
             
-            console.log(`­ƒôè Baneos procesados: ${rows.length} total, ${baneosRealmenteActivos.length} realmente activos, ${baneosExpiradosALimpiar.length} expirados limpiados`);
+            console.log(`ℹ️ [DB] Baneos procesados: ${rows.length} total, ${baneosRealmenteActivos.length} realmente activos, ${baneosExpiradosALimpiar.length} expirados limpiados`);
             return baneosRealmenteActivos;
         } catch (error) {
-            console.error('ÔØî Error obteniendo baneos activos:', error);
+            console.error('❌ [DB] Error obteniendo baneos activos:', error);
             throw error;
         }
     },
     
-    // Obtener TODOS los jugadores (para carga completa de estad├¡sticas)
+    // Obtener TODOS los jugadores (para carga completa de estadísticas)
     obtenerTodosJugadores: async () => {
         try {
             const query = `
@@ -805,112 +861,40 @@ const dbFunctions = {
             `;
             
             const result = await executeQuery(query);
-            console.log(`[DB] ­ƒôè ${result.length} jugadores cargados desde DB`);
+            console.log(`[DB] ℹ️ [DB] ${result.length} jugadores cargados desde DB`);
             return result;
         } catch (error) {
-            console.error('[DB] ÔØî Error al obtener todos los jugadores:', error);
+            console.error('[DB] ❌ [DB] Error al obtener todos los jugadores:', error);
             return [];
         }
     },
     
-    // ====================== FUNCIONES DE UID Y BANEOS ======================
+    // ====================== FUNCIONES DEPRECADAS ======================
     
-    // Registrar/actualizar UID de un jugador
-    actualizarUID: async (nombreJugador, uid) => {
-        try {
-            // Primero verificar si el jugador existe
-            const selectQuery = 'SELECT id FROM jugadores WHERE nombre = ?';
-            const existingPlayer = await executeQuery(selectQuery, [nombreJugador]);
-            
-            if (existingPlayer.length > 0) {
-                // Jugador existe, actualizar UID
-                const updateQuery = 'UPDATE jugadores SET uid = ? WHERE nombre = ?';
-                const result = await executeQuery(updateQuery, [uid, nombreJugador]);
-                console.log(`Ô£à UID actualizado para ${nombreJugador}: ${uid}`);
-                return { jugadorId: existingPlayer[0].id, uid: uid, actualizado: true };
-            } else {
-                // Jugador no existe, crear con UID
-                const fechaActual = new Date().toISOString();
-                const insertQuery = `INSERT INTO jugadores (nombre, uid, partidos, victorias, derrotas, 
-                                    goles, asistencias, autogoles, xp, nivel, fechaPrimerPartido, fechaUltimoPartido)
-                                    VALUES (?, ?, 0, 0, 0, 0, 0, 0, 40, 1, ?, ?)`;
-                
-                const result = await executeQuery(insertQuery, [nombreJugador, uid, fechaActual, fechaActual]);
-                console.log(`Ô£à Jugador creado con UID ${nombreJugador}: ${uid}`);
-                return { jugadorId: result.insertId, uid: uid, actualizado: false };
-            }
-        } catch (error) {
-            console.error('ÔØî Error actualizando UID:', error);
-            throw error;
-        }
-    },
+
     
-    // Banear jugador en base de datos
+    // Banear jugador en base de datos (DEPRECADO)
+    // Esta función ha sido refactorizada para usar el sistema de baneos unificado (lexiblebaneoslexible` tabla).
+    // La firma se mantiene por compatibilidad con llamadas existentes, pero la lógica interna
+    // ahora delega en lexiblecrearBaneolexible`.
     banearJugador: async (nombreJugador, uid, adminNombre, razon = 'Baneado por admin', tiempoMinutos = null) => {
         try {
-            const fechaBan = new Date().toISOString();
+            console.warn('⚠️ La función lexiblebanearJugadorlexible` está deprecada. La llamada ha sido redirigida a lexiblecrearBaneolexible`. Actualice el código para llamar a lexiblecrearBaneolexible` directamente.');
             
-            console.log(`­ƒôè [DB] Iniciando proceso de baneo para: ${nombreJugador} con UID: ${uid}`);
-            console.log(`­ƒôè [DB] Par├ímetros - Admin: ${adminNombre}, Raz├│n: ${razon}, Tiempo: ${tiempoMinutos}`);
-            
-            // Primero asegurar que el jugador tenga UID
-            await dbFunctions.actualizarUID(nombreJugador, uid);
-            console.log(`Ô£à [DB] UID actualizado correctamente para ${nombreJugador}`);
-            
-            // Usar una consulta m├ís espec├¡fica para evitar problemas
-            const query = `UPDATE jugadores 
-                          SET baneado = 1, fecha_ban = ?, razon_ban = ?, admin_ban = ? 
-                          WHERE uid = ?`;
-            
-            console.log(`­ƒôè [DB] Ejecutando consulta de baneo con par├ímetros:`, [fechaBan, razon, adminNombre, uid]);
-            
-            const result = await executeQuery(query, [fechaBan, razon, adminNombre, uid]);
-            
-            if (result.affectedRows === 0) {
-                console.warn(`ÔÜá´©Å [DB] No se encontr├│ jugador con UID ${uid} para banear`);
-                
-                // Intentar con una b├║squeda por nombre como respaldo
-                const fallbackQuery = `UPDATE jugadores 
-                                      SET baneado = 1, fecha_ban = ?, razon_ban = ?, admin_ban = ? 
-                                      WHERE nombre = ?`;
-                
-                console.log(`­ƒöä [DB] Intentando baneo por nombre: ${nombreJugador}`);
-                
-                const fallbackResult = await executeQuery(fallbackQuery, [fechaBan, razon, adminNombre, nombreJugador]);
-                
-                if (fallbackResult.affectedRows === 0) {
-                    const error = new Error(`Jugador no encontrado para banear: ${nombreJugador} (UID: ${uid})`);
-                    console.error(`ÔØî [DB] ${error.message}`);
-                    throw error;
-                } else {
-                    console.log(`Ô£à [DB] Jugador baneado por nombre: ${nombreJugador} (${fallbackResult.affectedRows} cambios)`);
-                    return {
-                        nombreJugador,
-                        uid,
-                        adminNombre,
-                        razon,
-                        fechaBan,
-                        tiempoMinutos,
-                        cambios: fallbackResult.affectedRows,
-                        metodo: 'por_nombre'
-                    };
-                }
-            } else {
-                console.log(`Ô£à [DB] Jugador baneado exitosamente: ${nombreJugador} (UID: ${uid}) por ${adminNombre}`);
-                console.log(`­ƒôè [DB] Cambios realizados: ${result.affectedRows}`);
-                return {
-                    nombreJugador,
-                    uid,
-                    adminNombre,
-                    razon,
-                    fechaBan,
-                    tiempoMinutos,
-                    cambios: result.affectedRows,
-                    metodo: 'por_uid'
-                };
+            // El parámetro 'uid' se asume que es el 'authId' para el nuevo sistema.
+            const authId = uid;
+            const duracion = tiempoMinutos || 0;
+
+            if (!authId) {
+                throw new Error('Se requiere un authId (proporcionado como uid) para banear con el nuevo sistema.');
             }
+
+            // Llamar a la función de baneo moderna y centralizada.
+            return await dbFunctions.crearBaneo(authId, nombreJugador, razon, adminNombre, duracion);
+
         } catch (error) {
-            console.error('ÔØî Error en banearJugador:', error);
+            console.error('❌ Error en la función deprecada lexiblebanearJugadorlexible`:', error);
+            // Re-lanzar el error para que el código que llama sepa que falló.
             throw error;
         }
     },
@@ -918,50 +902,50 @@ const dbFunctions = {
     // Eliminar cuentas inactivas
     eliminarCuentasInactivas: async () => {
         try {
-            // Primero contar cu├íntas cuentas ser├ín eliminadas
+            // Primero contar cuántas cuentas serán eliminadas
             const countQuery = `SELECT COUNT(*) as count FROM jugadores 
-                               WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
+                                WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
             
             const countResult = await executeQuery(countQuery);
             const cuentasAEliminar = countResult[0].count;
-            console.log(`­ƒº╣ Se encontraron ${cuentasAEliminar} cuentas inactivas por m├ís de 90 d├¡as`);
+            console.log(`🧹 [DB] Se encontraron ${cuentasAEliminar} cuentas inactivas por más de 90 días`);
             
             if (cuentasAEliminar === 0) {
                 return { eliminadas: 0, mensaje: 'No hay cuentas inactivas para eliminar' };
             }
             
-            // Obtener nombres de las cuentas que ser├ín eliminadas (para log)
+            // Obtener nombres de las cuentas que serán eliminadas (para log)
             const selectQuery = `SELECT nombre, fechaUltimoPartido FROM jugadores 
                                 WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
             
             const cuentas = await executeQuery(selectQuery);
             
-            // Log de las cuentas que ser├ín eliminadas
-            console.log('­ƒôï Cuentas que ser├ín eliminadas:');
+            // Log de las cuentas que serán eliminadas
+            console.log('📋 [DB] Cuentas que serán eliminadas:');
             cuentas.forEach(jugador => {
                 const diasInactivo = Math.floor((new Date() - new Date(jugador.fechaUltimoPartido)) / (1000 * 60 * 60 * 24));
-                console.log(`  - ${jugador.nombre} (${diasInactivo} d├¡as inactivo)`);
+                console.log(`  - ${jugador.nombre} (${diasInactivo} días inactivo)`);
             });
             
-            // Proceder con la eliminaci├│n
+            // Proceder con la eliminación
             const deleteQuery = `DELETE FROM jugadores 
                                 WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
             
             const result = await executeQuery(deleteQuery);
             
-            console.log(`Ô£à ${result.affectedRows} cuentas inactivas eliminadas exitosamente`);
+            console.log(`✅ [DB] ${result.affectedRows} cuentas inactivas eliminadas exitosamente`);
             return { 
                 eliminadas: result.affectedRows, 
-                mensaje: `Se eliminaron ${result.affectedRows} cuentas inactivas por m├ís de 90 d├¡as`,
+                mensaje: `Se eliminaron ${result.affectedRows} cuentas inactivas por más de 90 días`,
                 cuentas: cuentas.map(r => ({ nombre: r.nombre, fechaUltimoPartido: r.fechaUltimoPartido }))
             };
         } catch (error) {
-            console.error('ÔØî Error eliminando cuentas inactivas:', error);
+            console.error('❌ [DB] Error eliminando cuentas inactivas:', error);
             throw error;
         }
     },
     
-    // Obtener estad├¡sticas de inactividad
+    // Obtener estadísticas de inactividad
     obtenerEstadisticasInactividad: async () => {
         try {
             const queries = {
@@ -978,7 +962,7 @@ const dbFunctions = {
                 resultados[key] = result[0].count;
             }
             
-            // Obtener pr├│ximas a eliminar
+            // Obtener próximas a eliminar
             const proximasQuery = `SELECT nombre, fechaUltimoPartido FROM jugadores 
                                   WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 80 DAY)
                                   AND STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') >= DATE_SUB(NOW(), INTERVAL 90 DAY)
@@ -988,7 +972,7 @@ const dbFunctions = {
             
             return resultados;
         } catch (error) {
-            console.error('ÔØî Error obteniendo estad├¡sticas de inactividad:', error);
+            console.error('❌ [DB] Error obteniendo estadísticas de inactividad:', error);
             throw error;
         }
     },
@@ -998,23 +982,13 @@ const dbFunctions = {
     // Guardar/actualizar jugador por auth_id
     guardarJugadorPorAuth: async (authId, nombreActual, stats) => {
         try {
-            // Validaciones iniciales
-            if (!authId) {
-                console.error('ÔØî [AUTH-ID] Error: authId es requerido');
-                throw new Error('authId es requerido');
-            }
-            
-            if (!nombreActual || nombreActual.trim() === '') {
-                console.error('ÔØî [AUTH-ID] Error: nombreActual es requerido');
-                throw new Error('nombreActual es requerido');
+            if (!authId || !nombreActual) {
+                throw new Error('authId y nombreActual son requeridos');
             }
 
-            console.log(`­ƒöä [AUTH-ID] Iniciando guardado para: ${nombreActual} (Auth: ${authId})`);
-            
-            // Registrar historial de nombres
+            // Siempre registrar el intento de uso de un nombre
             await dbFunctions.registrarNombreJugador(authId, nombreActual);
             
-            // Valores por defecto robustos
             const statsSeguras = {
                 partidos: stats?.partidos ?? 0,
                 victorias: stats?.victorias ?? 0,
@@ -1038,129 +1012,68 @@ const dbFunctions = {
                 mvps: stats?.mvps ?? 0
             };
 
-            console.log(`­ƒôè [AUTH-ID] Stats preparadas para ${nombreActual}`);
-            
-            // ESTRATEGIA CORREGIDA: Primero verificar si YA EXISTE este auth_id
-            const jugadorExistente = await dbFunctions.obtenerJugadorPorAuth(authId);
-            
-            let result;
-            if (jugadorExistente) {
-                console.log(`­ƒöä [AUTH-ID] Jugador existente encontrado (ID: ${jugadorExistente.id}), actualizando registro existente...`);
-                
-                // UPDATE: Actualizar SOLO el registro con este auth_id espec├¡fico
-                const updateQuery = `UPDATE jugadores 
-                                    SET nombre = ?, nombre_display = ?, updated_at = CURRENT_TIMESTAMP
-                                    WHERE auth_id = ?`;
-                
-                result = await executeQuery(updateQuery, [nombreActual, nombreActual, authId]);
-                result.insertId = jugadorExistente.id; // Para mantener compatibilidad
-                
-                console.log(`Ô£à [AUTH-ID] Registro existente actualizado: ${nombreActual} (ID: ${jugadorExistente.id})`);
-            } else {
-                console.log(`­ƒåò [AUTH-ID] Nuevo jugador, verificando disponibilidad de nombre...`);
-                
-                // Intento de migración por nombre exacto cuando no existe auth_id
-                const candidatos = await executeQuery(
-                    'SELECT id FROM jugadores WHERE nombre = ? AND (auth_id IS NULL OR auth_id = \"\")',
-                    [nombreActual]
-                );
-                if (candidatos.length === 1) {
-                    const idMigrado = candidatos[0].id;
-                    await executeQuery(
-                        'UPDATE jugadores SET auth_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                        [authId, idMigrado]
-                    );
-                    console.log(`Ô£à [AUTH-ID] Migración simple realizada: asignado auth_id a registro existente (ID: ${idMigrado}, nombre: "${nombreActual}")`);
+            const upsertQuery = `
+                INSERT INTO jugadores (
+                    auth_id, nombre, nombre_display, partidos, victorias, derrotas, goles, asistencias, autogoles,
+                    mejorRachaGoles, mejorRachaAsistencias, hatTricks, vallasInvictas, tiempoJugado,
+                    promedioGoles, promedioAsistencias, fechaPrimerPartido, fechaUltimoPartido,
+                    xp, nivel, codigoRecuperacion, fechaCodigoCreado, mvps, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON DUPLICATE KEY UPDATE
+                    nombre = VALUES(nombre),
+                    nombre_display = VALUES(nombre_display),
+                    partidos = VALUES(partidos),
+                    victorias = VALUES(victorias),
+                    derrotas = VALUES(derrotas),
+                    goles = VALUES(goles),
+                    asistencias = VALUES(asistencias),
+                    autogoles = VALUES(autogoles),
+                    mejorRachaGoles = VALUES(mejorRachaGoles),
+                    mejorRachaAsistencias = VALUES(mejorRachaAsistencias),
+                    hatTricks = VALUES(hatTricks),
+                    vallasInvictas = VALUES(vallasInvictas),
+                    tiempoJugado = VALUES(tiempoJugado),
+                    promedioGoles = VALUES(promedioGoles),
+                    promedioAsistencias = VALUES(promedioAsistencias),
+                    fechaUltimoPartido = VALUES(fechaUltimoPartido),
+                    xp = VALUES(xp),
+                    nivel = VALUES(nivel),
+                    codigoRecuperacion = VALUES(codigoRecuperacion),
+                    fechaCodigoCreado = VALUES(fechaCodigoCreado),
+                    mvps = VALUES(mvps),
+                    updated_at = CURRENT_TIMESTAMP;
+            `;
 
-                    // Verificación y retorno inmediato
-                    const jugadorFinalMig = await dbFunctions.obtenerJugadorPorAuth(authId);
-                    if (!jugadorFinalMig) {
-                        console.error(`ÔØî [AUTH-ID] FALLO CR├ìTICO post-migración para authId: ${authId}`);
-                        throw new Error('El jugador no se guard├│ correctamente tras migración');
-                    }
-                    console.log(`Ô£à [AUTH-ID] Migración exitosa para: ${nombreActual} (Auth: ${authId})`);
-                    return idMigrado;
-                }
+            const buildParams = (name) => [
+                authId, name, name, 
+                statsSeguras.partidos, statsSeguras.victorias, statsSeguras.derrotas, statsSeguras.goles, 
+                statsSeguras.asistencias, statsSeguras.autogoles, statsSeguras.mejorRachaGoles, statsSeguras.mejorRachaAsistencias, 
+                statsSeguras.hatTricks, statsSeguras.vallasInvictas, statsSeguras.tiempoJugado, statsSeguras.promedioGoles, 
+                statsSeguras.promedioAsistencias, statsSeguras.fechaPrimerPartido, statsSeguras.fechaUltimoPartido, 
+                statsSeguras.xp, statsSeguras.nivel, statsSeguras.codigoRecuperacion, statsSeguras.fechaCodigoCreado,
+                statsSeguras.mvps
+            ];
 
-                // Verificar si el nombre ya existe (por otro jugador)
-                const nombreExiste = await executeQuery('SELECT id, auth_id FROM jugadores WHERE nombre = ?', [nombreActual]);
-                
-                let nombreFinal = nombreActual;
-                if (nombreExiste.length > 0) {
-                    console.log(`ÔÜá´©Å [AUTH-ID] Nombre "${nombreActual}" ya existe (usado por auth_id: ${nombreExiste[0].auth_id})`);
-                    
-                    // Generar nombre ├║nico agregando sufijo
-                    let contador = 2;
-                    while (true) {
-                        const nombreTentativo = `${nombreActual} (${contador})`;
-                        const nombreDisponible = await executeQuery('SELECT id FROM jugadores WHERE nombre = ?', [nombreTentativo]);
-                        
-                        if (nombreDisponible.length === 0) {
-                            nombreFinal = nombreTentativo;
-                            console.log(`Ô£à [AUTH-ID] Nombre ├║nico generado: "${nombreFinal}"`);
-                            break;
-                        }
-                        contador++;
-                        
-                        // Prevenir bucle infinito
-                        if (contador > 100) {
-                            nombreFinal = `${nombreActual} (${Date.now()})`;
-                            console.log(`ÔÜá´©Å [AUTH-ID] Generando nombre con timestamp: "${nombreFinal}"`);
-                            break;
-                        }
-                    }
-                }
-                
-                // INSERT: Crear nuevo registro con nombre ├║nico
-                const insertQuery = `INSERT INTO jugadores 
-                                    (auth_id, nombre, nombre_display, partidos, victorias, derrotas, goles, asistencias, autogoles, 
-                                     mejorRachaGoles, mejorRachaAsistencias, hatTricks, vallasInvictas, 
-                                     tiempoJugado, promedioGoles, promedioAsistencias, fechaPrimerPartido, 
-                                     fechaUltimoPartido, xp, nivel, codigoRecuperacion, fechaCodigoCreado, mvps, updated_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
-                
-                const parametros = [
-                    authId, nombreFinal, nombreFinal, 
-                    statsSeguras.partidos, statsSeguras.victorias, statsSeguras.derrotas, statsSeguras.goles, 
-                    statsSeguras.asistencias, statsSeguras.autogoles, statsSeguras.mejorRachaGoles, statsSeguras.mejorRachaAsistencias, 
-                    statsSeguras.hatTricks, statsSeguras.vallasInvictas, statsSeguras.tiempoJugado, statsSeguras.promedioGoles, 
-                    statsSeguras.promedioAsistencias, statsSeguras.fechaPrimerPartido, statsSeguras.fechaUltimoPartido, 
-                    statsSeguras.xp, statsSeguras.nivel, statsSeguras.codigoRecuperacion, statsSeguras.fechaCodigoCreado,
-                    statsSeguras.mvps
-                ];
-                
-                result = await executeQuery(insertQuery, parametros);
-                console.log(`Ô£à [AUTH-ID] Nuevo jugador insertado: "${nombreFinal}" (ID: ${result.insertId})`);
-                
-                // Informar al usuario si se cambi├│ el nombre
-                if (nombreFinal !== nombreActual) {
-                    console.log(`­ƒôØ [AUTH-ID] NOTA: Nombre modificado de "${nombreActual}" a "${nombreFinal}" para evitar duplicados`);
+            try {
+                await executeQuery(upsertQuery, buildParams(nombreActual));
+            } catch (error) {
+                if (error.code === 'ER_DUP_ENTRY' && error.message.includes("'nombre'")) {
+                    const nombreUnico = `${nombreActual} (${Date.now()})`;
+                    console.warn(`[DB] Colisión de nombre para "${nombreActual}". Reintentando con "${nombreUnico}".`);
+                    await executeQuery(upsertQuery, buildParams(nombreUnico));
+                } else {
+                    throw error;
                 }
             }
             
-            console.log(`­ƒôØ [AUTH-ID] Resultado de operaci├│n:`, result);
-            
-            // Verificaci├│n final usando auth_id (la clave real)
             const jugadorFinal = await dbFunctions.obtenerJugadorPorAuth(authId);
             if (!jugadorFinal) {
-                console.error(`ÔØî [AUTH-ID] FALLO CR├ìTICO: Jugador no encontrado despu├®s de la operaci├│n para authId: ${authId}`);
-                throw new Error('El jugador no se guard├│ correctamente en la base de datos');
+                throw new Error('Fallo crítico: El jugador no se guardó/encontró después de la operación.');
             }
             
-            console.log(`Ô£à [AUTH-ID] Operaci├│n exitosa para: ${nombreActual} (Auth: ${authId})`);
-            console.log(`­ƒÄ» [AUTH-ID] Datos finales:`, {
-                id: jugadorFinal.id,
-                nombre: jugadorFinal.nombre,
-                auth_id: jugadorFinal.auth_id,
-                goles: jugadorFinal.goles,
-                partidos: jugadorFinal.partidos
-            });
-            
-            return result.insertId || result.affectedRows;
-            
+            return jugadorFinal.id;
         } catch (error) {
-            console.error(`ÔØî [AUTH-ID] Error guardando jugador por auth_id (${authId}):`, error);
-            console.error(`­ƒôï [AUTH-ID] Stack trace:`, error.stack);
+            console.error(`Error guardando jugador por auth_id (${authId}):`, error);
             throw error;
         }
     },
@@ -1172,7 +1085,7 @@ const dbFunctions = {
             const results = await executeQuery(query, [authId]);
             return results[0] || null;
         } catch (error) {
-            console.error('ÔØî Error obteniendo jugador por auth_id:', error);
+            console.error('❌ [DB] Error obteniendo jugador por auth_id:', error);
             throw error;
         }
     },
@@ -1183,13 +1096,13 @@ const dbFunctions = {
             if (!busqueda) return null;
             const jugador = await dbFunctions.obtenerJugadorPorAuth(busqueda);
             if (jugador) {
-                console.log(`­ƒöì [AUTH-ID] Jugador encontrado por auth: ${jugador.nombre_display || jugador.nombre}`);
+                console.log(`🔍 [DB] [AUTH-ID] Jugador encontrado por auth: ${jugador.nombre_display || jugador.nombre}`);
                 return jugador;
             }
-            console.log(`ÔØî [AUTH-ID] Jugador no encontrado por auth: ${busqueda}`);
+            console.log(`❌ [DB] [AUTH-ID] Jugador no encontrado por auth: ${busqueda}`);
             return null;
         } catch (error) {
-            console.error('ÔØî Error buscando jugador por auth:', error);
+            console.error('❌ [DB] Error buscando jugador por auth:', error);
             return null;
         }
     },
@@ -1206,9 +1119,9 @@ const dbFunctions = {
                           veces_usado = veces_usado + 1`;
             
             await executeQuery(query, [authId, nombreUsado, ahora, ahora]);
-            console.log(`­ƒôØ [AUTH-ID] Nombre registrado: ${nombreUsado} -> ${authId}`);
+            console.log(`📝 [DB] [AUTH-ID] Nombre registrado: ${nombreUsado} -> ${authId}`);
         } catch (error) {
-            console.error('ÔØî Error registrando nombre del jugador:', error);
+            console.error('❌ [DB] Error registrando nombre del jugador:', error);
         }
     },
     
@@ -1223,20 +1136,20 @@ const dbFunctions = {
             const results = await executeQuery(query, [authId]);
             return results;
         } catch (error) {
-            console.error('ÔØî Error obteniendo historial de nombres:', error);
+            console.error('❌ [DB] Error obteniendo historial de nombres:', error);
             return [];
         }
     },
     
-    // Migrar estad├¡sticas de nombre a auth_id
+    // Migrar estadísticas de nombre a auth_id
     migrarJugadorAAuth: async (nombreAnterior, authId) => {
         try {
-            console.log(`­ƒöä [MIGRACI├ôN] Iniciando migraci├│n: ${nombreAnterior} -> ${authId}`);
+            console.log(`✅ [DB] [MIGRACIÓN] Iniciando migración: ${nombreAnterior} -> ${authId}`);
             
             // Verificar si ya existe un jugador con este auth_id
             const jugadorExistente = await dbFunctions.obtenerJugadorPorAuth(authId);
             if (jugadorExistente) {
-                console.log(`ÔÜá´©Å [MIGRACI├ôN] Ya existe jugador con auth_id ${authId}: ${jugadorExistente.nombre}`);
+                console.log(`⚠️ [DB] [MIGRACIÓN] Ya existe jugador con auth_id ${authId}: ${jugadorExistente.nombre}`);
                 
                 // Solo registrar el nombre en el historial
                 await dbFunctions.registrarNombreJugador(authId, nombreAnterior);
@@ -1246,7 +1159,7 @@ const dbFunctions = {
             // Buscar jugador por nombre antiguo
             const jugadorAntiguo = await dbFunctions.obtenerJugador(nombreAnterior);
             if (!jugadorAntiguo) {
-                console.log(`ÔØî [MIGRACI├ôN] No se encontr├│ jugador con nombre ${nombreAnterior}`);
+                console.log(`❌ [DB] [MIGRACIÓN] No se encontró jugador con nombre ${nombreAnterior}`);
                 return { migrado: false, razon: 'jugador_no_encontrado' };
             }
             
@@ -1261,7 +1174,7 @@ const dbFunctions = {
                 // Registrar en el historial de nombres
                 await dbFunctions.registrarNombreJugador(authId, nombreAnterior);
                 
-                console.log(`Ô£à [MIGRACI├ôN] Completada: ${nombreAnterior} -> ${authId}`);
+                console.log(`✅ [DB] [MIGRACIÓN] Completada: ${nombreAnterior} -> ${authId}`);
                 return { 
                     migrado: true, 
                     jugadorMigrado: {
@@ -1271,11 +1184,11 @@ const dbFunctions = {
                     }
                 };
             } else {
-                console.error(`ÔØî [MIGRACI├ôN] Error al actualizar jugador ${nombreAnterior}`);
+                console.error(`❌ [DB] [MIGRACIÓN] Error al actualizar jugador ${nombreAnterior}`);
                 return { migrado: false, razon: 'error_actualizacion' };
             }
         } catch (error) {
-            console.error('ÔØî Error en migraci├│n a auth_id:', error);
+            console.error('❌ [DB] Error en migración a auth_id:', error);
             return { migrado: false, razon: 'error_sistema', error: error.message };
         }
     },
@@ -1290,43 +1203,43 @@ const dbFunctions = {
                           VALUES (?, ?, ?, ?)`;
             
             const result = await executeQuery(query, [nombre, authId, playerId, razon]);
-            console.log(`­ƒôØ Salida registrada: ${nombre} (ID: ${playerId})`);
+            console.log(`📝 [DB] Salida registrada: ${nombre} (ID: ${playerId})`);
             return result.insertId;
         } catch (error) {
-            console.error('ÔØî Error registrando salida de jugador:', error);
+            console.error('❌ [DB] Error registrando salida de jugador:', error);
             throw error;
         }
     },
     
-    // Obtener ├║ltimas salidas con paginaci├│n
+    // Obtener últimas salidas con paginación
     obtenerUltimasSalidas: async (pagina = 1, porPagina = 10) => {
         try {
-            // Asegurar que los par├ímetros sean n├║meros enteros
+            // Asegurar que los parámetros sean números enteros
             const paginaInt = parseInt(pagina) || 1;
             const porPaginaInt = parseInt(porPagina) || 10;
             const offset = (paginaInt - 1) * porPaginaInt;
             
-            console.log(`­ƒöì DEBUG: obtenerUltimasSalidas - p├ígina: ${paginaInt}, porPagina: ${porPaginaInt}, offset: ${offset}`);
+            console.log(`🔍 [DB] DEBUG: obtenerUltimasSalidas - página: ${paginaInt}, porPagina: ${porPaginaInt}, offset: ${offset}`);
             
-            // Obtener el total de registros para paginaci├│n
+            // Obtener el total de registros para paginación
             const countQuery = `SELECT COUNT(*) as total FROM salidas_jugadores`;
             const countResult = await executeQuery(countQuery, []);
             const total = countResult[0].total;
             
-            console.log(`­ƒöì DEBUG: Total de registros encontrados: ${total}`);
+            console.log(`🔍 [DB] DEBUG: Total de registros encontrados: ${total}`);
             
-            // Obtener los registros de la p├ígina actual
-            // Usar LIMIT con n├║meros enteros directamente en lugar de par├ímetros preparados
+            // Obtener los registros de la página actual
+            // Usar LIMIT con números enteros directamente en lugar de parámetros preparados
             const query = `SELECT nombre, player_id, fecha_salida, razon_salida 
                           FROM salidas_jugadores 
                           ORDER BY fecha_salida DESC 
                           LIMIT ${porPaginaInt} OFFSET ${offset}`;
             
-            console.log(`­ƒöì DEBUG: Ejecutando query: ${query}`);
+            console.log(`🔍 [DB] DEBUG: Ejecutando query: ${query}`);
             
             const results = await executeQuery(query, []);
             
-            console.log(`­ƒöì DEBUG: Resultados obtenidos: ${results.length} registros`);
+            console.log(`🔍 [DB] DEBUG: Resultados obtenidos: ${results.length} registros`);
             
             return {
                 success: true,
@@ -1336,8 +1249,8 @@ const dbFunctions = {
                 porPagina: porPaginaInt
             };
         } catch (error) {
-            console.error('ÔØî Error obteniendo ├║ltimas salidas:', error);
-            console.error('ÔØî Stack trace:', error.stack);
+            console.error('❌ [DB] Error obteniendo últimas salidas:', error);
+            console.error('❌ [DB] Stack trace:', error.stack);
             return {
                 success: false,
                 error: error.message,

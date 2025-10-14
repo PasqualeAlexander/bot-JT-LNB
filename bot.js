@@ -115,7 +115,7 @@ const crearTablas = async () => {
             fechaCodigoCreado VARCHAR(50),
             esVIP TINYINT DEFAULT 0,
             fechaVIP VARCHAR(50),
-            uid VARCHAR(255) UNIQUE,
+            auth_id VARCHAR(255) UNIQUE,
             baneado TINYINT DEFAULT 0,
             fecha_ban VARCHAR(50),
             razon_ban TEXT,
@@ -130,7 +130,7 @@ const crearTablas = async () => {
             // Verificar si las columnas ya existen antes de agregarlas
             const checkColumnsQuery = `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
                                       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'jugadores' 
-                                      AND COLUMN_NAME IN ('esVIP', 'fechaVIP', 'uid', 'baneado', 'fecha_ban', 'razon_ban', 'admin_ban', 'mvps')`;
+                                      AND COLUMN_NAME IN ('esVIP', 'fechaVIP', 'auth_id', 'baneado', 'fecha_ban', 'razon_ban', 'admin_ban', 'mvps')`;
             
             const existingColumns = await executeQuery(checkColumnsQuery, [process.env.DB_NAME || 'lnb_estadisticas']);
             const existingColumnNames = existingColumns.map(row => row.COLUMN_NAME);
@@ -148,9 +148,9 @@ const crearTablas = async () => {
                 console.log(`✅ Columna fechaVIP agregada`);
             }
             
-            // Agregar columnas para sistema de baneos y MVPs
+            // Agregar/asegurar columnas para sistema de baneos y MVPs
             const columnasBaneo = [
-                { nombre: 'uid', definicion: 'VARCHAR(255) UNIQUE' },
+                { nombre: 'auth_id', definicion: 'VARCHAR(255) UNIQUE' },
                 { nombre: 'baneado', definicion: 'TINYINT DEFAULT 0' },
                 { nombre: 'fecha_ban', definicion: 'VARCHAR(50)' },
                 { nombre: 'razon_ban', definicion: 'TEXT' },
@@ -278,6 +278,17 @@ const crearTablas = async () => {
             fecha_salida TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             razon_salida VARCHAR(255) DEFAULT 'Voluntaria',
             INDEX idx_fecha_salida (fecha_salida)
+        )`);
+
+        // Tabla para historial de nombres de jugadores
+        await executeQuery(`CREATE TABLE IF NOT EXISTS jugador_nombres_historial (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            auth_id VARCHAR(255) NOT NULL,
+            nombre VARCHAR(255) NOT NULL,
+            primera_vez_usado TIMESTAMP NOT NULL,
+            ultima_vez_usado TIMESTAMP NOT NULL,
+            veces_usado INT DEFAULT 1,
+            UNIQUE KEY auth_id_nombre (auth_id, nombre)
         )`);
         
         console.log('✅ Tablas creadas correctamente en MySQL');

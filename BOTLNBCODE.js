@@ -168,13 +168,12 @@ if (isNode) {
 
 // ==================== SISTEMA DE BANEOS OFFLINE ====================
 // Importar sistema de baneos offline para banear jugadores desconectados
-let OfflineBanSystem = null;
-let offlineBanSystem = null;
+let OfflineBanSystem = null; // La clase se cargará aquí
+let offlineBanSystem = null; // La instancia se creará en HBInit
 if (isNode) {
     try {
         const offlineBanModule = require('./offline_ban_system.js');
-        OfflineBanSystem = offlineBanModule.OfflineBanSystem;
-        offlineBanSystem = offlineBanModule.offlineBanSystem;
+        OfflineBanSystem = offlineBanModule.OfflineBanSystem; // Cargar la clase
         console.log('✅ Sistema de baneos offline importado correctamente');
     } catch (error) {
         console.warn('⚠️ No se pudo importar el sistema de baneos offline:', error.message);
@@ -815,7 +814,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjVamQUV8VXhjyfvg.cRMYqup3-CA";
+const token = "thr1.AAAAAGjt3NnGbvh5oHVHvw.bA938fKTRcg";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -9209,112 +9208,52 @@ anunciarError("Uso: !pw <contraseña>", jugador);
         case "unban":
         case "desban":
         case "banınıkaldır": // Comando en turco
-            // COMANDO SIMPLIFICADO: Usar la misma lógica que el desbaneo automático
             if (!esAdminBasico(jugador)) {
                 anunciarError("❌ No tienes permisos para desbanear jugadores.", jugador);
                 return;
             }
             
             if (!args[1]) {
-                anunciarError("📝 Uso: !unban <auth_id|ID_secuencial>", jugador);
-                anunciarInfo("💡 Ejemplos: !unban ABC123DEF (auth_id) o !unban 1 (desde !bans)", jugador);
+                anunciarError("📝 Uso: !unban <auth_id>", jugador);
+                anunciarInfo("💡 Ejemplo: !unban ABC123DEF", jugador);
                 return;
             }
             
-            const input = args[1];
-            console.log(`🔧 UNBAN: Admin ${jugador.name} solicita desbanear: "${input}"`);
-            anunciarInfo(`🔄 Procesando desbaneo para: ${input}...`, jugador);
+            const authIdToUnban = args[1];
+            console.log(`🔧 UNBAN: Admin ${jugador.name} solicita desbanear: "${authIdToUnban}"`);
             
             try {
-                let authIdReal = input;
-                let jugadorObjetivo = null;
-                
-                // Si el input es un número (ID secuencial del comando !bans)
-                if (/^\d+$/.test(input)) {
-                    const idSecuencial = parseInt(input, 10);
-                    console.log(`🔧 UNBAN: Detectado ID secuencial: ${idSecuencial}`);
-                    
-                    if (typeof nodeObtenerBaneosActivos === 'function') {
-                        const jugadoresBaneados = await nodeObtenerBaneosActivos();
-                        const indice = idSecuencial - 1;
-                        
-                        if (indice >= 0 && indice < jugadoresBaneados.length) {
-                            jugadorObjetivo = jugadoresBaneados[indice];
-                            authIdReal = jugadorObjetivo.authId;
-                            console.log(`✅ UNBAN: ID ${idSecuencial} mapeado a "${jugadorObjetivo.nombre}" (${authIdReal})`);
-                        } else {
-                            anunciarError(`❌ ID ${idSecuencial} no válido. Usa !bans para ver los IDs válidos.`, jugador);
-                            return;
-                        }
-                    } else {
-                        anunciarError(`❌ No se puede mapear ID secuencial: función de base de datos no disponible`, jugador);
-                        return;
-                    }
-                }
-                
-                // Verificar que no intente desbanearse a sí mismo
-                if (jugador.auth && authIdReal === jugador.auth) {
-                    anunciarError(`❌ No puedes desbanearte a ti mismo`, jugador);
-                    return;
-                }
-                
-                // USAR LA MISMA LÓGICA DEL DESBANEO AUTOMÁTICO (lines 9094-9125)
-                console.log(`🔧 UNBAN: Ejecutando desbaneo automático para authId: ${authIdReal}`);
-                
-                let exitoso = false;
-                
-                try {
-                    // Método 1: Desbanear por authId (más confiable)
-                    room.clearBan(authIdReal);
-                    console.log(`✅ UNBAN: clearBan por authId exitoso`);
-                    exitoso = true;
-                } catch (error) {
-                    console.warn(`⚠️ UNBAN: clearBan por authId falló:`, error.message);
-                }
-                
-                // Método 2: Si tenemos info del jugador objetivo, usar su ID si está disponible
-                if (jugadorObjetivo && jugadorObjetivo.playerId) {
-                    try {
-                        room.clearBan(jugadorObjetivo.playerId);
-                        console.log(`✅ UNBAN: clearBan por playerId exitoso`);
-                        exitoso = true;
-                    } catch (error) {
-                        console.warn(`⚠️ UNBAN: clearBan por playerId falló:`, error.message);
-                    }
-                }
-                
-                // Método 3: Si tenemos IP del jugador, desbanear por IP
-                if (jugadorObjetivo && jugadorObjetivo.ip) {
-                    try {
-                        room.clearBan(jugadorObjetivo.ip);
-                        console.log(`✅ UNBAN: clearBan por IP exitoso`);
-                        exitoso = true;
-                    } catch (error) {
-                        console.warn(`⚠️ UNBAN: clearBan por IP falló:`, error.message);
-                    }
-                }
-                
-                // Actualizar en la base de datos si está disponible
-                if (typeof nodeDesbanearJugador === 'function') {
-                    try {
-                        await nodeDesbanearJugador(authIdReal, `Desban manual por ${jugador.name}`);
+                const banList = room.getBanList();
+                const playerToUnban = banList.find(p => p.auth === authIdToUnban);
+
+                if (playerToUnban) {
+                    room.unbanPlayer(playerToUnban.id);
+                    anunciarExito(`✅ Jugador con auth_id ${authIdToUnban} ha sido desbaneado.`, jugador);
+                    console.log(`✅ UNBAN: Player with auth_id ${authIdToUnban} was unbanned by ${jugador.name}.`);
+
+                    // Actualizar en la base de datos si está disponible
+                    if (typeof nodeDesbanearJugador === 'function') {
+                        await nodeDesbanearJugador(authIdToUnban, `Desban manual por ${jugador.name}`);
                         console.log(`✅ UNBAN: Desban registrado en DB`);
-                    } catch (dbError) {
-                        console.warn(`⚠️ UNBAN: Error registrando desban en DB:`, dbError.message);
+                    }
+                } else {
+                    // Fallback to the old clearBan method if the player is not in the list
+                    // This might be useful if the ban is registered in a different way
+                    try {
+                        room.clearBan(authIdToUnban);
+                        anunciarExito(`✅ Se intentó un desbaneo para ${authIdToUnban} usando el método clearBan.`, jugador);
+                        console.log(`✅ UNBAN: Fallback clearBan for authId ${authIdToUnban} was successful.`);
+                        if (typeof nodeDesbanearJugador === 'function') {
+                            await nodeDesbanearJugador(authIdToUnban, `Desban manual por ${jugador.name} (fallback)`);
+                        }
+                    } catch (e) {
+                        anunciarError(`❌ No se encontró ningún jugador baneado con el auth_id: ${authIdToUnban}`, jugador);
+                        console.log(`❌ UNBAN: Player with auth_id ${authIdToUnban} not found in ban list and clearBan failed.`);
                     }
                 }
-                
-                if (exitoso) {
-                    const nombreJugador = jugadorObjetivo ? jugadorObjetivo.nombre : input;
-                    anunciarExito(`✅ ${nombreJugador} ha sido desbaneado por ${jugador.name}`);
-                    console.log(`✅ UNBAN: Desbaneo completado para ${nombreJugador}`);
-                } else {
-                    anunciarError(`❌ No se pudo desbanear "${input}". Puede que ya estuviera desbaneado.`, jugador);
-                }
-                
             } catch (error) {
-                console.error(`❌ UNBAN: Error en comando:`, error);
-                anunciarError(`❌ Error al desbanear "${input}": ${error.message}`, jugador);
+                anunciarError(`❌ Error al desbanear: ${error.message}`, jugador);
+                console.error(`❌ Error en comando unban:`, error);
             }
             break;
 
@@ -16134,6 +16073,12 @@ async function inicializar() {
         
         // Crear sala
         room = HBInit(configSala);
+
+        // Activar sistemas que dependen del objeto room
+        if (OfflineBanSystem) {
+            offlineBanSystem = new OfflineBanSystem(room);
+            console.log('✅ Instancia de OfflineBanSystem creada.');
+        }
         
         console.log('✅ DEBUG: HBInit ejecutado sin errores');
         console.log('🔍 DEBUG: Objeto room creado:', {

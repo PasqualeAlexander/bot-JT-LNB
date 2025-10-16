@@ -639,6 +639,9 @@ async function cargarEstadisticasGlobalesDB() {
         if (typeof cargarEstadisticasGlobales !== 'undefined') {
             console.log('🔄 Cargando estadísticas desde base de datos...');
             const datos = await cargarEstadisticasGlobales();
+            console.log('--- DEBUG BROWSER: Datos crudos de la DB ---');
+            console.log(JSON.stringify(datos, null, 2));
+            console.log('--- FIN DEBUG BROWSER ---');
             console.log('✅ Estadísticas cargadas desde base de datos:', datos ? Object.keys(datos.jugadores || {}).length + ' jugadores' : 'null');
             return datos;
         } else if (typeof window !== 'undefined' && typeof window.cargarEstadisticasGlobales !== 'undefined') {
@@ -814,7 +817,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjxfYVaY6z4z2G3hA.2lC72iSCZ2U";
+const token = "thr1.AAAAAGjxPQrZQ0upXQ63wQ.E9JSkw33At0";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -2462,7 +2465,7 @@ const mapas = {
 }
 `
     },
-    biggerx5: {
+    biggerx4: {
         nombre: "LNB Bigger x4",
         minJugadores: 5,
         maxJugadores: 10,
@@ -6124,7 +6127,7 @@ function mezclarEquiposAleatoriamenteFinPartido() {
     let nuevoMapa = null;
     
     // Detectar si se necesita cambio de mapa basado en la cantidad de jugadores
-    if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
+    if (mapaActual === "biggerx4" && jugadoresActivos >= 12) {
         requiereCambioMapa = true;
         nuevoMapa = "biggerx7";
     } else if (mapaActual === "biggerx3" && jugadoresActivos >= 9) {
@@ -6142,8 +6145,8 @@ function mezclarEquiposAleatoriamenteFinPartido() {
         const mapaAnterior = mapaActual;
         if (cambiarMapa(nuevoMapa)) {
             console.log(`✅ DEBUG: Cambio de mapa exitoso: ${mapaAnterior} -> ${nuevoMapa}`);
-            const formatoAnterior = mapaAnterior === "biggerx5" ? "x4" : mapaAnterior === "biggerx3" ? "x3" : "x1";
-            const formatoNuevo = nuevoMapa === "biggerx7" ? "x7" : nuevoMapa === "biggerx5" ? "x4" : "x3";
+            const formatoAnterior = mapaAnterior === "biggerx4" ? "x4" : mapaAnterior === "biggerx3" ? "x3" : "x1";
+            const formatoNuevo = nuevoMapa === "biggerx7" ? "x7" : nuevoMapa === "biggerx4" ? "x4" : "x3";
             anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de ${formatoAnterior} a ${formatoNuevo}`);
         } else {
             console.log(`❌ DEBUG: Fallo al cambiar mapa, continuando con mezcla en mapa actual`);
@@ -6426,7 +6429,7 @@ function verificarAutoStop(jugadorDesconectado = null) {
     
     // Parar partido si quedan muy pocos jugadores
     if (totalJugadores < 2 || jugadoresRed === 0 || jugadoresBlue === 0) {
-        // anunciarInfo("⏹️ Auto parando partido por falta de jugadores...");
+        anunciarInfo("⏹️ Auto parando partido por falta de jugadores...");
         room.stopGame();
     }
 }
@@ -6628,10 +6631,10 @@ function verificarCambioMapaPostPartido() {
     // Contar jugadores activos (en equipos 1 y 2, no espectadores)
     const jugadoresActivos = room.getPlayerList().filter(j => j.team === 1 || j.team === 2).length;
     
-    // CAMBIO CON HISTÉRESIS: De biggerx7 a biggerx5 si hay menos de 8 jugadores activos (tolerancia)
+    // CAMBIO CON HISTÉRESIS: De biggerx7 a biggerx4 si hay menos de 8 jugadores activos (tolerancia)
     if (mapaActual === "biggerx7" && jugadoresActivos < 8) {
         cambioMapaEnProceso = true;
-        if (cambiarMapa("biggerx5")) {
+        if (cambiarMapa("biggerx4")) {
             anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x7 a x4`);
             
             // Asegurar que el cambio se complete correctamente
@@ -6667,8 +6670,8 @@ function verificarCambioMapaPostPartido() {
         return;
     }
     
-// CAMBIO CON HISTÉRESIS: De biggerx5 (x4) a biggerx7 si hay 10 o más jugadores activos
-    if (mapaActual === "biggerx5" && jugadoresActivos >= 10) {
+// CAMBIO CON HISTÉRESIS: De biggerx4 (x4) a biggerx7 si hay 10 o más jugadores activos
+    if (mapaActual === "biggerx4" && jugadoresActivos >= 10) {
         cambioMapaEnProceso = true;
         if (cambiarMapa("biggerx7")) {
             anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando de x4 a x7`);
@@ -6694,9 +6697,9 @@ function verificarCambioMapaPostPartido() {
         return;
     }
     
-    // CAMBIO CON HISTÉRESIS: De biggerx5 a biggerx3 si hay menos de 5 jugadores activos (tolerancia)
-    if (mapaActual === "biggerx5" && jugadoresActivos < 5) {
-        console.log(`📉 DEBUG: Cambiando de x5 a x3 post-partido con histéresis (${jugadoresActivos} < 5 jugadores)`);
+    // CAMBIO CON HISTÉRESIS: De biggerx4 a biggerx3 si hay menos de 5 jugadores activos (tolerancia)
+    if (mapaActual === "biggerx4" && jugadoresActivos < 5) {
+        console.log(`📉 DEBUG: Cambiando de x4 a x3 post-partido con histéresis (${jugadoresActivos} < 5 jugadores)`);
         
         cambioMapaEnProceso = true;
         if (cambiarMapa("biggerx3")) {
@@ -6724,12 +6727,12 @@ function verificarCambioMapaPostPartido() {
         return;
     }
     
-    // CAMBIO CON HISTÉRESIS: De biggerx3 a biggerx5 si hay 7-9 jugadores
+    // CAMBIO CON HISTÉRESIS: De biggerx3 a biggerx4 si hay 7-9 jugadores
     if (mapaActual === "biggerx3" && jugadoresActivos >= 7 && jugadoresActivos < 10) {
-        console.log(`📈 DEBUG: Cambiando de x3 a x5 post-partido (${jugadoresActivos} jugadores)`);
+        console.log(`📈 DEBUG: Cambiando de x3 a x4 post-partido (${jugadoresActivos} jugadores)`);
         
         cambioMapaEnProceso = true;
-        if (cambiarMapa("biggerx5")) {
+        if (cambiarMapa("biggerx4")) {
             anunciarExito(`🎯 ¡Cambio automático! Detectados ${jugadoresActivos} jugadores - Cambiando a x4`);
             
             // Asegurar que el cambio se complete correctamente
@@ -6906,14 +6909,14 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
         console.log(`⚽ DEBUG: Partido en curso, verificando cambios de mapa necesarios...`);
         
         // CAMBIOS A MAPAS MENORES (cuando bajan jugadores) - CON HISTÉRESIS PARA EVITAR OSCILACIONES
-        // Cambiar de biggerx7 a biggerx5 si hay menos de 8 jugadores (tolerancia de 2)
+        // Cambiar de biggerx7 a biggerx4 si hay menos de 8 jugadores (tolerancia de 2)
         if (mapaActual === "biggerx7" && jugadoresActivos < 8) {
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             // Log eliminado para mejor rendimiento
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
-            cambiarMapa("biggerx5");
+            cambiarMapa("biggerx4");
             // NO anunciar en chat el cambio por pocos jugadores durante partido
             // anunciarInfo(`🔄 Menos de 8 jugadores durante partido (${jugadoresActivos}). Cambiando de x7 a x4...`);
             
@@ -6949,12 +6952,12 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             return;
         }
         
-        // Cambiar de biggerx5 a biggerx3 si hay menos de 5 jugadores (tolerancia de 2)
-        if (mapaActual === "biggerx5" && jugadoresActivos < 5) {
+        // Cambiar de biggerx4 a biggerx3 si hay menos de 5 jugadores (tolerancia de 2)
+        if (mapaActual === "biggerx4" && jugadoresActivos < 5) {
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             // Log eliminado para mejor rendimiento
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx3");
             // NO anunciar en chat el cambio por pocos jugadores durante partido
@@ -6997,7 +7000,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             // Log eliminado para mejor rendimiento
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx1");
             // Cambio de mapa silencioso de x3 a x1
@@ -7040,7 +7043,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG CR�ÍTICO: Cambiando de training a x1 durante partido (${jugadoresActivos} >= 2)`);
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx1");
             // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de training a x1...`);
@@ -7082,7 +7085,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG: Cambiando de x1 a x3 durante partido (${jugadoresActivos} >= 3)`);
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx3");
             // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x1 a x3...`);
@@ -7119,14 +7122,14 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             return;
         }
         
-        // Cambiar de biggerx3 a biggerx5 si hay 7 o más jugadores
+        // Cambiar de biggerx3 a biggerx4 si hay 7 o más jugadores
         if (mapaActual === "biggerx3" && jugadoresActivos >= 7) {
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
-            console.log(`📈 DEBUG: Cambiando de x3 a x5 durante partido (${jugadoresActivos} >= 7)`);
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            console.log(`📈 DEBUG: Cambiando de x3 a x4 durante partido (${jugadoresActivos} >= 7)`);
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
-            cambiarMapa("biggerx5");
+            cambiarMapa("biggerx4");
             // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x3 a x5...`);
             
             setTimeout(() => {
@@ -7140,9 +7143,9 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             return;
         }
         
-        // Cambiar de biggerx5 a biggerx7 si hay 12 o más jugadores
-        if (mapaActual === "biggerx5" && jugadoresActivos >= 12) {
-            console.log(`📈 DEBUG CRÍTICO: Detectado cambio crítico x5->x7 durante partido (${jugadoresActivos} >= 12)`);
+        // Cambiar de biggerx4 a biggerx7 si hay 12 o más jugadores
+        if (mapaActual === "biggerx4" && jugadoresActivos >= 12) {
+            console.log(`📈 DEBUG CRÍTICO: Detectado cambio crítico x4->x7 durante partido (${jugadoresActivos} >= 12)`);
             console.log(`⏰ DEBUG: En lugar de detener inmediatamente, programando cambio pendiente para fin de partido`);
             
             // Programar cambio pendiente en lugar de detener el partido inmediatamente
@@ -7183,23 +7186,23 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
     if (mapaActual === "biggerx7") {
         // Desde x7: solo bajar si hay menos de 8 jugadores (tolerancia)
         if (jugadoresActivos < 8) {
-            mapaRequerido = jugadoresActivos >= 3 ? "biggerx5" : (jugadoresActivos >= 2 ? "biggerx1" : "training");
+            mapaRequerido = jugadoresActivos >= 3 ? "biggerx4" : (jugadoresActivos >= 2 ? "biggerx1" : "training");
         } else {
             mapaRequerido = "biggerx7"; // Mantener x7
         }
-    } else if (mapaActual === "biggerx5") {
+    } else if (mapaActual === "biggerx4") {
         // Desde x4: subir a x7 si hay 10+, bajar a x3 si hay menos de 5 (tolerancia)
         if (jugadoresActivos >= 10) {
             mapaRequerido = "biggerx7";
         } else if (jugadoresActivos < 5) {
             mapaRequerido = jugadoresActivos >= 2 ? "biggerx1" : "training";
         } else {
-            mapaRequerido = "biggerx5"; // Mantener x4
+            mapaRequerido = "biggerx4"; // Mantener x4
         }
     } else if (mapaActual === "biggerx3") {
         // Desde x3: subir a x4 si hay 7+, bajar a x1 si hay menos de 2 (tolerancia)
         if (jugadoresActivos >= 7) {
-            mapaRequerido = jugadoresActivos >= 10 ? "biggerx7" : "biggerx5";
+            mapaRequerido = jugadoresActivos >= 10 ? "biggerx7" : "biggerx4";
         } else if (jugadoresActivos < 2) {
             mapaRequerido = "biggerx1";
         } else {
@@ -7214,7 +7217,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
         } else if (jugadoresActivos >= 3 && jugadoresActivos <= 6) {
             mapaRequerido = "biggerx3";
         } else if (jugadoresActivos >= 7 && jugadoresActivos <= 9) {
-            mapaRequerido = "biggerx5";
+            mapaRequerido = "biggerx4";
         } else if (jugadoresActivos >= 10) {
             mapaRequerido = "biggerx7";
         }
@@ -7307,7 +7310,7 @@ function cambiarMapa(codigoMapa) {
             } else if (codigoMapa === "biggerx3") {
                 room.setTimeLimit(3); // 3 minutos
                 room.setScoreLimit(3); // Máximo 3 goles
-            } else if (codigoMapa === "biggerx5") {
+            } else if (codigoMapa === "biggerx4") {
                 room.setTimeLimit(5); // 5 minutos
                 room.setScoreLimit(4); // Máximo 4 goles
             } else if (codigoMapa === "biggerx7") {
@@ -7458,9 +7461,9 @@ const comandosPublicos = [];
     const comandosAvanzado = [
         "\n⚙️ COMANDOS AVANZADOS (ADMINS):",
         "!claim [contraseña] - Reclamar rol de administrador",
-        "!mapa [código] - Cambiar mapa (biggerx3, biggerx5, biggerx7, training)",
+        "!mapa [código] - Cambiar mapa (biggerx3, biggerx4, biggerx7, training)",
         "!biggerx3 / !3 - Cambiar a mapa Bigger x3",
-        "!biggerx5 / !5 - Cambiar a mapa Bigger x5",
+        "!biggerx4 / !4 - Cambiar a mapa Bigger x4",
         "!biggerx7 / !7 - Cambiar a mapa Bigger x7",
         "!training / !tr - Cambiar a mapa de entrenamiento",
         "!pw [contraseña] - Establecer contraseña de sala",
@@ -7611,10 +7614,10 @@ async function procesarComando(jugador, mensaje) {
                 if (cambiarMapa(args[1])) {
                     detectarCambioMapa();
                 } else {
-                    anunciarError("Mapa no encontrado. Usa: biggerx3, biggerx5, biggerx7, training", jugador);
+                    anunciarError("Mapa no encontrado. Usa: biggerx3, biggerx4, biggerx7, training", jugador);
                 }
             } else {
-                anunciarInfo("📋 Uso: !mapa <código> (biggerx3, biggerx5, biggerx7, training)");
+                anunciarInfo("📋 Uso: !mapa <código> (biggerx3, biggerx4, biggerx7, training)");
             }
             break;
             
@@ -7628,13 +7631,13 @@ async function procesarComando(jugador, mensaje) {
             detectarCambioMapa();
             break;
             
-        case "biggerx5":
-        case "5": // Abreviación para biggerx5
+        case "biggerx4":
+        case "4": // Abreviación para biggerx4
             if (!esAdminBasico(jugador)) {
                 anunciarError("❌ Solo los administradores pueden cambiar el mapa.", jugador);
                 return;
             }
-            cambiarMapa("biggerx5");
+            cambiarMapa("biggerx4");
             detectarCambioMapa();
             break;
             
@@ -8135,6 +8138,34 @@ async function procesarComando(jugador, mensaje) {
             mostrarRecords(jugador);
             break;
             
+        case "goles":
+            mostrarTopJugadores(jugador, "goles");
+            break;
+        case "asistencias":
+        case "asis":
+            mostrarTopJugadores(jugador, "asistencias");
+            break;
+        case "vallas":
+        case "vallasinvictas":
+            mostrarTopJugadores(jugador, "vallas");
+            break;
+        case "autogoles":
+            mostrarTopJugadores(jugador, "autogoles");
+            break;
+        case "mvps":
+            mostrarTopJugadores(jugador, "mvps");
+            break;
+        case "hattrick":
+        case "hattricks":
+            mostrarTopJugadores(jugador, "hattrick");
+            break;
+        case "rank":
+            mostrarTopJugadores(jugador, "rank");
+            break;
+        case "partidos":
+        case "pj":
+            mostrarTopJugadores(jugador, "partidos");
+            break;
         case "top":
             if (args[1]) {
                 mostrarTopJugadores(jugador, args[1].toLowerCase());
@@ -8749,7 +8780,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             if (!esAdmin(jugador)) return;
             if (partidoEnCurso) {
                 room.stopGame();
-                anunciarInfo("Partido finalizado manualmente por el administrador");
+                anunciarInfo("⏹️ Partido finalizado manualmente por el administrador");
             } else {
                 anunciarError("⚠️ No hay partido en curso para detener", jugador);
             }
@@ -10797,17 +10828,17 @@ function registrarJugadorGlobal(authID, nombre) {
 const ACTUALIZACION_INMEDIATA_DB = true;
 
 function esPartidoValido() {
-    // Verificar que el partido se jugó en cancha x4 o x7
-    const canchasValidas = ['biggerx4', 'biggerx7'];
-    const esValido = canchasValidas.includes(mapaActual);
-    
-    if (!esValido) {
-        console.log(`📊 Stats no válidas: Partido jugado en ${mapaActual} (solo x4 y x7 cuentan para estadísticas)`);
-    } else {
-        console.log(`✅ Stats válidas: Partido en ${mapaActual} cuenta para estadísticas`);
+    try {
+        const mapaNombre = (mapaActual || "").toLowerCase();
+        // FIX: Se busca solo por el tipo de mapa (x7, x4) para ser más robusto
+        // ante variaciones en el nombre completo del mapa (ej. sin el prefijo "LNB").
+        const esMapaValido = mapaNombre.includes('x7') ||
+                             mapaNombre.includes('x4');
+        return esMapaValido;
+    } catch (error) {
+        console.error("❌ Error en esPartidoValido:", error);
+        return false;
     }
-    
-    return esValido;
 }
 
 // Persistencia inmediata de incrementos (goles, asistencias, autogoles)
@@ -10820,6 +10851,13 @@ async function persistirActualizacionInmediata(authId, nombre, cambios = { goles
         // Asegurar estructura en memoria y actualizar en tiempo real para !me y tops
         const stats = registrarJugadorGlobal(authId, nombre);
         if (!stats) return;
+
+        // CORRECCIÓN: Incrementar partidos jugados en la primera actualización de stats del partido
+        if (estadisticasPartido.iniciado && !estadisticasPartido.jugadoresConStatsActualizadas.has(authId)) {
+            stats.partidos = (stats.partidos || 0) + 1;
+            estadisticasPartido.jugadoresConStatsActualizadas.add(authId);
+            console.log(`📊 Partido contado para ${nombre} (${authId})`);
+        }
 
         // Aplicar cambios en memoria
         if (cambios.goles) stats.goles = (stats.goles || 0) + cambios.goles;
@@ -11530,12 +11568,12 @@ async function mostrarTopJugadores(solicitante, estadistica) {
         if (i === 0) posicionEmoji = "🥇";
         else if (i === 1) posicionEmoji = "🥈";
         else if (i === 2) posicionEmoji = "🥉";
-        else if (i === 3) posicionEmoji = "⿤";
-        else if (i === 4) posicionEmoji = "⿥";
-        else if (i === 5) posicionEmoji = "⿦";
-        else if (i === 6) posicionEmoji = "⿧";
-        else if (i === 7) posicionEmoji = "⿨";
-        else if (i === 8) posicionEmoji = "⿩";
+        else if (i === 3) posicionEmoji = "4️⃣";
+        else if (i === 4) posicionEmoji = "5️⃣";
+        else if (i === 5) posicionEmoji = "6️⃣";
+        else if (i === 6) posicionEmoji = "7️⃣";
+        else if (i === 7) posicionEmoji = "8️⃣";
+        else if (i === 8) posicionEmoji = "9️⃣";
         else if (i === 9) posicionEmoji = "🔟";
         else posicionEmoji = `${i + 1}.`;
         
@@ -12032,7 +12070,8 @@ function inicializarEstadisticas() {
         tiempoVallaInvictaBlue: 0,
         tiempoEsperaSaque: 0, // Tiempo total de espera por saque después de goles
         tiempoEsperaSaqueRed: 0, // Tiempo de espera acumulado para el equipo rojo
-        tiempoEsperaSaqueBlue: 0 // Tiempo de espera acumulado para el equipo azul
+        tiempoEsperaSaqueBlue: 0, // Tiempo de espera acumulado para el equipo azul
+        jugadoresConStatsActualizadas: new Set() // Jugadores que ya tuvieron una actualización de stats en este partido
     };
     
     // Resetear contadores de cambios de camiseta por equipo al iniciar nuevo partido
@@ -12057,7 +12096,8 @@ function inicializarEstadisticas() {
                     asistencias: 0,
                     autogoles: 0,
                     arquero: false,
-                    tiempo: 0
+                    tiempo: 0,
+                    tiempoEntrada: Date.now()
                 };
             }
         });
@@ -13321,6 +13361,21 @@ function enviarPuntuacionesPrivadas() {
         const jugadorConectado = jugadoresConectados.find(j => j.id === parseInt(playerId));
         
         if (jugadorConectado) {
+            const duracionTotalPartidoMs = estadisticasPartido.duracion * 1000;
+            const tiempoJugadoMs = statsJugador.tiempo;
+            const porcentajeJugado = duracionTotalPartidoMs > 0 ? (tiempoJugadoMs / duracionTotalPartidoMs) * 100 : 0;
+
+            if (porcentajeJugado < 30) {
+                room.sendAnnouncement(
+                    `📊 No recibes puntuación por haber jugado menos del 30% del partido.`,
+                    jugadorConectado.id,
+                    parseInt(COLORES.ADVERTENCIA, 16),
+                    "bold",
+                    0
+                );
+                return; // Skip to next player
+            }
+            
             const puntuacion = calcularPuntuacion(statsJugador);
             const equipoColor = statsJugador.equipo === 1 ? "🔴" : "🔵";
             
@@ -15027,12 +15082,32 @@ setTimeout(() => {
     
     // Enlace de la sala (CRÍTICO para Headless)
     room.onRoomLink = function(url) {
-        
         // Verificar que la URL sea válida
         if (!url || typeof url !== 'string' || url.length === 0) {
             console.warn('❌ URL inválida recibida en onRoomLink:', url);
             return;
         }
+
+        // Cargar estadísticas globales al iniciar la sala
+        cargarEstadisticasGlobalesDB().then(stats => {
+            if (stats) {
+                estadisticasGlobales = stats;
+                console.log('✅ Estadísticas globales cargadas en onRoomLink.');
+            } else {
+                console.error('❌ No se pudieron cargar las estadísticas en onRoomLink.');
+                // Intentar de nuevo después de 5 segundos como fallback
+                setTimeout(() => {
+                    cargarEstadisticasGlobalesDB().then(retryStats => {
+                        if (retryStats) {
+                            estadisticasGlobales = retryStats;
+                            console.log('✅ Estadísticas globales cargadas en reintento de onRoomLink.');
+                        } else {
+                            console.error('❌ Falló el reintento de carga de estadísticas.');
+                        }
+                    });
+                }, 5000);
+            }
+        });
         
         console.log('\n' + '🎆'.repeat(40));
         console.log('🔗 ¡¡¡ENLACE DE LA SALA CAPTURADO!!!');
@@ -15164,6 +15239,7 @@ room.onTeamGoal = function(equipo) {
     
     // Jugador entra/sale del juego - MOVIMIENTOS BLOQUEADOS COMPLETAMENTE
     room.onPlayerTeamChange = function(jugador, equipoByAdmin) {
+        const equipoAnterior = equiposJugadoresAntesMovimiento.get(jugador.id) || 0;
         // SISTEMA SIMPLIFICADO: BLOQUEAR TODOS LOS MOVIMIENTOS MANUALES
         // Solo permitir movimientos iniciados por:
         // 1. El bot/sistema (cuando esBot(jugador) es true)
@@ -15213,26 +15289,35 @@ room.onTeamGoal = function(equipo) {
         equiposJugadoresAntesMovimiento.set(jugador.id, jugador.team);
         
         // CORRECCIÓN: Registrar jugadores que se unen durante el partido
-        if (estadisticasPartido.iniciado && jugador.team !== 0) {
-            // Registrar jugador en estadísticas si se une a un equipo durante el partido
-            if (!estadisticasPartido.jugadores[jugador.id]) {
-                const nombreOriginal = obtenerNombreOriginal(jugador);
-                console.log(`🆕 PARTIDO: Registrando jugador tardío ${nombreOriginal} en equipo ${jugador.team}`);
-                estadisticasPartido.jugadores[jugador.id] = {
-                    nombre: nombreOriginal,
-                    equipo: jugador.team, // Usar el equipo actual, no equipoByAdmin
-                    goles: 0,
-                    asistencias: 0,
-                    autogoles: 0,
-                    arquero: false,
-                    tiempo: 0
-                };
-            } else {
-                // Si ya existía, actualizar el equipo por si cambió
-                const statsExistente = estadisticasPartido.jugadores[jugador.id];
-                if (statsExistente.equipo !== jugador.team) {
-                    console.log(`🔄 PARTIDO: Actualizando equipo de ${statsExistente.nombre}: ${statsExistente.equipo} -> ${jugador.team}`);
-                    statsExistente.equipo = jugador.team;
+        if (estadisticasPartido.iniciado) {
+            if (jugador.team !== 0) { // Player joins a team
+                if (!estadisticasPartido.jugadores[jugador.id]) {
+                    const nombreOriginal = obtenerNombreOriginal(jugador);
+                    console.log(`🆕 PARTIDO: Registrando jugador tardío ${nombreOriginal} en equipo ${jugador.team}`);
+                    estadisticasPartido.jugadores[jugador.id] = {
+                        nombre: nombreOriginal,
+                        equipo: jugador.team,
+                        goles: 0,
+                        asistencias: 0,
+                        autogoles: 0,
+                        arquero: false,
+                        tiempo: 0,
+                        tiempoEntrada: Date.now()
+                    };
+                } else {
+                    const statsExistente = estadisticasPartido.jugadores[jugador.id];
+                    if (statsExistente.equipo !== jugador.team) {
+                        statsExistente.equipo = jugador.team;
+                    }
+                    if (equipoAnterior === 0) { // Moved from spec to a team
+                        statsExistente.tiempoEntrada = Date.now();
+                    }
+                }
+            } else { // Player moves to spectators (team 0)
+                const stats = estadisticasPartido.jugadores[jugador.id];
+                if (stats && stats.tiempoEntrada) {
+                    stats.tiempo += Date.now() - stats.tiempoEntrada;
+                    delete stats.tiempoEntrada;
                 }
             }
         }
@@ -15387,9 +15472,10 @@ room.onTeamGoal = function(equipo) {
             jugadoresActuales.forEach(jugadorActual => {
                 const stats = estadisticasPartido.jugadores[jugadorActual.id];
                 if (stats && jugadorActual.team !== 0) {
-                    // El tiempo total que estuvo en un equipo es la duración del partido
-                    // (esto es una aproximación, en un sistema más avanzado trackearíamos cambios de equipo)
-                    stats.tiempo = estadisticasPartido.duracion;
+                    if (stats.tiempoEntrada) {
+                        stats.tiempo += Date.now() - stats.tiempoEntrada;
+                        delete stats.tiempoEntrada;
+                    }
                 }
             });
             

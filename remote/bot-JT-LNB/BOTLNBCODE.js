@@ -168,12 +168,13 @@ if (isNode) {
 
 // ==================== SISTEMA DE BANEOS OFFLINE ====================
 // Importar sistema de baneos offline para banear jugadores desconectados
-let OfflineBanSystem = null; // La clase se cargará aquí
-let offlineBanSystem = null; // La instancia se creará en HBInit
+let OfflineBanSystem = null;
+let offlineBanSystem = null;
 if (isNode) {
     try {
         const offlineBanModule = require('./offline_ban_system.js');
-        OfflineBanSystem = offlineBanModule.OfflineBanSystem; // Cargar la clase
+        OfflineBanSystem = offlineBanModule.OfflineBanSystem;
+        offlineBanSystem = offlineBanModule.offlineBanSystem;
         console.log('✅ Sistema de baneos offline importado correctamente');
     } catch (error) {
         console.warn('⚠️ No se pudo importar el sistema de baneos offline:', error.message);
@@ -814,7 +815,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjxfYVaY6z4z2G3hA.2lC72iSCZ2U";
+const token = "thr1.AAAAAGjxdrjn2kW2oFrqPQ.Z3XXrpEbI40";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -5908,11 +5909,17 @@ function balanceAutomaticoContinuo() {
                 console.log(`🤖 DEBUG balanceAutomaticoContinuo: Marcado movimiento iniciado por bot para ${jugadorSeleccionado.name}`);
             }
             
-            // CORRECCIÓN CRÍTICA: Ejecutar el movimiento
-            console.log(`➡️ DEBUG balanceAutomaticoContinuo: EJECUTANDO room.setPlayerTeam(${jugadorSeleccionado.id}, ${equipoConMenos}) para ${jugadorSeleccionado.name}`);
-            const equipoAnterior = jugadorActual.team;
-            
-            room.setPlayerTeam(jugadorSeleccionado.id, equipoConMenos);
+    // Mover al jugador al equipo con menos jugadores
+    room.setPlayerTeam(jugadorSeleccionado.id, equipoConMenos);
+    
+    // CRÍTICO: Limpiar estado AFK del jugador que acaba de ser movido
+    if (jugadoresAFK.has(jugadorSeleccionado.id)) {
+        jugadoresAFK.delete(jugadorSeleccionado.id);
+    }
+    if (advertenciasAFK.has(jugadorSeleccionado.id)) {
+        advertenciasAFK.delete(jugadorSeleccionado.id);
+    }
+
             
             // Verificar inmediatamente que el movimiento fue exitoso
             const verificarMovimiento = () => {
@@ -6954,7 +6961,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             // Log eliminado para mejor rendimiento
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx3");
             // NO anunciar en chat el cambio por pocos jugadores durante partido
@@ -6997,7 +7004,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             // Log eliminado para mejor rendimiento
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx1");
             // Cambio de mapa silencioso de x3 a x1
@@ -7040,7 +7047,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG CR�ÍTICO: Cambiando de training a x1 durante partido (${jugadoresActivos} >= 2)`);
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx1");
             // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de training a x1...`);
@@ -7082,7 +7089,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG: Cambiando de x1 a x3 durante partido (${jugadoresActivos} >= 3)`);
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx3");
             // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x1 a x3...`);
@@ -7124,7 +7131,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             console.log(`📈 DEBUG: Cambiando de x3 a x5 durante partido (${jugadoresActivos} >= 7)`);
-            anunciarGeneral("⚠️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
+            anunciarGeneral("⚠️ ⏹️ Deteniendo partido para cambio de mapa...", CELESTE_LNB, "bold");
             room.stopGame();
             cambiarMapa("biggerx5");
             // anunciarInfo(`🔄 ${jugadoresActivos} jugadores detectados durante partido. Cambiando de x3 a x5...`);
@@ -8382,14 +8389,16 @@ async function procesarComando(jugador, mensaje) {
                     return;
                 }
                 
-                // Verificar cooldown del comando
-                const cooldownAfk = comandoCooldown.get(jugador.id);
-                if (cooldownAfk && Date.now() - cooldownAfk < COOLDOWN_COMANDO) {
-                    const tiempoRestante = Math.ceil((COOLDOWN_COMANDO - (Date.now() - cooldownAfk)) / 1000);
-                    anunciarError(`⏰ Debes esperar ${tiempoRestante} segundos antes de usar este comando de nuevo`, jugador);
-                    return;
-                }
-                
+                        // Verificar cooldown del comando
+                        // Los administradores están exentos del cooldown
+                        if (!esAdminBasico(jugador)) {
+                            const cooldownAfk = comandoCooldown.get(jugador.id);
+                            if (cooldownAfk && Date.now() - cooldownAfk < COOLDOWN_COMANDO) {
+                                const tiempoRestante = Math.ceil((COOLDOWN_COMANDO - (Date.now() - cooldownAfk)) / 1000);
+                                anunciarError(`⏰ Debes esperar ${tiempoRestante} segundos antes de usar este comando de nuevo`, jugador);
+                                return;
+                            }
+                        }                
                 // Permitir movimiento por comando
                 movimientoPermitidoPorComando.add(jugador.id);
                 
@@ -8473,11 +8482,14 @@ async function procesarComando(jugador, mensaje) {
             }
             
             // Verificar cooldown del comando
-            const cooldownBack = comandoCooldown.get(jugador.id);
-            if (cooldownBack && Date.now() - cooldownBack < COOLDOWN_COMANDO) {
-                const tiempoRestante = Math.ceil((COOLDOWN_COMANDO - (Date.now() - cooldownBack)) / 1000);
-                anunciarError(`⏰ Debes esperar ${tiempoRestante} segundos antes de usar este comando de nuevo`, jugador);
-                return;
+            // Los administradores están exentos del cooldown
+            if (!esAdminBasico(jugador)) {
+                const cooldownBack = comandoCooldown.get(jugador.id);
+                if (cooldownBack && Date.now() - cooldownBack < COOLDOWN_COMANDO) {
+                    const tiempoRestante = Math.ceil((COOLDOWN_COMANDO - (Date.now() - cooldownBack)) / 1000);
+                    anunciarError(`⏰ Debes esperar ${tiempoRestante} segundos antes de usar este comando de nuevo`, jugador);
+                    return;
+                }
             }
             
             // Asignar al equipo con menos jugadores
@@ -8749,7 +8761,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             if (!esAdmin(jugador)) return;
             if (partidoEnCurso) {
                 room.stopGame();
-                anunciarInfo("Partido finalizado manualmente por el administrador");
+                anunciarInfo("⏹️ Partido finalizado manualmente por el administrador");
             } else {
                 anunciarError("⚠️ No hay partido en curso para detener", jugador);
             }
@@ -9208,52 +9220,112 @@ anunciarError("Uso: !pw <contraseña>", jugador);
         case "unban":
         case "desban":
         case "banınıkaldır": // Comando en turco
+            // COMANDO SIMPLIFICADO: Usar la misma lógica que el desbaneo automático
             if (!esAdminBasico(jugador)) {
                 anunciarError("❌ No tienes permisos para desbanear jugadores.", jugador);
                 return;
             }
             
             if (!args[1]) {
-                anunciarError("📝 Uso: !unban <auth_id>", jugador);
-                anunciarInfo("💡 Ejemplo: !unban ABC123DEF", jugador);
+                anunciarError("📝 Uso: !unban <auth_id|ID_secuencial>", jugador);
+                anunciarInfo("💡 Ejemplos: !unban ABC123DEF (auth_id) o !unban 1 (desde !bans)", jugador);
                 return;
             }
             
-            const authIdToUnban = args[1];
-            console.log(`🔧 UNBAN: Admin ${jugador.name} solicita desbanear: "${authIdToUnban}"`);
+            const input = args[1];
+            console.log(`🔧 UNBAN: Admin ${jugador.name} solicita desbanear: "${input}"`);
+            anunciarInfo(`🔄 Procesando desbaneo para: ${input}...`, jugador);
             
             try {
-                const banList = room.getBanList();
-                const playerToUnban = banList.find(p => p.auth === authIdToUnban);
-
-                if (playerToUnban) {
-                    room.unbanPlayer(playerToUnban.id);
-                    anunciarExito(`✅ Jugador con auth_id ${authIdToUnban} ha sido desbaneado.`, jugador);
-                    console.log(`✅ UNBAN: Player with auth_id ${authIdToUnban} was unbanned by ${jugador.name}.`);
-
-                    // Actualizar en la base de datos si está disponible
-                    if (typeof nodeDesbanearJugador === 'function') {
-                        await nodeDesbanearJugador(authIdToUnban, `Desban manual por ${jugador.name}`);
-                        console.log(`✅ UNBAN: Desban registrado en DB`);
-                    }
-                } else {
-                    // Fallback to the old clearBan method if the player is not in the list
-                    // This might be useful if the ban is registered in a different way
-                    try {
-                        room.clearBan(authIdToUnban);
-                        anunciarExito(`✅ Se intentó un desbaneo para ${authIdToUnban} usando el método clearBan.`, jugador);
-                        console.log(`✅ UNBAN: Fallback clearBan for authId ${authIdToUnban} was successful.`);
-                        if (typeof nodeDesbanearJugador === 'function') {
-                            await nodeDesbanearJugador(authIdToUnban, `Desban manual por ${jugador.name} (fallback)`);
+                let authIdReal = input;
+                let jugadorObjetivo = null;
+                
+                // Si el input es un número (ID secuencial del comando !bans)
+                if (/^\d+$/.test(input)) {
+                    const idSecuencial = parseInt(input, 10);
+                    console.log(`🔧 UNBAN: Detectado ID secuencial: ${idSecuencial}`);
+                    
+                    if (typeof nodeObtenerBaneosActivos === 'function') {
+                        const jugadoresBaneados = await nodeObtenerBaneosActivos();
+                        const indice = idSecuencial - 1;
+                        
+                        if (indice >= 0 && indice < jugadoresBaneados.length) {
+                            jugadorObjetivo = jugadoresBaneados[indice];
+                            authIdReal = jugadorObjetivo.authId;
+                            console.log(`✅ UNBAN: ID ${idSecuencial} mapeado a "${jugadorObjetivo.nombre}" (${authIdReal})`);
+                        } else {
+                            anunciarError(`❌ ID ${idSecuencial} no válido. Usa !bans para ver los IDs válidos.`, jugador);
+                            return;
                         }
-                    } catch (e) {
-                        anunciarError(`❌ No se encontró ningún jugador baneado con el auth_id: ${authIdToUnban}`, jugador);
-                        console.log(`❌ UNBAN: Player with auth_id ${authIdToUnban} not found in ban list and clearBan failed.`);
+                    } else {
+                        anunciarError(`❌ No se puede mapear ID secuencial: función de base de datos no disponible`, jugador);
+                        return;
                     }
                 }
+                
+                // Verificar que no intente desbanearse a sí mismo
+                if (jugador.auth && authIdReal === jugador.auth) {
+                    anunciarError(`❌ No puedes desbanearte a ti mismo`, jugador);
+                    return;
+                }
+                
+                // USAR LA MISMA LÓGICA DEL DESBANEO AUTOMÁTICO (lines 9094-9125)
+                console.log(`🔧 UNBAN: Ejecutando desbaneo automático para authId: ${authIdReal}`);
+                
+                let exitoso = false;
+                
+                try {
+                    // Método 1: Desbanear por authId (más confiable)
+                    room.clearBan(authIdReal);
+                    console.log(`✅ UNBAN: clearBan por authId exitoso`);
+                    exitoso = true;
+                } catch (error) {
+                    console.warn(`⚠️ UNBAN: clearBan por authId falló:`, error.message);
+                }
+                
+                // Método 2: Si tenemos info del jugador objetivo, usar su ID si está disponible
+                if (jugadorObjetivo && jugadorObjetivo.playerId) {
+                    try {
+                        room.clearBan(jugadorObjetivo.playerId);
+                        console.log(`✅ UNBAN: clearBan por playerId exitoso`);
+                        exitoso = true;
+                    } catch (error) {
+                        console.warn(`⚠️ UNBAN: clearBan por playerId falló:`, error.message);
+                    }
+                }
+                
+                // Método 3: Si tenemos IP del jugador, desbanear por IP
+                if (jugadorObjetivo && jugadorObjetivo.ip) {
+                    try {
+                        room.clearBan(jugadorObjetivo.ip);
+                        console.log(`✅ UNBAN: clearBan por IP exitoso`);
+                        exitoso = true;
+                    } catch (error) {
+                        console.warn(`⚠️ UNBAN: clearBan por IP falló:`, error.message);
+                    }
+                }
+                
+                // Actualizar en la base de datos si está disponible
+                if (typeof nodeDesbanearJugador === 'function') {
+                    try {
+                        await nodeDesbanearJugador(authIdReal, `Desban manual por ${jugador.name}`);
+                        console.log(`✅ UNBAN: Desban registrado en DB`);
+                    } catch (dbError) {
+                        console.warn(`⚠️ UNBAN: Error registrando desban en DB:`, dbError.message);
+                    }
+                }
+                
+                if (exitoso) {
+                    const nombreJugador = jugadorObjetivo ? jugadorObjetivo.nombre : input;
+                    anunciarExito(`✅ ${nombreJugador} ha sido desbaneado por ${jugador.name}`);
+                    console.log(`✅ UNBAN: Desbaneo completado para ${nombreJugador}`);
+                } else {
+                    anunciarError(`❌ No se pudo desbanear "${input}". Puede que ya estuviera desbaneado.`, jugador);
+                }
+                
             } catch (error) {
-                anunciarError(`❌ Error al desbanear: ${error.message}`, jugador);
-                console.error(`❌ Error en comando unban:`, error);
+                console.error(`❌ UNBAN: Error en comando:`, error);
+                anunciarError(`❌ Error al desbanear "${input}": ${error.message}`, jugador);
             }
             break;
 
@@ -9591,23 +9663,28 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             if (vipBot) {
                 try {
                     const vipResponse = await vipBot.handlePlayerMessage(jugador.name, mensaje, jugador.auth);
+console.log(`[VIP DEBUG] Procesando comando: ${mensaje} por ${jugador.name}`);
                     if (vipResponse) {
                         // Enviar respuesta del sistema VIP al jugador
+console.log(`[VIP DEBUG] Respuesta del sistema VIP:`, vipResponse);
                         const lineas = vipResponse.split('\n');
                         for (const linea of lineas) {
                             if (linea.trim()) {
-                                room.sendAnnouncement(linea.trim(), jugador.id, parseInt("FFD700", 16), "normal", 0);
+                                room.sendAnnouncement(linea.trim(), null, parseInt("FFD700", 16), "normal", 0);
                             }
                         }
                         return;
+                    } else {
+console.log(`[VIP DEBUG] No hubo respuesta del sistema VIP para comando: ${comando}`);
                     }
                 } catch (error) {
                     console.error('❌ Error en comando VIP:', error);
                     anunciarError("⚠️ Error procesando comando VIP. Contacta un administrador.", jugador);
                     return;
                 }
+            } else {
+console.log(`[VIP DEBUG] vipBot no disponible para comando: ${comando}`);
             }
-            
             
             break;
             
@@ -13982,6 +14059,14 @@ function configurarEventos() {
             console.log(`⚠️ [AUTH JOIN DEBUG] JUGADOR SIN AUTH DETECTADO: ${jugador.name} (ID: ${jugador.id})`);
         }
         
+        // Limpiar cualquier estado AFK previo al unirse
+        if (jugadoresAFK.has(jugador.id)) {
+            jugadoresAFK.delete(jugador.id);
+        }
+        if (advertenciasAFK.has(jugador.id)) {
+            advertenciasAFK.delete(jugador.id);
+        }
+        
         // Verificar que room esté disponible antes de proceder
         if (!room || !room.sendAnnouncement) {
             console.error('❌ Room no disponible en onPlayerJoin');
@@ -16073,12 +16158,6 @@ async function inicializar() {
         
         // Crear sala
         room = HBInit(configSala);
-
-        // Activar sistemas que dependen del objeto room
-        if (OfflineBanSystem) {
-            offlineBanSystem = new OfflineBanSystem(room);
-            console.log('✅ Instancia de OfflineBanSystem creada.');
-        }
         
         console.log('✅ DEBUG: HBInit ejecutado sin errores');
         console.log('🔍 DEBUG: Objeto room creado:', {

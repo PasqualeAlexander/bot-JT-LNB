@@ -7512,6 +7512,11 @@ const comandosPublicos = [];
         "!tiktok / !tt - Ver enlace de TikTok oficial"
     ];
 
+    const comandosStats = [
+        "\n📊 Estadísticas:",
+        "!stats [jugador], !me, !record, !compare <jugador1> <jugador2>, !h2h, !top <estadística>, !goles, !asis, !vallas, !autogoles, !mvps, !partidos, !rank, !codigo, !recuperar <código>, !puntuacion ."
+    ];
+
     let output = [];
     switch (contexto) {
         case 'admin':
@@ -8142,6 +8147,30 @@ async function procesarComando(jugador, mensaje) {
                 room.sendAnnouncement("📝 Uso: !top <estadística>", jugador.id, parseInt("FF0000", 16), "normal", 0);
                 room.sendAnnouncement("📊 Estadísticas disponibles: goles, asistencias, vallas, autogoles, mvps, hattrick, rank", jugador.id, parseInt(AZUL_LNB, 16), "normal", 0);
             }
+            break;
+        case "goles":
+            mostrarTopJugadores(jugador, "goles");
+            break;
+        case "asis":
+        case "asistencias":
+            mostrarTopJugadores(jugador, "asistencias");
+            break;
+        case "vallas":
+        case "vallasinvictas":
+            mostrarTopJugadores(jugador, "vallasinvictas");
+            break;
+        case "autogoles":
+            mostrarTopJugadores(jugador, "autogoles");
+            break;
+        case "mvps":
+            mostrarTopJugadores(jugador, "mvps");
+            break;
+        case "partidos":
+        case "pj":
+            mostrarTopJugadores(jugador, "partidos");
+            break;
+        case "rank":
+            mostrarTopJugadores(jugador, "rank");
             break;
             
         case "codigo":

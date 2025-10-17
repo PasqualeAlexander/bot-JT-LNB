@@ -814,7 +814,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjxfYVaY6z4z2G3hA.2lC72iSCZ2U";
+const token = "thr1.AAAAAGjxmtuTh5jfR4-qjQ.64rCi4lI4GA";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -7484,7 +7484,7 @@ const comandosPublicos = [];
 
     const comandosStats = [
         "\n📊 Estadísticas:",
-        "!stats [jugador], !me, !record, !compare <jugador1> <jugador2>, !h2h, !top [estadística], !codigo, !recuperar <código>, !puntuacion ."
+        "!stats [jugador], !me, !record, !compare <jugador1> <jugador2>, !h2h, !top <estadística>, !goles, !asis, !vallas, !autogoles, !mvps, !partidos, !rank, !codigo, !recuperar <código>, !puntuacion ."
     ];
 
     const comandosFun = [
@@ -7510,11 +7510,6 @@ const comandosPublicos = [];
         "!instagram / !ig - Ver enlace de Instagram oficial",
         "!youtube / !yt - Ver enlace del canal de YouTube",
         "!tiktok / !tt - Ver enlace de TikTok oficial"
-    ];
-
-    const comandosStats = [
-        "\n📊 Estadísticas:",
-        "!stats [jugador], !me, !record, !compare <jugador1> <jugador2>, !h2h, !top <estadística>, !goles, !asis, !vallas, !autogoles, !mvps, !partidos, !rank, !codigo, !recuperar <código>, !puntuacion ."
     ];
 
     let output = [];

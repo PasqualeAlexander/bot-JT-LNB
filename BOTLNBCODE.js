@@ -1522,10 +1522,9 @@ function programarGuardadoThrottled() {
 let guardadoEnCurso = false;
 function puedeGuardarAhora() {
     try {
-        const jugadores = (typeof room !== 'undefined' && room && typeof room.getPlayerList === 'function') ? room.getPlayerList() : [];
-        const enPartido = (typeof partidoEnCurso !== 'undefined') ? !!partidoEnCurso : false;
-        // Guardar solo si no hay partido en curso y hay pocos jugadores (<= 2)
-        return !guardadoEnCurso && !enPartido && jugadores.length <= 2;
+        // Se ha simplificado la heurística para permitir un guardado más frecuente.
+        // La condición original era demasiado restrictiva y podía provocar la pérdida de datos al reiniciar.
+        return !guardadoEnCurso;
     } catch (_) {
         return !guardadoEnCurso;
     }
@@ -7595,6 +7594,19 @@ async function procesarComando(jugador, mensaje) {
         case "help":
             mostrarAyuda(jugador, args[1]);
             break;
+        
+        case "xp":
+            const jugadoresArray = Object.values(estadisticasGlobales.jugadores);
+            jugadoresArray.sort((a, b) => (b.nivel || 0) - (a.nivel || 0));
+            const top10 = jugadoresArray.slice(0, 10);
+
+            let topXPMessage = "🏆 Top 10 Jugadores por Nivel 🏆\n";
+            top10.forEach((p, index) => {
+                topXPMessage += `${index + 1}. ${p.nombre} - Nivel ${p.nivel || 1}\n`;
+            });
+
+            room.sendAnnouncement(topXPMessage, jugador.id, parseInt("FFD700", 16), "bold", 0);
+            break;
             
         case "ds":
         case "discord":
@@ -13345,6 +13357,15 @@ function enviarPuntuacionesPrivadas() {
         const jugadorConectado = jugadoresConectados.find(j => j.id === parseInt(playerId));
         
         if (jugadorConectado) {
+            // Calcular el porcentaje de tiempo jugado
+            const porcentajeTiempoJugado = (statsJugador.tiempo / estadisticasPartido.duracion) * 100;
+
+            // Si el jugador jugó menos del 30% del partido, no enviar puntuación
+            if (porcentajeTiempoJugado <= 30) {
+                console.log(`ℹ️ No se envía puntuación a ${jugadorConectado.name} por jugar solo el ${porcentajeTiempoJugado.toFixed(2)}% del partido.`);
+                return; // Saltar al siguiente jugador
+            }
+
             const puntuacion = calcularPuntuacion(statsJugador);
             const equipoColor = statsJugador.equipo === 1 ? "🔴" : "🔵";
             

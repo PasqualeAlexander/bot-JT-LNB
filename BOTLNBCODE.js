@@ -814,7 +814,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGjxmtuTh5jfR4-qjQ.64rCi4lI4GA";
+const token = "thr1.AAAAAGj2qaBMzG-fUKiLow.b9yrk4NlUKw";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -14000,8 +14000,62 @@ function configurarEventos() {
         return false; // No mostrar el mensaje original sin formato
     };
     
-    // Jugador se une
+    function gestionarContraseñaSala() {
+        const jugadores = room.getPlayerList().filter(p => p.id !== 0);
+        const numeroJugadores = jugadores.length;
+
+        if (numeroJugadores >= 16 && !contraseñaActual) {
+            // Generar contraseña de 4 dígitos
+            const nuevaContraseña = Math.floor(1000 + Math.random() * 9000).toString();
+            contraseñaActual = nuevaContraseña;
+            room.setPassword(nuevaContraseña);
+            ultimoCambioContraseña = Date.now();
+            
+            // Anunciar que la sala es privada
+            anunciarGeneral(`🔒 La sala ahora es privada. Contraseña: ${nuevaContraseña}`, null, "bold");
+            
+            // Forzar actualización del estado en Discord
+            enviarOEditarReporteSala("Sala privada por límite de jugadores", true);
+
+            // Enviar mensaje temporal al webhook
+            const webhookUrl = webhookReportesSala;
+            const payload = {
+                content: `se estableció contraseña para ${roomName}`
+            };
+
+            const webhookUrlConWait = webhookUrl + '?wait=true';
+            fetch(webhookUrlConWait, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.id) {
+                    setTimeout(() => {
+                        fetch(`${webhookUrl}/messages/${data.id}`, {
+                            method: 'DELETE'
+                        });
+                    }, 5000);
+                }
+            });
+
+        } else if (numeroJugadores < 16 && contraseñaActual) {
+            // Opcional: volver a hacer pública la sala si los jugadores bajan de 16
+            contraseñaActual = null;
+            room.setPassword(null);
+            ultimoCambioContraseña = Date.now();
+            
+            // Anunciar que la sala es pública
+            anunciarGeneral("🔓 La sala ahora es pública.", null, "bold");
+            
+            // Forzar actualización del estado en Discord
+            enviarOEditarReporteSala("Sala pública por baja de jugadores", true);
+        }
+    }
+
     room.onPlayerJoin = async function(jugador) {
+        gestionarContraseñaSala();
         console.log(`🎮 DEBUG: Jugador se unió: ${jugador.name} (ID: ${jugador.id})`);
         
         // ==================== DEBUG MEJORADO DEL AUTH AL CONECTAR ====================
@@ -14868,6 +14922,7 @@ setTimeout(() => {
     
     // Jugador sale
     room.onPlayerLeave = function(jugador) {
+        gestionarContraseñaSala();
         const nombreOriginal = obtenerNombreOriginal(jugador);
         
         // ====================== CAPTURAR AUTH ANTES DE LIMPIEZA ======================
@@ -15445,6 +15500,14 @@ room.onTeamGoal = function(equipo) {
             }
             
             anunciarGeneral("🏁 ⭐ ¡PARTIDO FINALIZADO! ⭐ 🏁", "FFA500", "bold");
+
+            // Guardar estadísticas en la base de datos
+            try {
+                console.log('💾 Guardando estadísticas en la base de datos...');
+                guardarEstadisticasGlobalesCompletas();
+            } catch (error) {
+                console.error('❌ Error guardando estadísticas:', error);
+            }
             
 const mejorJugador = calcularMejorJugador();
             if (mejorJugador) {

@@ -15,14 +15,6 @@
     "lastSeen": 1756520767354,
     "alternativeIds": {}
   },
-  "i-blF407OP0WE_Fk153-Y5cqYmCVifSBuE2mzasSKeY": {
-    "role": "ADMIN_FULL",
-    "assignedAt": 1756560932903,
-    "assignedBy": "SISTEMA_CLAIM",
-    "playerName": "false",
-    "lastSeen": 1756560932903,
-    "alternativeIds": {}
-  },
   "dQrCF4tFKgw62vs_SYc3-F_HWhqB14OkfxjVuHxObFI": {
     "role": "ADMIN_FULL",
     "assignedAt": 1756561769683,
@@ -32,11 +24,11 @@
     "alternativeIds": {}
   },
   "ii3F7lNlQTWiE3iIuEpdGCD8W0H2q9Pt24irEvDqEhc": {
-    "role": "ADMIN_BASICO",
-    "assignedAt": 1756590817063,
+    "role": "ADMIN_FULL",
+    "assignedAt": 1760839148188,
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Virginius",
-    "lastSeen": 1756590817063,
+    "lastSeen": 1760839148188,
     "alternativeIds": {}
   },
   "LPJBsqE3YFTR-9ykTwf8HN-JQ6XxGIC3_DUE96S413I": {
@@ -88,11 +80,11 @@
     "alternativeIds": {}
   },
   "GE2e7ZmEafNRPOV9geUx35lUGeNDeUa0h3nXYcMOsZA": {
-    "role": "ADMIN_BASICO",
-    "assignedAt": 1756660449013,
+    "role": "ADMIN_FULL",
+    "assignedAt": 1760721154562,
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Agus/",
-    "lastSeen": 1756660449013,
+    "lastSeen": 1760721154562,
     "alternativeIds": {}
   },
   "FM9jSGNNpTltD3VfpZakgW4l_-5ol1Tcy74gtJ5psso": {
@@ -133,6 +125,22 @@
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "RИ ИФT THΞ ɮФʏ",
     "lastSeen": 1758489188911,
+    "alternativeIds": {}
+  },
+  "BLZ5gAI1a3LbM6nEMSz6ghzBKB7x51pNEGb7TX6_x3M": {
+    "role": "ADMIN_FULL",
+    "assignedAt": 1760831106197,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "Virgi cel",
+    "lastSeen": 1760831106197,
+    "alternativeIds": {}
+  },
+  "pGPr2GpD1fvQX7SqzgfV2fo7BTydfDUBxO9q4MjcQcw": {
+    "role": "ADMIN_FULL",
+    "assignedAt": 1760831793354,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "Agus/ ",
+    "lastSeen": 1760831793354,
     "alternativeIds": {}
   }
 }

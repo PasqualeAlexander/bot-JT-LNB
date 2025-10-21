@@ -814,7 +814,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGj2qaBMzG-fUKiLow.b9yrk4NlUKw";
+const token = "thr1.AAAAAGj2_5ypy_Hz5vBZlw.IexDQGv-J7c";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -8418,13 +8418,7 @@ async function procesarComando(jugador, mensaje) {
                     return;
                 }
                 
-                // Verificar cooldown del comando
-                const cooldownAfk = comandoCooldown.get(jugador.id);
-                if (cooldownAfk && Date.now() - cooldownAfk < COOLDOWN_COMANDO) {
-                    const tiempoRestante = Math.ceil((COOLDOWN_COMANDO - (Date.now() - cooldownAfk)) / 1000);
-                    anunciarError(`⏰ Debes esperar ${tiempoRestante} segundos antes de usar este comando de nuevo`, jugador);
-                    return;
-                }
+                // No hay cooldown para admins
                 
                 // Permitir movimiento por comando
                 movimientoPermitidoPorComando.add(jugador.id);
@@ -8508,12 +8502,14 @@ async function procesarComando(jugador, mensaje) {
                 return;
             }
             
-            // Verificar cooldown del comando
-            const cooldownBack = comandoCooldown.get(jugador.id);
-            if (cooldownBack && Date.now() - cooldownBack < COOLDOWN_COMANDO) {
-                const tiempoRestante = Math.ceil((COOLDOWN_COMANDO - (Date.now() - cooldownBack)) / 1000);
-                anunciarError(`⏰ Debes esperar ${tiempoRestante} segundos antes de usar este comando de nuevo`, jugador);
-                return;
+            // Verificar cooldown del comando para no admins
+            if (!esAdminBasico(jugador)) {
+                const cooldownBack = comandoCooldown.get(jugador.id);
+                if (cooldownBack && Date.now() - cooldownBack < COOLDOWN_COMANDO) {
+                    const tiempoRestante = Math.ceil((COOLDOWN_COMANDO - (Date.now() - cooldownBack)) / 1000);
+                    anunciarError(`⏰ Debes esperar ${tiempoRestante} segundos antes de usar este comando de nuevo`, jugador);
+                    return;
+                }
             }
             
             // Asignar al equipo con menos jugadores
@@ -10922,13 +10918,24 @@ function actualizarEstadisticasGlobales(datosPartido) {
             console.log(`🚫 Estadísticas no guardadas para ${jugadorPartido.nombre}: Sin auth ID`);
             return; // Continuar con el siguiente jugador
         }
+
+        // Condición de 30% de tiempo jugado para contar el partido
+        const duracionTotalPartido = datosPartido.duracion > 0 ? datosPartido.duracion : ((Date.now() - datosPartido.tiempoInicio) / 1000);
+        if (duracionTotalPartido > 0) {
+            const porcentajeTiempoJugado = (jugadorPartido.tiempo / duracionTotalPartido) * 100;
+
+            if (porcentajeTiempoJugado >= 30) {
+                statsGlobal.partidos++;
+            } else {
+                console.log(`📊 Partido no contado para ${jugadorPartido.nombre}: jugó solo el ${porcentajeTiempoJugado.toFixed(1)}% del partido.`);
+            }
+        }
         
         // Estadísticas básicas
-        statsGlobal.partidos++;
         statsGlobal.goles += jugadorPartido.goles;
         statsGlobal.asistencias += jugadorPartido.asistencias;
         statsGlobal.autogoles += jugadorPartido.autogoles;
-        statsGlobal.tiempoJugado += datosPartido.duracion;
+        statsGlobal.tiempoJugado += jugadorPartido.tiempo;
         statsGlobal.fechaUltimoPartido = new Date().toISOString();
         
         // Victorias/Derrotas
@@ -11102,7 +11109,7 @@ function mostrarEstadisticasCompletas(solicitante, stats, esPropioJugador) {
     const fechaPrimera = new Date(stats.fechaPrimerPartido).toLocaleDateString();
     const fechaUltima = new Date(stats.fechaUltimoPartido).toLocaleDateString();
     
-    const statsMessage = `📊 ${stats.nombre.toUpperCase()} | 🎮 Partidos: ${stats.partidos} | ⏱️ Tiempo: ${horasJugadas} h | 🏆 V: ${stats.victorias} | 💔 D: ${stats.derrotas} | 📈 WR: ${winRate}% | ⚽ Goles: ${stats.goles} (${stats.promedioGoles}/partido) | 🎯 Asistencias: ${stats.asistencias} (${stats.promedioAsistencias}/partido) | 😱 Autogoles: ${stats.autogoles} | 🎩 Hat-tricks: ${stats.hatTricks} | 🛡️ Vallas invictas: ${stats.vallasInvictas} | 📅 ${fechaUltima}`;
+    const statsMessage = `📊 ${stats.nombre.toUpperCase()} | 🎮 Partidos: ${stats.partidos} | ⏱️ Tiempo: ${horasJugadas} h | 🏆 V: ${stats.victorias} | 💔 D: ${stats.derrotas} | 📈 WR: ${winRate}% | ⚽ Goles: ${stats.goles} (${(stats.promedioGoles || 0).toFixed(1)}/partido) | 🎯 Asistencias: ${stats.asistencias} (${(stats.promedioAsistencias || 0).toFixed(1)}/partido) | 😱 Autogoles: ${stats.autogoles} | 🎩 Hat-tricks: ${stats.hatTricks} | 🛡️ Vallas invictas: ${stats.vallasInvictas} | 📅 ${fechaUltima}`;
     
     room.sendAnnouncement(statsMessage, solicitante.id, 0xFFFF00, "normal", 0);
     

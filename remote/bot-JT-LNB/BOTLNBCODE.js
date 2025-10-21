@@ -11143,7 +11143,7 @@ function mostrarEstadisticasCompletas(solicitante, stats, esPropioJugador) {
     const fechaPrimera = new Date(stats.fechaPrimerPartido).toLocaleDateString();
     const fechaUltima = new Date(stats.fechaUltimoPartido).toLocaleDateString();
     
-    const statsMessage = `📊 ${stats.nombre.toUpperCase()} | 🎮 Partidos: ${stats.partidos} | ⏱️ Tiempo: ${horasJugadas} h | 🏆 V: ${stats.victorias} | 💔 D: ${stats.derrotas} | 📈 WR: ${winRate}% | ⚽ Goles: ${stats.goles} (${stats.promedioGoles}/partido) | 🎯 Asistencias: ${stats.asistencias} (${stats.promedioAsistencias}/partido) | 😱 Autogoles: ${stats.autogoles} | 🎩 Hat-tricks: ${stats.hatTricks} | 🛡️ Vallas invictas: ${stats.vallasInvictas} | 📅 ${fechaUltima}`;
+    const statsMessage = `📊 ${stats.nombre.toUpperCase()} | 🎮 Partidos: ${stats.partidos} | ⏱️ Tiempo: ${horasJugadas} h | 🏆 V: ${stats.victorias} | 💔 D: ${stats.derrotas} | 📈 WR: ${winRate}% | ⚽ Goles: ${stats.goles} (${(stats.promedioGoles || 0).toFixed(1)}/partido) | 🎯 Asistencias: ${stats.asistencias} (${(stats.promedioAsistencias || 0).toFixed(1)}/partido) | 😱 Autogoles: ${stats.autogoles} | 🎩 Hat-tricks: ${stats.hatTricks} | 🛡️ Vallas invictas: ${stats.vallasInvictas} | 📅 ${fechaUltima}`;
     
     room.sendAnnouncement(statsMessage, solicitante.id, 0xFFFF00, "normal", 0);
     

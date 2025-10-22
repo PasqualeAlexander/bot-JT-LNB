@@ -814,7 +814,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGj2_5ypy_Hz5vBZlw.IexDQGv-J7c";
+const token = "thr1.AAAAAGj4FJs8ATZzj-0oVQ.NObp-OqXg_Q";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -3798,7 +3798,8 @@ let estadisticasGlobales = {
     },
     totalPartidos: 0,
     fechaCreacion: new Date().toISOString(),
-    contadorJugadores: 0 // Para generar IDs únicos
+    contadorJugadores: 0, // Para generar IDs únicos
+    contraseñaMensual: { pass: null, month: null }
 };
 
 // Mapeo de jugadores activos en la sesión actual
@@ -7446,10 +7447,6 @@ const comandosPublicos = [];
         "!banlist - Ver lista de jugadores baneados activos",
         "!clearbans - Limpiar todos los baneos masivamente",
         "!clear_bans - Limpiar lista de baneos de HaxBall",
-        "\n🚫 BANEOS OFFLINE (SUPERADMINS):",
-        "!banoffline <jugador|auth_id> <duracion_min> <razón> - Banear jugador desconectado",
-        "!findplayer <nombre|auth_id> - Buscar jugador en historial",
-        "!banstatus <jugador|auth_id> - Verificar estado de baneo",
         "# - Ver lista de jugadores con sus IDs numéricos",
     ];
 
@@ -9016,75 +9013,55 @@ anunciarError("Uso: !pw <contraseña>", jugador);
 
             // 2. Validar argumentos
             if (!args[1]) {
-                anunciarError("📝 Uso: !ban <jugador|#ID> [tiempo] [razón]. El tiempo es en minutos. Usa # para ver IDs.", jugador);
+                anunciarError("📝 Uso: !ban <@nombre|#ID|auth_id> [tiempo] [razón].", jugador);
                 return;
             }
-            
-            const inputJugador = args[1];
+
+            const input = args[1];
             let jugadorObjetivo = null;
-            
-            // Verificar si es un ID numérico (empieza con #)
-            if (inputJugador.startsWith('#')) {
-                const id = inputJugador.substring(1);
+            let authIdObjetivo = null;
+            let nombreObjetivo = null;
+
+            if (input.startsWith('#')) {
+                const id = input.substring(1);
                 jugadorObjetivo = obtenerJugadorPorID(id);
-                
-                if (!jugadorObjetivo) {
+                if (jugadorObjetivo) {
+                    authIdObjetivo = jugadorObjetivo.auth;
+                    nombreObjetivo = jugadorObjetivo.name;
+                } else {
                     anunciarError(`❌ ID inválido: ${id}. Usa # para ver la lista de jugadores con IDs.`, jugador);
                     return;
                 }
-                
-                // anunciarInfo(`🎯 Jugador seleccionado por ID #${id}: ${jugadorObjetivo.name}`, jugador);
+            } else if (input.startsWith('@')) {
+                const nombre = input.substring(1);
+                jugadorObjetivo = obtenerJugadorPorNombre(nombre);
+                if (jugadorObjetivo) {
+                    authIdObjetivo = jugadorObjetivo.auth;
+                    nombreObjetivo = jugadorObjetivo.name;
+                } else {
+                    anunciarError(`❌ Jugador con nombre "${nombre}" no encontrado.`, jugador);
+                    return;
+                }
             } else {
-                // Búsqueda por nombre tradicional
-                jugadorObjetivo = obtenerJugadorPorNombre(inputJugador);
-                
-                if (!jugadorObjetivo) {
-                    // ==================== INTEGRACIÓN BANEO OFFLINE ====================
-                    // Si no encontramos al jugador online y tenemos el sistema offline disponible
-                    if (offlineBanSystem && esSuperAdmin(jugador)) {
-                        anunciarInfo(`🔍 Jugador "${inputJugador}" no encontrado en sala. Intentando baneo offline...`, jugador);
-                        
-                        // Preparar argumentos para el sistema offline
-                        const tiempoInput = args[2];
-                        const tiempo = (tiempoInput && !isNaN(parseInt(tiempoInput))) ? parseInt(tiempoInput) : 0;
-                        const razon = tiempo > 0 ? args.slice(3).join(' ') || 'Baneado por admin' : args.slice(2).join(' ') || 'Baneado por admin';
-                        
-                        // Validar límites de tiempo para baneos offline también
-                        if (!esSuperAdmin(jugador)) {
-                            if (tiempo === 0) {
-                                anunciarError("❌ Solo Super Admins pueden hacer baneos offline permanentes", jugador);
-                                return;
-                            }
-                            const maxTiempo = esAdmin(jugador) ? 600 : 60;
-                            if (tiempo > maxTiempo) {
-                                anunciarError(`❌ Tu límite para baneos offline es de ${maxTiempo} minutos`, jugador);
-                                return;
-                            }
-                        }
-                        
-                        // Ejecutar baneo offline
-                        try {
-                            await procesarBaneoOffline(jugador, [null, inputJugador, tiempo.toString(), razon]);
-                            return; // Salir del comando ban después del baneo offline
-                        } catch (offlineError) {
-                            console.error('❌ Error en baneo offline desde comando ban:', offlineError);
-                            anunciarError(`❌ Error ejecutando baneo offline: ${offlineError.message}`, jugador);
-                            return;
-                        }
-                    } else if (offlineBanSystem && !esSuperAdmin(jugador)) {
-                        anunciarError(`❌ Jugador "${inputJugador}" no encontrado en sala. Solo Super Admins pueden usar baneos offline.`, jugador);
-                        anunciarInfo(`💡 Alternativas: Esperar a que se conecte o usar !findplayer para buscarlo`, jugador);
-                        return;
+                authIdObjetivo = input;
+                // Intentar encontrar al jugador en la sala para obtener su nombre actual
+                const jugadorEnSala = room.getPlayerList().find(p => p.auth === authIdObjetivo);
+                if (jugadorEnSala) {
+                    jugadorObjetivo = jugadorEnSala;
+                    nombreObjetivo = jugadorEnSala.name;
+                } else {
+                    // Si no está en la sala, buscaremos el último nombre conocido en la DB
+                    const jugadorDB = await dbFunctions.obtenerJugadorPorAuth(authIdObjetivo);
+                    if (jugadorDB) {
+                        nombreObjetivo = jugadorDB.nombre;
                     } else {
-                        anunciarError(`❌ Jugador "${inputJugador}" no encontrado. Usa # para ver IDs de jugadores.`, jugador);
-                        anunciarInfo(`💡 Si el jugador está desconectado, un Super Admin puede usar !banoffline`, jugador);
-                        return;
+                        nombreObjetivo = "Desconocido";
                     }
                 }
             }
 
             // 3. Prevenir que los admins se baneen entre sí
-            if (esAdminBasico(jugadorObjetivo)) {
+            if (jugadorObjetivo && esAdminBasico(jugadorObjetivo)) {
                 anunciarError("❌ No puedes banear a otro administrador.", jugador);
                 return;
             }
@@ -9092,147 +9069,36 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             // 4. Analizar tiempo y razón
             let tiempoInput = args[2];
             let tiempo = null; // null = ban permanente
-            let razon = args.slice(2).join(" ") || "Baneado por admin"; // Razón por defecto
+            let razon = args.slice(2).join(" ") || "Baneado por admin";
 
             if (tiempoInput && !isNaN(parseInt(tiempoInput))) {
                 tiempo = parseInt(tiempoInput);
                 razon = args.slice(3).join(" ") || "Baneado por admin";
             }
-            
+
             // 5. Aplicar límites de tiempo según el rol
-            if (esSuperAdmin(jugador)) {
-                // Super Admin no tiene límite de tiempo y puede banear permanentemente
-            } else if (esAdmin(jugador)) { // Admin Full
-                if (tiempo === null) {
-                    anunciarError("❌ Como Admin Full, debes especificar un tiempo de baneo.", jugador);
-                    return;
-                }
-                const maxTiempo = 600;
-                if (tiempo > maxTiempo) {
-                    anunciarError(`❌ Tu límite de baneo es de ${maxTiempo} minutos.`, jugador);
-                    return;
-                }
-            } else { // Admin Básico
-                if (tiempo === null) {
-                    anunciarError("❌ Como Admin Básico, debes especificar un tiempo de baneo.", jugador);
-                    return;
-                }
-                const maxTiempo = 60;
-                if (tiempo > maxTiempo) {
-                    anunciarError(`❌ Tu límite de baneo es de ${maxTiempo} minutos.`, jugador);
+            if (!esSuperAdmin(jugador)) {
+                const maxTiempo = esAdmin(jugador) ? 600 : 60;
+                if (tiempo === null || tiempo > maxTiempo) {
+                    anunciarError(`❌ Tu límite de baneo es de ${maxTiempo} minutos. No puedes banear permanentemente.`, jugador);
                     return;
                 }
             }
 
-            // 6. Obtener UID e IP del jugador
-            const uid = obtenerUID(jugadorObjetivo);
-            const ipJugador = obtenerIPJugador(jugadorObjetivo); // Obtener IP para el desbaneo
-            
-            if (!uid) {
-                console.warn(`⚠️ WARN BAN: UID no disponible inmediatamente para ${jugadorObjetivo.name}, iniciando sistema de reintentos...`);
-                
-                // Sistema de reintentos múltiples con tiempos incrementales
-                const intentarObtenerUID = (intento = 1, maxIntentos = 5) => {
-                    const tiempoEspera = intento * 500; // 500ms, 1s, 1.5s, 2s, 2.5s
-                    
-                    setTimeout(() => {
-                        const uidRetry = obtenerUID(jugadorObjetivo);
-                        
-                        if (uidRetry) {
-                            console.log(`✅ UID obtenido en intento ${intento}/${maxIntentos} para ${jugadorObjetivo.name}: ${uidRetry}`);
-                            anunciarInfo(`🔄 UID obtenido después de ${intento} intento(s), procediendo con el baneo...`, jugador);
-                            ejecutarBaneoMejorado(jugador, jugadorObjetivo, uidRetry, tiempo, razon);
-                        } else if (intento < maxIntentos) {
-                            console.warn(`⚠️ RETRY BAN: Intento ${intento}/${maxIntentos} fallido para ${jugadorObjetivo.name}, reintentando en ${tiempoEspera + 500}ms...`);
-                            intentarObtenerUID(intento + 1, maxIntentos);
-                        } else {
-                            console.error(`❌ ERROR BAN: Todos los intentos (${maxIntentos}) fallaron para obtener UID de ${jugadorObjetivo.name}`);
-                            console.error(`📊 INFO DEBUG: ID: ${jugadorObjetivo.id}, Auth: ${jugadorObjetivo.auth}, Team: ${jugadorObjetivo.team}`);
-                            
-                            anunciarError(`❌ No se pudo obtener el UID de ${jugadorObjetivo.name} después de ${maxIntentos} intentos.`, jugador);
-                            anunciarAdvertencia(`⚠️ Esto puede deberse a que el jugador no está autenticado o tiene problemas de conexión.`);
-                            anunciarAdvertencia(`💡 Alternativas: !kick ${jugadorObjetivo.name} (expulsar) o esperar a que se reconecte.`);
-                        }
-                    }, tiempoEspera);
-                };
-                
-                intentarObtenerUID();
-                return;
-            }
-
-            // 7. Ejecutar el baneo en HaxBall
-            const tiempoTexto = tiempo ? `${tiempo} minutos` : "permanentemente";
+            // 6. Ejecutar el baneo
             try {
-                room.kickPlayer(jugadorObjetivo.id, `${razon} (${tiempoTexto})`, true); // true para banear
-                anunciarAdvertencia(`🚫 ${jugadorObjetivo.name} ha sido baneado ${tiempoTexto}. Razón: ${razon}`);
-                
-                // 7.1. Programar desbaneo automático si es temporal
-                if (tiempo && tiempo > 0) {
-                    const tiempoMs = tiempo * 60 * 1000; // Convertir minutos a millisegundos
-                    
-                    setTimeout(() => {
-                        try {
-                            // Desbanear por ID del jugador (si aún está disponible)
-                            if (jugadorObjetivo.id !== undefined) {
-                                room.clearBan(jugadorObjetivo.id);
-                                console.log(`⏰ Ban automáticamente levantado para ${jugadorObjetivo.name} (ID: ${jugadorObjetivo.id})`);
-                            }
-                            
-                            // Desbanear por UID (más confiable)
-                            if (uid) {
-                                room.clearBan(uid);
-                                console.log(`⏰ Ban automáticamente levantado para ${jugadorObjetivo.name} (UID: ${uid})`);
-                            }
-                            
-                            // Desbanear por IP si está disponible
-                            if (ipJugador) {
-                                room.clearBan(ipJugador);
-                                console.log(`⏰ Ban automáticamente levantado para ${jugadorObjetivo.name} (IP: ${ipJugador})`);
-                            }
-                            
-                            // Actualizar en la base de datos si está disponible
-                            if (typeof nodeDesbanearJugador === 'function') {
-                                nodeDesbanearJugador(uid, `Auto-desban después de ${tiempo} minutos`)
-                                    .then(() => {
-                                        console.log(`✅ Auto-desban registrado en DB para ${jugadorObjetivo.name}`);
-                                    })
-                                    .catch((error) => {
-                                        console.error(`❌ Error registrando auto-desban en DB:`, error);
-                                    });
-                            }
-                            
-                            anunciarInfo(`⏰ El ban temporal de ${jugadorObjetivo.name} ha expirado automáticamente.`);
-                            
-                        } catch (error) {
-                            console.error(`❌ Error en desbaneo automático para ${jugadorObjetivo.name}:`, error);
-                        }
-                    }, tiempoMs);
-                    
-                    console.log(`⏰ Desbaneo automático programado para ${jugadorObjetivo.name} en ${tiempo} minutos`);
+                await dbFunctions.crearBaneo(authIdObjetivo, nombreObjetivo, razon, jugador.name, tiempo || 0);
+                const tiempoTexto = tiempo ? `${tiempo} minutos` : "permanentemente";
+                anunciarAdvertencia(`🚫 ${nombreObjetivo} ha sido baneado ${tiempoTexto}. Razón: ${razon}`);
+
+                if (jugadorObjetivo) {
+                    room.kickPlayer(jugadorObjetivo.id, `${razon} (${tiempoTexto})`, true);
                 }
-                
-                // 8. Registrar el baneo en la base de datos
-                if (typeof nodeCrearBaneo === 'function') {
-                    // Parámetros correctos: (authId, nombre, razon, admin, duracion)
-                    nodeCrearBaneo(uid, jugadorObjetivo.name, razon, jugador.name, tiempo || 0)
-                        .then((resultado) => {
-                            console.log(`✅ Baneo registrado en DB:`, resultado);
-                            console.log(`📊 DEBUG: Baneo guardado - ID: ${resultado.id}, Duración: ${tiempo || 0} min`);
-                        })
-                        .catch((error) => {
-                            console.error(`❌ Error registrando baneo en DB:`, error);
-                            console.error(`❌ DEBUG: Parámetros usados - UID: ${uid}, Nombre: ${jugadorObjetivo.name}, Razón: ${razon}, Admin: ${jugador.name}, Tiempo: ${tiempo || 0}`);
-                            anunciarAdvertencia(`⚠️ Jugador baneado pero no se pudo registrar en la base de datos`);
-                        });
-                } else {
-                    console.warn('⚠️ Función nodeCrearBaneo no disponible');
-                }
-                
-                // 9. Enviar notificación al webhook
-                enviarNotificacionBanKick("ban", jugador.name, jugadorObjetivo.name, uid, tiempo, razon, ipJugador, jugadorObjetivo.id);
-                
+
+                enviarNotificacionBanKick("ban", jugador.name, nombreObjetivo, authIdObjetivo, tiempo, razon, null, jugadorObjetivo ? jugadorObjetivo.id : null);
+
             } catch (error) {
-                anunciarError(`❌ Error al banear jugador: ${error.message}`, jugador);
+                anunciarError(`❌ Error al banear: ${error.message}`, jugador);
                 console.error(`❌ Error en comando ban:`, error);
             }
             break;
@@ -9255,37 +9121,23 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             console.log(`🔧 UNBAN: Admin ${jugador.name} solicita desbanear: "${authIdToUnban}"`);
             
             try {
-                const banList = room.getBanList();
-                const playerToUnban = banList.find(p => p.auth === authIdToUnban);
-
-                if (playerToUnban) {
-                    room.unbanPlayer(playerToUnban.id);
-                    anunciarExito(`✅ Jugador con auth_id ${authIdToUnban} ha sido desbaneado.`, jugador);
-                    console.log(`✅ UNBAN: Player with auth_id ${authIdToUnban} was unbanned by ${jugador.name}.`);
-
-                    // Actualizar en la base de datos si está disponible
-                    if (typeof nodeDesbanearJugador === 'function') {
-                        await nodeDesbanearJugador(authIdToUnban, `Desban manual por ${jugador.name}`);
-                        console.log(`✅ UNBAN: Desban registrado en DB`);
-                    }
-                } else {
-                    // Fallback to the old clearBan method if the player is not in the list
-                    // This might be useful if the ban is registered in a different way
-                    try {
-                        room.clearBan(authIdToUnban);
-                        anunciarExito(`✅ Se intentó un desbaneo para ${authIdToUnban} usando el método clearBan.`, jugador);
-                        console.log(`✅ UNBAN: Fallback clearBan for authId ${authIdToUnban} was successful.`);
-                        if (typeof nodeDesbanearJugador === 'function') {
-                            await nodeDesbanearJugador(authIdToUnban, `Desban manual por ${jugador.name} (fallback)`);
-                        }
-                    } catch (e) {
-                        anunciarError(`❌ No se encontró ningún jugador baneado con el auth_id: ${authIdToUnban}`, jugador);
-                        console.log(`❌ UNBAN: Player with auth_id ${authIdToUnban} not found in ban list and clearBan failed.`);
-                    }
+                room.clearBan(authIdToUnban);
+                anunciarExito(`✅ Se intentó un desbaneo para ${authIdToUnban}.`, jugador);
+                console.log(`✅ UNBAN: clearBan for authId ${authIdToUnban} was successful.`);
+                if (typeof nodeDesbanearJugadorNuevo === 'function') {
+                    await nodeDesbanearJugadorNuevo(authIdToUnban);
                 }
-            } catch (error) {
-                anunciarError(`❌ Error al desbanear: ${error.message}`, jugador);
-                console.error(`❌ Error en comando unban:`, error);
+
+                const fakePlayer = { auth: authIdToUnban };
+                const ipJugador = obtenerIdentificadorConexion(fakePlayer);
+                if (ipJugador && ipsBloqueadas.has(ipJugador)) {
+                    ipsBloqueadas.delete(ipJugador);
+                    anunciarExito(`✅ Se eliminó el bloqueo de IP para ${ipJugador}.`, jugador);
+                }
+
+            } catch (e) {
+                anunciarError(`❌ Error al intentar desbanear a ${authIdToUnban}.`, jugador);
+                console.log(`❌ UNBAN: clearBan for authId ${authIdToUnban} failed.`);
             }
             break;
 
@@ -9728,56 +9580,9 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             break;
             
         // ==================== COMANDOS DE BANEOS OFFLINE ====================
-        case "banoffline":
-        case "offlineban":
-            // Banear jugador aunque no esté conectado
-            if (!esSuperAdmin(jugador)) {
-                anunciarError("❌ Solo los Super Admins pueden banear offline", jugador);
-                return;
-            }
+
             
-            if (args.length < 3) {
-                anunciarError("📝 Uso: !banoffline <jugador|auth_id> <duracion_minutos> <razón>", jugador);
-                anunciarError("💡 Ejemplo: !banoffline Carlos 60 Insultos", jugador);
-                anunciarError("💡 Duración 0 = permanente", jugador);
-                return;
-            }
-            
-            await procesarBaneoOffline(jugador, args);
-            break;
-            
-        case "findplayer":
-        case "buscarjugador":
-            // Buscar jugador en historial para banear offline
-            if (!esAdminBasico(jugador)) {
-                anunciarError("❌ Solo los admins pueden usar este comando", jugador);
-                return;
-            }
-            
-            if (args.length < 2) {
-                anunciarError("📝 Uso: !findplayer <nombre|auth_id>", jugador);
-                anunciarError("💡 Ejemplo: !findplayer Carlos", jugador);
-                return;
-            }
-            
-            await procesarBusquedaJugador(jugador, args[1]);
-            break;
-            
-        case "banstatus":
-        case "checkban":
-            // Verificar estado de baneo de un jugador
-            if (!esAdminBasico(jugador)) {
-                anunciarError("❌ Solo los admins pueden usar este comando", jugador);
-                return;
-            }
-            
-            if (args.length < 2) {
-                anunciarError("📝 Uso: !banstatus <jugador|auth_id>", jugador);
-                return;
-            }
-            
-            await procesarEstadoBaneo(jugador, args[1]);
-            break;
+
             
         default:
 anunciarError("Comando no reconocido. Usa !ayuda para ver comandos disponibles", jugador);
@@ -13538,9 +13343,157 @@ function contieneCaracteresProhibidos(mensaje) {
     return /[\u0000-\u001F\u007F-\u009F]/.test(mensaje);
 }
 
+async function handleBanCommand(jugador, args) {
+    // 1. Verificar si el usuario es al menos admin básico
+    if (!esAdminBasico(jugador)) {
+        anunciarError("❌ No tienes permisos para banear jugadores.", jugador);
+        return;
+    }
+
+    // 2. Validar argumentos
+    if (!args[1]) {
+        anunciarError("📝 Uso: !ban <@nombre|#ID|auth_id> [tiempo] [razón].", jugador);
+        return;
+    }
+
+    const input = args[1];
+    let jugadorObjetivo = null;
+    let authIdObjetivo = null;
+    let nombreObjetivo = null;
+
+    if (input.startsWith('#')) {
+        const id = input.substring(1);
+        jugadorObjetivo = obtenerJugadorPorID(id);
+        if (jugadorObjetivo) {
+            authIdObjetivo = jugadorObjetivo.auth;
+            nombreObjetivo = jugadorObjetivo.name;
+        } else {
+            anunciarError(`❌ ID inválido: ${id}. Usa # para ver la lista de jugadores con IDs.`, jugador);
+            return;
+        }
+    } else if (input.startsWith('@')) {
+        const nombre = input.substring(1);
+        jugadorObjetivo = obtenerJugadorPorNombre(nombre);
+        if (jugadorObjetivo) {
+            authIdObjetivo = jugadorObjetivo.auth;
+            nombreObjetivo = jugadorObjetivo.name;
+        } else {
+            anunciarError(`❌ Jugador con nombre \"${nombre}\" no encontrado.`, jugador);
+            return;
+        }
+    } else {
+        authIdObjetivo = input;
+        // Intentar encontrar al jugador en la sala para obtener su nombre actual
+        const jugadorEnSala = room.getPlayerList().find(p => p.auth === authIdObjetivo);
+        if (jugadorEnSala) {
+            jugadorObjetivo = jugadorEnSala;
+            nombreObjetivo = jugadorEnSala.name;
+        } else {
+            // Si no está en la sala, buscaremos el último nombre conocido en la DB
+            const jugadorDB = await dbFunctions.obtenerJugadorPorAuth(authIdObjetivo);
+            if (jugadorDB) {
+                nombreObjetivo = jugadorDB.nombre;
+            } else {
+                nombreObjetivo = "Desconocido";
+            }
+        }
+    }
+
+    // 3. Prevenir que los admins se baneen entre sí
+    if (jugadorObjetivo && esAdminBasico(jugadorObjetivo)) {
+        anunciarError("❌ No puedes banear a otro administrador.", jugador);
+        return;
+    }
+
+    // 4. Analizar tiempo y razón
+    let tiempoInput = args[2];
+    let tiempo = null; // null = ban permanente
+    let razon = args.slice(2).join(" ") || "Baneado por admin";
+
+    if (tiempoInput && !isNaN(parseInt(tiempoInput))) {
+        tiempo = parseInt(tiempoInput);
+        razon = args.slice(3).join(" ") || "Baneado por admin";
+    }
+
+    // 5. Aplicar límites de tiempo según el rol
+    if (!esSuperAdmin(jugador)) {
+        const maxTiempo = esAdmin(jugador) ? 600 : 60;
+        if (tiempo === null || tiempo > maxTiempo) {
+            anunciarError(`❌ Tu límite de baneo es de ${maxTiempo} minutos. No puedes banear permanentemente.`, jugador);
+            return;
+        }
+    }
+
+    // 6. Ejecutar el baneo
+    try {
+        await dbFunctions.crearBaneo(authIdObjetivo, nombreObjetivo, razon, jugador.name, tiempo || 0);
+        const tiempoTexto = tiempo ? `${tiempo} minutos` : "permanentemente";
+        anunciarAdvertencia(`🚫 ${nombreObjetivo} ha sido baneado ${tiempoTexto}. Razón: ${razon}`);
+
+        if (jugadorObjetivo) {
+            room.kickPlayer(jugadorObjetivo.id, `${razon} (${tiempoTexto})`, true);
+        }
+
+        enviarNotificacionBanKick("ban", jugador.name, nombreObjetivo, authIdObjetivo, tiempo, razon, null, jugadorObjetivo ? jugadorObjetivo.id : null);
+
+    } catch (error) {
+        anunciarError(`❌ Error al banear: ${error.message}`, jugador);
+        console.error(`❌ Error en comando ban:`, error);
+    }
+}
+
 function configurarEventos() {
     // Chat del jugador
     room.onPlayerChat = function(jugador, mensaje) {
+
+    // Comando para ver partidos en vivo con paginación
+    const envivoMatch = mensaje.trim().match(/^!envivo(\d*)$/);
+    if (envivoMatch) {
+        (async () => {
+            try {
+                const page = parseInt(envivoMatch[1] || '1', 10);
+                const pageSize = 5;
+
+                const cachedFixtures = await window.nodeGetCachedFixtures();
+
+                if (cachedFixtures === null || cachedFixtures.length === 0) {
+                    room.sendAnnouncement('ℹ️ No hay partidos en vivo en este momento (datos de caché).', jugador.id, 0x87CEEB, 'normal', 0);
+                    return;
+                }
+
+                const totalPages = Math.ceil(cachedFixtures.length / pageSize);
+                if (page > totalPages && totalPages > 0) {
+                    room.sendAnnouncement(`ℹ️ No hay tantos partidos. Página máxima: ${totalPages}.`, jugador.id, 0xFFD700, 'normal', 0);
+                    return;
+                } else if (totalPages === 0) {
+                     room.sendAnnouncement('ℹ️ No hay partidos en vivo en este momento (datos de caché).', jugador.id, 0x87CEEB, 'normal', 0);
+                    return;
+                }
+
+                const startIndex = (page - 1) * pageSize;
+                const endIndex = startIndex + pageSize;
+                const pageFixtures = cachedFixtures.slice(startIndex, endIndex);
+
+                let responseMessage = `⚽ PARTIDOS EN VIVO (Pág. ${page}/${totalPages}) ⚽`;
+                
+                pageFixtures.forEach(fixture => {
+                    const league = fixture.league.name;
+                    const teams = `${fixture.teams.home.name} vs ${fixture.teams.away.name}`;
+                    const score = `${fixture.goals.home} - ${fixture.goals.away}`;
+                    const minute = fixture.fixture.status.elapsed;
+                    responseMessage += `\n🏆 ${league}: ${teams} | ${score} (${minute}')`;
+                });
+
+                room.sendAnnouncement(responseMessage, jugador.id, parseInt(CELESTE_LNB, 16), 'bold', 2);
+
+            } catch (error) {
+                console.error('Error en comando !envivo:', error);
+                room.sendAnnouncement('❌ Ocurrió un error inesperado al procesar el comando.', jugador.id, 0xFF0000, 'bold', 0);
+            }
+        })();
+
+        return false; // Detener procesamiento del mensaje
+    }
         if (contieneCaracteresProhibidos(mensaje)) {
             return false;
         }
@@ -14004,16 +13957,32 @@ function configurarEventos() {
         room.sendAnnouncement(mensajeCompleto, null, colorChat, estiloMensaje, 1);
         
         console.log(`🎮 CHAT DEBUG: Mensaje formateado enviado, ocultando mensaje original`);
+        console.log(">>> onPlayerChat is returning false");
         return false; // No mostrar el mensaje original sin formato
     };
     
     function gestionarContraseñaSala() {
+        if (estadisticasGlobales && !estadisticasGlobales.contraseñaMensual) {
+            estadisticasGlobales.contraseñaMensual = { pass: null, month: null };
+        }
+
         const jugadores = room.getPlayerList().filter(p => p.id !== 0);
         const numeroJugadores = jugadores.length;
 
         if (numeroJugadores >= 16 && !contraseñaActual) {
-            // Generar contraseña de 4 dígitos
-            const nuevaContraseña = Math.floor(1000 + Math.random() * 9000).toString();
+            const now = new Date();
+            const currentMonth = now.getFullYear() + '-' + (now.getMonth() + 1);
+
+            if (estadisticasGlobales.contraseñaMensual.month !== currentMonth) {
+                const nuevaContraseña = Math.floor(1000 + Math.random() * 9000).toString();
+                estadisticasGlobales.contraseñaMensual.pass = nuevaContraseña;
+                estadisticasGlobales.contraseñaMensual.month = currentMonth;
+                if (typeof programarGuardadoThrottled === 'function') {
+                    programarGuardadoThrottled();
+                }
+            }
+            
+            const nuevaContraseña = estadisticasGlobales.contraseñaMensual.pass;
             contraseñaActual = nuevaContraseña;
             room.setPassword(nuevaContraseña);
             ultimoCambioContraseña = Date.now();
@@ -14062,6 +14031,21 @@ function configurarEventos() {
     }
 
     room.onPlayerJoin = async function(jugador) {
+        // ====================== VERIFICACIÓN DE BANEOS (PRIMERO) ======================
+        if (jugador.auth) {
+            try {
+                const baneo = await dbFunctions.estaBaneadoPromise(jugador.auth);
+                if (baneo) {
+                    const razon = baneo.razon || 'Sin razón especificada';
+                    const admin = baneo.admin || 'Sistema';
+                    room.kickPlayer(jugador.id, `🚫 BANEADO: ${razon}. Admin: ${admin}.`, true);
+                    return; // Detener el proceso de unión
+                }
+            } catch (error) {
+                console.error('❌ Error verificando baneo en onPlayerJoin:', error);
+            }
+        }
+
         gestionarContraseñaSala();
         console.log(`🎮 DEBUG: Jugador se unió: ${jugador.name} (ID: ${jugador.id})`);
         
@@ -15119,7 +15103,7 @@ setTimeout(() => {
                         console.log(`❌ DEBUG: NO hay candidatos válidos - balance imposible`);
                         anunciarGeneral(`⚖️ ❌ No se puede equilibrar: todos los jugadores están AFK o son bots`, "FFA500", "normal");
                     } else {
-                        anunciarGeneral(`⚖️ 🔄 Equilibrando equipos tras desconexión...`, "87CEEB", "bold");
+                        // anunciarGeneral(`⚖️ 🔄 Equilibrando equipos tras desconexión...`, "87CEEB", "bold");
                         balanceAutomaticoContinuo();
                     }
                 }
@@ -16728,21 +16712,7 @@ async function inicializarSistemas() {
     // Iniciar sistema de guardado automático optimizado
     iniciarGuardadoAutomatico();
     
-    // ==================== INICIALIZAR SISTEMA DE BANEOS OFFLINE ====================
-    // Inicializar sistema de baneos offline para banear jugadores desconectados
-    if (offlineBanSystem && room) {
-        try {
-            console.log('🔄 Inicializando sistema de baneos offline...');
-            await offlineBanSystem.initialize(room);
-            console.log('✅ Sistema de baneos offline inicializado correctamente');
-            anunciarInfo('🚫 Sistema de baneos offline activado - Comandos: !banoffline, !findplayer');
-        } catch (error) {
-            console.error('❌ Error al inicializar sistema de baneos offline:', error);
-            anunciarError('⚠️ Error al activar el sistema de baneos offline');
-        }
-    } else {
-        console.warn('⚠️ Sistema de baneos offline no está disponible');
-    }
+
     
     // SISTEMA OPTIMIZADO DE LIMPIEZA - Menos frecuente para ahorrar CPU
     setInterval(limpiarDatosExpirados, 180000); // OPTIMIZADO: Cada 3 minutos (era 1 minuto)

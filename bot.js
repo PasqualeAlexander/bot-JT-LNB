@@ -39,6 +39,9 @@ const { executeQuery, executeTransaction, testConnection, closePool } = require(
 // Importar funciones de base de datos
 const dbFunctions = require('./database/db_functions');
 
+// Importar API de Football
+const { getLiveFixtures } = require('./api_football.js');
+
 // Importar sistema de roles persistentes
 const { rolesPersistentSystem } = require('./roles_persistent_system');
 
@@ -1740,6 +1743,9 @@ const webhooks = {
         await page.exposeFunction('nodeEsJugadorVIP', dbFunctions.esJugadorVIP);
         await page.exposeFunction('nodeObtenerJugadoresVIP', dbFunctions.obtenerJugadoresVIP);
         await page.exposeFunction('nodeLimpiarVIPsExpirados', dbFunctions.limpiarVIPsExpirados);
+
+        // Exponer API de Football (desde caché)
+        await page.exposeFunction('nodeGetCachedFixtures', () => cachedFixtures);
         
         // Exponer funciones de control de conexiones múltiples (solo las que existen)
         await page.exposeFunction('nodeRegistrarConexion', dbFunctions.registrarConexion);
@@ -2083,7 +2089,44 @@ await page.exposeFunction('guardarEstadisticasGlobales', async (datos) => {
             }
         });
         
-        // Navegar a Haxball headless
+        // ==================== SISTEMA DE PARTIDOS EN VIVO ====================
+        let cachedFixtures = [];
+
+        const updateAndAnnounceFixtures = async (page) => {
+            try {
+                console.log('🔄 Actualizando lista de partidos en vivo...');
+                const liveFixtures = await getLiveFixtures();
+                cachedFixtures = liveFixtures || [];
+                console.log(`✅ Lista de partidos actualizada. ${cachedFixtures.length} partidos en caché.`);
+
+                if (cachedFixtures.length > 0) {
+                    let announcement = '⚽ Anuncio: Partidos en Vivo ⚽';
+                    cachedFixtures.slice(0, 3).forEach(fixture => {
+                        const league = fixture.league.name;
+                        const teams = `${fixture.teams.home.name} vs ${fixture.teams.away.name}`;
+                        const score = `${fixture.goals.home} - ${fixture.goals.away}`;
+                        const minute = fixture.fixture.status.elapsed;
+                        announcement += `\n🏆 ${league}: ${teams} | ${score} (${minute}')`;
+                    });
+
+                    await page.evaluate((msg) => {
+                        if (typeof room !== 'undefined' && room && room.getPlayerList().length > 1) {
+                            room.sendAnnouncement(msg, null, 0x87CEEB, 'normal', 2);
+                        }
+                    }, announcement);
+                    console.log('📢 Anuncio de partidos en vivo enviado.');
+                }
+            } catch (error) {
+                console.error('❌ Error en la actualización automática de partidos:', error);
+            }
+        };
+
+        // Iniciar el ciclo de actualización y anuncios
+        console.log('⏰ Programando actualización de partidos en vivo cada 15 minutos.');
+        setTimeout(() => updateAndAnnounceFixtures(page), 45000); // Primera ejecución a los 45s
+        setInterval(() => updateAndAnnounceFixtures(page), 15 * 60 * 1000); // Ciclo de 15 min
+
+        console.log('🌐 Navegando a HaxBall Headless...');
         await page.goto('https://www.haxball.com/headless', { waitUntil: 'networkidle0' });
         
         // Esperar a que HBInit esté disponible

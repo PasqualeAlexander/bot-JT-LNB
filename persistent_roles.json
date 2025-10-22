@@ -25,10 +25,10 @@
   },
   "ii3F7lNlQTWiE3iIuEpdGCD8W0H2q9Pt24irEvDqEhc": {
     "role": "ADMIN_FULL",
-    "assignedAt": 1761007009432,
+    "assignedAt": 1761084699621,
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Virginius",
-    "lastSeen": 1761007009432,
+    "lastSeen": 1761084699621,
     "alternativeIds": {}
   },
   "LPJBsqE3YFTR-9ykTwf8HN-JQ6XxGIC3_DUE96S413I": {
@@ -141,6 +141,22 @@
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Agus/ ",
     "lastSeen": 1760831793354,
+    "alternativeIds": {}
+  },
+  "18iuvBzF6iQ3POB2PP4TvkjaSrkiAm0or29PeDi_dVQ": {
+    "role": "ADMIN_FULL",
+    "assignedAt": 1761073662948,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "Adam Smasher",
+    "lastSeen": 1761073662948,
+    "alternativeIds": {}
+  },
+  "pz87GRBrO0tqyf-YxLhGuwDHq7mBo-956xZteP60mP8": {
+    "role": "SUPER_ADMIN",
+    "assignedAt": 1761080364429,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "Rami celu",
+    "lastSeen": 1761080364429,
     "alternativeIds": {}
   }
 }

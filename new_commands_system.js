@@ -162,28 +162,37 @@ function initializeCommandSystem(room, permissionCtx, permissionsIds) {
         room.librariesMap.commands.add({
             name: "unban",
             parameters: [{
-                name: "playerId",
-                type: VariableType.Integer,
-                range: {
-                    min: 0
-                },
+                name: "authId",
+                type: VariableType.String,
             }],
             minParameterCount: 1,
-            helpText: "Unbans a user.",
-            callback: ({ playerId }, byId) => {
+            helpText: "Unbans a user by their Auth ID. Usage: !unban <AuthID>",
+            callback: async ({ authId }, byId) => { // Made callback async
                 if (!checkUnbanPermission(room, byId)) {
                     room.librariesMap.commands?.announcePermissionDenied(byId);
                     return;
                 }
 
                 const byObj = room.getPlayer(byId);
+                const adminName = byObj ? byObj.name : 'Desconocido';
+
+                room.librariesMap.commands.announceAction(`Intentando desbanear a: ${authId}...`, byId);
+                console.log(`🔧 UNBAN: Admin ${adminName} (ID: ${byId}) intenta desbanear a: "${authId}"`);
 
                 try {
-                    room.clearBan(playerId);
-                    room.librariesMap.commands.announceAction(`El jugador ID: ${playerId} fue desbaneado por ${byObj.name}`, byId);
+                    const dbFunctions = require('./database/db_functions');
+                    const result = await dbFunctions.desbanearJugadorNuevo(authId);
+                    
+                    if (result && result.cambios > 0) {
+                        room.librariesMap.commands.announceAction(`✅ Jugador con Auth ID "${authId}" fue desbaneado por ${adminName}.`, byId);
+                        console.log(`✅ UNBAN: Jugador con Auth ID "${authId}" fue desbaneado por ${adminName}.`);
+                    } else {
+                        room.librariesMap.commands.announceAction(`❌ No se encontró un baneo activo para el Auth ID: "${authId}".`, byId);
+                        console.warn(`⚠️ UNBAN: No se encontró un baneo activo para el Auth ID: "${authId}".`);
+                    }
                 } catch (e) {
-                    console.log(e);
-                    return;
+                    room.librariesMap.commands.announceAction(`❌ Error al intentar desbanear a "${authId}": ${e.message}`, byId);
+                    console.error(`❌ UNBAN: Error al desbanear a "${authId}":`, e);
                 }
             }
         });

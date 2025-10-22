@@ -631,41 +631,26 @@ const dbFunctions = {
     // PARCHE ZONA HORARIA UTC - Verificar si un jugador está baneado (nueva tabla) - versión que devuelve promesa
     estaBaneadoPromise: async (authId) => {
         try {
-            // PARCHE: Establecer zona horaria UTC para esta operación
-            await executeQuery("SET SESSION time_zone = '+00:00'");
-            
-            const query = `SELECT * FROM baneos 
-                          WHERE auth_id = ? AND activo = 1 
-                          ORDER BY fecha DESC LIMIT 1`;
+            // La lógica de expiración ahora se maneja directamente en la consulta SQL
+            // para evitar problemas de zona horaria entre Node.js y la base de datos.
+            const query = `
+                SELECT * FROM baneos 
+                WHERE auth_id = ? AND activo = 1
+                  AND (duracion = 0 OR TIMESTAMPADD(MINUTE, duracion, fecha) > UTC_TIMESTAMP())
+                ORDER BY fecha DESC LIMIT 1
+            `;
             
             const results = await executeQuery(query, [authId]);
             const row = results[0];
             
-            if (!row) {
-                return false;
+            // Si la consulta devuelve una fila, el baneo está activo.
+            if (row) {
+                return row;
             }
             
-            // Verificar si el baneo temporal ha expirado
-            if (row.duracion > 0) {
-                // PARCHE: Usar la fecha directamente de MySQL (ya está en UTC por UTC_TIMESTAMP())
-                const fechaBan = new Date(row.fecha); // MySQL ya devuelve fecha UTC correcta
-                const ahora = new Date(); // UTC
-                const tiempoTranscurrido = ahora.getTime() - fechaBan.getTime();
-                const tiempoLimite = row.duracion * 60 * 1000; // duracion en minutos a milisegundos
-                
-                if (tiempoTranscurrido >= tiempoLimite) {
-                    // Baneo temporal expirado, desactivar automáticamente
-                    try {
-                        await dbFunctions.desactivarBaneo(row.id);
-                        console.log(`⏰ [DB] Baneo temporal expirado automáticamente: ${row.nombre}`);
-                        return false;
-                    } catch (error) {
-                        return false;
-                    }
-                }
-            }
-            
-            return row;
+            // Si no hay resultados, no hay un baneo activo.
+            return false;
+
         } catch (error) {
             console.error('❌ [DB] Error verificando baneo:', error);
             return false;

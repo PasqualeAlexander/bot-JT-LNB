@@ -70,6 +70,7 @@ BOT LIGA NACIONAL DE BIGGER LNB - VERSION HEADLESS
 
 // ==================== DETECCIÓN DE ENTORNO Y COMPATIBILIDAD ====================
 const isNode = typeof window === 'undefined';
+let dbFunctions = null;
 
 // Polyfill para fetch en Node.js si no está disponible
 if (isNode && typeof fetch === 'undefined') {
@@ -233,6 +234,17 @@ if (isNode) {
         console.log('✅ Sistema de festejos persistentes importado correctamente');
     } catch (error) {
         console.warn('⚠️ No se pudo importar el sistema de festejos persistentes:', error.message);
+    }
+}
+
+// ==================== SISTEMA DE BASE DE DATOS ====================
+
+if (isNode) {
+    try {
+        dbFunctions = require('./database/db_functions.js');
+        console.log('✅ Sistema de base de datos importado correctamente');
+    } catch (error) {
+        console.warn('⚠️ No se pudo importar el sistema de base de datos:', error.message);
     }
 }
 
@@ -814,7 +826,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGj4FJs8ATZzj-0oVQ.NObp-OqXg_Q";
+const token = "thr1.AAAAAGj5XCYM8JBPmu-_Rg.bBOitm58qnA";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -9026,7 +9038,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                 const id = input.substring(1);
                 jugadorObjetivo = obtenerJugadorPorID(id);
                 if (jugadorObjetivo) {
-                    authIdObjetivo = jugadorObjetivo.auth;
+                    authIdObjetivo = jugadoresUID.get(jugadorObjetivo.id);
                     nombreObjetivo = jugadorObjetivo.name;
                 } else {
                     anunciarError(`❌ ID inválido: ${id}. Usa # para ver la lista de jugadores con IDs.`, jugador);
@@ -9036,7 +9048,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                 const nombre = input.substring(1);
                 jugadorObjetivo = obtenerJugadorPorNombre(nombre);
                 if (jugadorObjetivo) {
-                    authIdObjetivo = jugadorObjetivo.auth;
+                    authIdObjetivo = jugadoresUID.get(jugadorObjetivo.id);
                     nombreObjetivo = jugadorObjetivo.name;
                 } else {
                     anunciarError(`❌ Jugador con nombre "${nombre}" no encontrado.`, jugador);
@@ -9051,7 +9063,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                     nombreObjetivo = jugadorEnSala.name;
                 } else {
                     // Si no está en la sala, buscaremos el último nombre conocido en la DB
-                    const jugadorDB = await dbFunctions.obtenerJugadorPorAuth(authIdObjetivo);
+                    const jugadorDB = await nodeObtenerJugadorPorAuth(authIdObjetivo);
                     if (jugadorDB) {
                         nombreObjetivo = jugadorDB.nombre;
                     } else {
@@ -9087,7 +9099,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
 
             // 6. Ejecutar el baneo
             try {
-                await dbFunctions.crearBaneo(authIdObjetivo, nombreObjetivo, razon, jugador.name, tiempo || 0);
+                await nodeCrearBaneo(authIdObjetivo, nombreObjetivo, razon, jugador.name, tiempo || 0);
                 const tiempoTexto = tiempo ? `${tiempo} minutos` : "permanentemente";
                 anunciarAdvertencia(`🚫 ${nombreObjetivo} ha sido baneado ${tiempoTexto}. Razón: ${razon}`);
 
@@ -9098,7 +9110,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                 enviarNotificacionBanKick("ban", jugador.name, nombreObjetivo, authIdObjetivo, tiempo, razon, null, jugadorObjetivo ? jugadorObjetivo.id : null);
 
             } catch (error) {
-                anunciarError(`❌ Error al banear: ${error.message}`, jugador);
+                anunciarError(`❌ Error al banear: ${error.message}. Detalles: ${error.stack}`, jugador);
                 console.error(`❌ Error en comando ban:`, error);
             }
             break;

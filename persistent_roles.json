@@ -25,10 +25,10 @@
   },
   "ii3F7lNlQTWiE3iIuEpdGCD8W0H2q9Pt24irEvDqEhc": {
     "role": "ADMIN_FULL",
-    "assignedAt": 1761084699621,
+    "assignedAt": 1761179043763,
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Virginius",
-    "lastSeen": 1761084699621,
+    "lastSeen": 1761179043763,
     "alternativeIds": {}
   },
   "LPJBsqE3YFTR-9ykTwf8HN-JQ6XxGIC3_DUE96S413I": {
@@ -129,10 +129,10 @@
   },
   "BLZ5gAI1a3LbM6nEMSz6ghzBKB7x51pNEGb7TX6_x3M": {
     "role": "ADMIN_FULL",
-    "assignedAt": 1760831106197,
+    "assignedAt": 1761163540505,
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Virgi cel",
-    "lastSeen": 1760831106197,
+    "lastSeen": 1761163540505,
     "alternativeIds": {}
   },
   "pGPr2GpD1fvQX7SqzgfV2fo7BTydfDUBxO9q4MjcQcw": {
@@ -157,6 +157,46 @@
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Rami celu",
     "lastSeen": 1761080364429,
+    "alternativeIds": {}
+  },
+  "vNH239N4sGPpysXU2Ycyj6wiMigQfz8JNdPz4HCrzWA": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761171669785,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "sicqq",
+    "lastSeen": 1761171669785,
+    "alternativeIds": {}
+  },
+  "9WcxE06060NzAXgfYNT4ivSRF3zsGBh7MTZOZzpXa10": {
+    "role": "ADMIN_FULL",
+    "assignedAt": 1761176372346,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "lucho fo",
+    "lastSeen": 1761176372346,
+    "alternativeIds": {}
+  },
+  "sXyQwMR08DobYD8rXBqyB6agc5Sgec8dJld4f_FrrYw": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761179348486,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "π",
+    "lastSeen": 1761179348486,
+    "alternativeIds": {}
+  },
+  "gSn-xwHM83zvfeZ6lTstYXn5WLmOM6BzpyCmiQUpir0": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761180423704,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "TB7  ",
+    "lastSeen": 1761180423704,
+    "alternativeIds": {}
+  },
+  "rrbK6-8Nk8F_5F3B87h15MBC66iNIGKf0Od4nxQKC3Q": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761188139324,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "AirøsZ",
+    "lastSeen": 1761188139324,
     "alternativeIds": {}
   }
 }

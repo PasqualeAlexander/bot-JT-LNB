@@ -25,10 +25,10 @@
   },
   "ii3F7lNlQTWiE3iIuEpdGCD8W0H2q9Pt24irEvDqEhc": {
     "role": "ADMIN_FULL",
-    "assignedAt": 1761179043763,
+    "assignedAt": 1761264862443,
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Virginius",
-    "lastSeen": 1761179043763,
+    "lastSeen": 1761264862443,
     "alternativeIds": {}
   },
   "LPJBsqE3YFTR-9ykTwf8HN-JQ6XxGIC3_DUE96S413I": {
@@ -197,6 +197,30 @@
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "AirøsZ",
     "lastSeen": 1761188139324,
+    "alternativeIds": {}
+  },
+  "U02Gfm36xN0uNvWEy5Y_wFQlk84FJZhzVvgGmV1LFHY": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761260586552,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "sicqq",
+    "lastSeen": 1761260586552,
+    "alternativeIds": {}
+  },
+  "pL2v7JxLK63Pq91pMkfwhBjsi-mmKlFlbfkY29aM-Cc": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761323391921,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "tejon",
+    "lastSeen": 1761323391921,
+    "alternativeIds": {}
+  },
+  "U__B9kzJETTyO3uSFt0ceMkQtcbF-pCwisvJri_R7Gs": {
+    "role": "ADMIN_FULL",
+    "assignedAt": 1761349542658,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "Lakaka",
+    "lastSeen": 1761349542658,
     "alternativeIds": {}
   }
 }

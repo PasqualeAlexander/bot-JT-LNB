@@ -825,7 +825,10 @@ const dbFunctions = {
             }
             
             console.log(`ℹ️ [DB] Baneos procesados: ${rows.length} total, ${baneosRealmenteActivos.length} realmente activos, ${baneosExpiradosALimpiar.length} expirados limpiados`);
-            return baneosRealmenteActivos;
+            return {
+                activeBans: baneosRealmenteActivos,
+                expiredBansAuthIds: expiredBansAuthIds
+            };
         } catch (error) {
             console.error('❌ [DB] Error obteniendo baneos activos:', error);
             throw error;
@@ -889,7 +892,7 @@ const dbFunctions = {
         try {
             // Primero contar cuántas cuentas serán eliminadas
             const countQuery = `SELECT COUNT(*) as count FROM jugadores 
-                                WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
+                                WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
             
             const countResult = await executeQuery(countQuery);
             const cuentasAEliminar = countResult[0].count;
@@ -901,7 +904,7 @@ const dbFunctions = {
             
             // Obtener nombres de las cuentas que serán eliminadas (para log)
             const selectQuery = `SELECT nombre, fechaUltimoPartido FROM jugadores 
-                                WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
+                                WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
             
             const cuentas = await executeQuery(selectQuery);
             
@@ -914,7 +917,7 @@ const dbFunctions = {
             
             // Proceder con la eliminación
             const deleteQuery = `DELETE FROM jugadores 
-                                WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
+                                WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
             
             const result = await executeQuery(deleteQuery);
             
@@ -935,9 +938,9 @@ const dbFunctions = {
         try {
             const queries = {
                 total: 'SELECT COUNT(*) as count FROM jugadores',
-                inactivas30: `SELECT COUNT(*) as count FROM jugadores WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 30 DAY)`,
-                inactivas60: `SELECT COUNT(*) as count FROM jugadores WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 60 DAY)`,
-                inactivas90: `SELECT COUNT(*) as count FROM jugadores WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 90 DAY)`,
+                inactivas30: `SELECT COUNT(*) as count FROM jugadores WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 30 DAY)`,
+                inactivas60: `SELECT COUNT(*) as count FROM jugadores WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 60 DAY)`,
+                inactivas90: `SELECT COUNT(*) as count FROM jugadores WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 90 DAY)`,
             };
             
             const resultados = {};
@@ -949,8 +952,8 @@ const dbFunctions = {
             
             // Obtener próximas a eliminar
             const proximasQuery = `SELECT nombre, fechaUltimoPartido FROM jugadores 
-                                  WHERE STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') < DATE_SUB(NOW(), INTERVAL 80 DAY)
-                                  AND STR_TO_DATE(fechaUltimoPartido, '%Y-%m-%dT%H:%i:%s.%fZ') >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+                                  WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 80 DAY)
+                                  AND fechaUltimoPartido >= DATE_SUB(NOW(), INTERVAL 90 DAY)
                                   ORDER BY fechaUltimoPartido ASC`;
             
             resultados.proximasEliminar = await executeQuery(proximasQuery);
@@ -988,8 +991,8 @@ const dbFunctions = {
                 tiempoJugado: stats?.tiempoJugado ?? 0,
                 promedioGoles: stats?.promedioGoles ?? 0.0,
                 promedioAsistencias: stats?.promedioAsistencias ?? 0.0,
-                fechaPrimerPartido: stats?.fechaPrimerPartido ?? new Date(),
-                fechaUltimoPartido: stats?.fechaUltimoPartido ?? new Date(),
+                fechaPrimerPartido: stats?.fechaPrimerPartido ? new Date(stats.fechaPrimerPartido) : new Date(),
+                fechaUltimoPartido: stats?.fechaUltimoPartido ? new Date(stats.fechaUltimoPartido) : new Date(),
                 xp: stats?.xp ?? 40,
                 nivel: stats?.nivel ?? 1,
                 codigoRecuperacion: stats?.codigoRecuperacion ?? null,
@@ -1071,6 +1074,18 @@ const dbFunctions = {
             return results[0] || null;
         } catch (error) {
             console.error('❌ [DB] Error obteniendo jugador por auth_id:', error);
+            throw error;
+        }
+    },
+    
+    // Obtener jugador por código de recuperación
+    obtenerJugadorPorCodigoRecuperacion: async (codigoRecuperacion) => {
+        const query = 'SELECT * FROM jugadores WHERE codigoRecuperacion = ?';
+        try {
+            const results = await executeQuery(query, [codigoRecuperacion]);
+            return results[0] || null;
+        } catch (error) {
+            console.error('❌ [DB] Error obteniendo jugador por código de recuperación:', error);
             throw error;
         }
     },

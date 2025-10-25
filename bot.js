@@ -110,8 +110,8 @@ const crearTablas = async () => {
             tiempoJugado INT DEFAULT 0,
             promedioGoles FLOAT DEFAULT 0.0,
             promedioAsistencias FLOAT DEFAULT 0.0,
-            fechaPrimerPartido VARCHAR(50),
-            fechaUltimoPartido VARCHAR(50),
+            fechaPrimerPartido DATETIME,
+            fechaUltimoPartido DATETIME,
             xp INT DEFAULT 40,
             nivel INT DEFAULT 1,
             codigoRecuperacion VARCHAR(50),
@@ -125,7 +125,32 @@ const crearTablas = async () => {
             admin_ban VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )`);      
+        )`);
+
+        // Verificar y migrar columnas de fecha a DATETIME
+        try {
+            const columnsToMigrate = [
+                { name: 'fechaPrimerPartido', type: 'varchar' },
+                { name: 'fechaUltimoPartido', type: 'varchar' }
+            ];
+
+            for (const col of columnsToMigrate) {
+                const checkColumnQuery = `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
+                                          WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'jugadores' AND COLUMN_NAME = ?`;
+                const result = await executeQuery(checkColumnQuery, [process.env.DB_NAME || 'lnb_estadisticas', col.name]);
+
+                if (result && result.length > 0 && result[0].DATA_TYPE.toLowerCase() === 'varchar') {
+                    console.log(`[MIGRACIÓN] Cambiando tipo de columna ${col.name} de VARCHAR a DATETIME...`);
+                    await executeQuery(`ALTER TABLE jugadores ADD COLUMN ${col.name}_temp DATETIME`);
+                    await executeQuery(`UPDATE jugadores SET ${col.name}_temp = STR_TO_DATE(${col.name}, '%Y-%m-%dT%H:%i:%s.%fZ') WHERE ${col.name} IS NOT NULL`);
+                    await executeQuery(`ALTER TABLE jugadores DROP COLUMN ${col.name}`);
+                    await executeQuery(`ALTER TABLE jugadores CHANGE COLUMN ${col.name}_temp ${col.name} DATETIME`);
+                    console.log(`[MIGRACIÓN] Columna ${col.name} migrada a DATETIME exitosamente.`);
+                }
+            }
+        } catch (migrationError) {
+            console.error('❌ Error durante la migración de columnas de fecha:', migrationError);
+        }
         
         // Verificar si ya existen las columnas VIP y baneos
         // MySQL 9.4 no soporta IF NOT EXISTS en ALTER TABLE, necesitamos verificar manualmente
@@ -1724,6 +1749,7 @@ const webhooks = {
         // NUEVO: Exponer funciones basadas en auth_id
         await page.exposeFunction('nodeGuardarJugadorPorAuth', dbFunctions.guardarJugadorPorAuth);
         await page.exposeFunction('nodeObtenerJugadorPorAuth', dbFunctions.obtenerJugadorPorAuth);
+        await page.exposeFunction('nodeObtenerJugadorPorCodigoRecuperacion', dbFunctions.obtenerJugadorPorCodigoRecuperacion);
         await page.exposeFunction('nodeMigrarJugadorAAuth', dbFunctions.migrarJugadorAAuth);
         await page.exposeFunction('nodeRegistrarNombreJugador', dbFunctions.registrarNombreJugador);
         await page.exposeFunction('nodeObtenerTopJugadores', dbFunctions.obtenerTopJugadores);

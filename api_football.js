@@ -6,7 +6,17 @@ const apiKey = process.env.API_FOOTBALL_KEY;
 const apiHost = 'v3.football.api-sports.io';
 
 // IDs de las ligas permitidas
-const LIGAS_PERMITIDAS = [39, 140, 135, 78, 94, 253, 128, 13, 11, 1, 129, 4, 9];
+const ALL_LIGAS_TO_FETCH = [
+    39, 140, 135, 78, 94, 253, 128, 13, 11, 1, 129, 4, 9, // Existing LIGAS_PERMITIDAS
+    23, // Argentina Primera División
+    2,  // England Premier League
+    8,  // Portugal Primeira Liga
+    362, // World Cup
+    301, // France Ligue 1
+    271, // Copa America
+    350, // UEFA Nations League
+    3   // Spain La Liga
+];
 
 async function getLiveFixtures() {
     if (!apiKey) {
@@ -23,8 +33,8 @@ async function getLiveFixtures() {
     };
 
     try {
-        // Crear una promesa de fetch para cada liga
-        const fetchPromises = LIGAS_PERMITIDAS.map(leagueId => {
+        // Crear una promesa de fetch para cada liga en ALL_LIGAS_TO_FETCH
+        const fetchPromises = ALL_LIGAS_TO_FETCH.map(leagueId => {
             const url = `https://v3.football.api-sports.io/fixtures?live=all&league=${leagueId}`;
             return fetch(url, options).then(res => res.json());
         });

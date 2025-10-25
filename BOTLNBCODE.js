@@ -826,7 +826,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGj5sG08XRZNIteM2A.7EkkU76eSII";
+const token = "thr1.AAAAAGj8FSUHMGpjEh7Uaw.MngVPu7KZoo";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -1857,6 +1857,18 @@ const COLORES = {
 // Mantener compatibilidad con código existente
 const AZUL_LNB = COLORES.PRIMARIO;
 const CELESTE_LNB = COLORES.SECUNDARIO;
+
+const LIGA_FILTROS = {
+    "argentina": [23],
+    "inglaterra": [2],
+    "portugal": [8],
+    "mundial": [362],
+    "francia": [301],
+    "copaamerica": [271],
+    "nations": [350],
+    "españa": [3],
+    "default": [39, 140, 135, 78, 94, 253, 128, 13, 11, 1, 129, 4, 9] // Existing LIGAS_PERMITIDAS
+};
 
 // MAPAS DE LNB
 const mapas = {
@@ -6919,7 +6931,7 @@ if (ahora - ultimoEstadoLogeado.timestamp > INTERVALO_LOG_THROTTLE || jugadoresA
         
         // CAMBIOS A MAPAS MENORES (cuando bajan jugadores) - CON HISTÉRESIS PARA EVITAR OSCILACIONES
         // Cambiar de biggerx7 a biggerx5 si hay menos de 8 jugadores (tolerancia de 2)
-        if (mapaActual === "biggerx7" && jugadoresActivos < 8) {
+        if (mapaActual === "biggerx7" && jugadoresActivos < 10) {
             cambioMapaEnProceso = true;
             terminoPorCambioMapa = true; // Marcar que el partido terminará por cambio de mapa
             // Log eliminado para mejor rendimiento
@@ -8196,9 +8208,12 @@ async function procesarComando(jugador, mensaje) {
             
         case "recuperar":
             if (args[1]) {
-                recuperarEstadisticas(jugador, args[1]);
+                const codigo = args[1];
+                const confirmarSobreescritura = args[2] && args[2].toLowerCase() === "confirmar";
+                recuperarEstadisticas(jugador, codigo, confirmarSobreescritura);
             } else {
-                anunciarError("📝 Uso: !recuperar <código>", jugador);
+                anunciarError("📝 Uso: !recuperar <código> [confirmar]", jugador);
+                anunciarInfo("Si ya tienes estadísticas y quieres recuperarlas, usa: !recuperar <código> confirmar", jugador);
             }
             break;
             
@@ -9160,13 +9175,28 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             // Usar la función principal de baneos activos
             if (typeof nodeObtenerBaneosActivos === 'function') {
                 nodeObtenerBaneosActivos()
-                    .then((jugadores) => {
-                        if (jugadores.length === 0) {
+                    .then((result) => {
+                        const { activeBans, expiredBansAuthIds } = result;
+
+                        // Clear expired bans from HaxBall's internal system
+                        if (expiredBansAuthIds && expiredBansAuthIds.length > 0) {
+                            console.log(`🧹 BANS: Limpiando ${expiredBansAuthIds.length} baneos expirados de HaxBall...`);
+                            expiredBansAuthIds.forEach(authId => {
+                                try {
+                                    room.clearBan(authId);
+                                    console.log(`✅ BANS: clearBan(${authId}) ejecutado para baneo expirado.`);
+                                } catch (e) {
+                                    console.error(`❌ BANS: Error al limpiar baneo expirado ${authId} de HaxBall:`, e);
+                                }
+                            });
+                        }
+
+                        if (activeBans.length === 0) {
                             anunciarInfo('📋 No hay jugadores baneados actualmente.', jugador);
                         } else {
                             // ==================== PARCHE APLICADO ====================
                             // Mapear jugadores baneados con ID de selección para !unban
-                            const jugadoresBaneados = jugadores.map((j, index) => {
+                            const jugadoresBaneados = activeBans.map((j, index) => {
                                 // CAMBIO: En lugar de buscar jugadores baneados en la sala actual
                                 // (que obviamente no están), usar el índice + 1 como ID de selección
                                 const idSeleccion = index + 1;
@@ -10559,7 +10589,7 @@ function inicializarEstadisticasGlobalesEmergencia() {
     console.log('✅ Estadísticas globales de emergencia inicializadas');
 }
 
-function guardarEstadisticasGlobalesCompletas() {
+async function guardarEstadisticasGlobalesCompletas() { // Make it async
     try {
         if (!estadisticasGlobales) {
             console.error('❌ No se puede guardar: estadisticasGlobales es null');
@@ -10571,13 +10601,8 @@ function guardarEstadisticasGlobalesCompletas() {
             return false;
         }
         guardadoEnCurso = true;
-        const res = guardarEstadisticasGlobalesDB(estadisticasGlobales);
-        // Si el guardado es una promesa, monitorear finalización
-        if (res && typeof res.then === 'function') {
-            res.finally(() => { guardadoEnCurso = false; });
-        } else {
-            guardadoEnCurso = false;
-        }
+        const res = await guardarEstadisticasGlobalesDB(estadisticasGlobales); // Await the save
+        guardadoEnCurso = false; // Reset guardadoEnCurso after the save is complete
         return res;
     } catch (error) {
         guardadoEnCurso = false;
@@ -10586,7 +10611,7 @@ function guardarEstadisticasGlobalesCompletas() {
     }
 }
 
-function registrarJugadorGlobal(authID, nombre) {
+async function registrarJugadorGlobal(authID, nombre) { // Make it async
     // Verificar que estadisticasGlobales esté inicializado
     if (!estadisticasGlobales || !estadisticasGlobales.jugadores) {
         console.error('❌ ERROR: estadisticasGlobales no inicializado en registrarJugadorGlobal');
@@ -10604,33 +10629,72 @@ function registrarJugadorGlobal(authID, nombre) {
         return null;
     }
     
+    // Intentar cargar desde la DB si no está en memoria
     if (!estadisticasGlobales.jugadores[authID]) {
-        estadisticasGlobales.jugadores[authID] = {
-            authID: authID,
-            nombre: nombre, // Nombre actual del jugador
-            partidos: 0,
-            victorias: 0,
-            derrotas: 0,
-            goles: 0,
-            asistencias: 0,
-            autogoles: 0,
-            mejorRachaGoles: 0,
-            mejorRachaAsistencias: 0,
-            hatTricks: 0,
-            mvps: 0, // Campo separado para MVPs
-            vallasInvictas: 0,
-            tiempoJugado: 0, // en segundos
-            promedioGoles: 0,
-            promedioAsistencias: 0,
-            fechaPrimerPartido: new Date().toISOString(),
-            fechaUltimoPartido: new Date().toISOString(),
-            xp: 40,  // XP inicial para jugadores nuevos
-            nivel: 1, // Nivel inicial
-            codigoRecuperacion: null, // Inicializar como null para evitar generación repetida
-            fechaCodigoCreado: null, // Fecha de creación del código
-            codigoGenerado: false // Flag para evitar generación repetida
-        };
-        console.log(`✅ Nuevo jugador registrado: ${nombre} (${authID})`);
+        console.log(`🔍 DEBUG: Jugador ${nombre} (${authID}) no encontrado en memoria, intentando cargar desde DB...`);
+        if (typeof nodeObtenerJugadorPorAuth !== 'undefined') {
+            const jugadorDB = await nodeObtenerJugadorPorAuth(authID);
+            if (jugadorDB) {
+                estadisticasGlobales.jugadores[authID] = jugadorDB;
+                console.log(`✅ DEBUG: Jugador ${nombre} (${authID}) cargado desde DB y añadido a memoria.`);
+            } else {
+                // Si no existe en DB, crear nuevo jugador
+                estadisticasGlobales.jugadores[authID] = {
+                    authID: authID,
+                    nombre: nombre, // Nombre actual del jugador
+                    partidos: 0,
+                    victorias: 0,
+                    derrotas: 0,
+                    goles: 0,
+                    asistencias: 0,
+                    autogoles: 0,
+                    mejorRachaGoles: 0,
+                    mejorRachaAsistencias: 0,
+                    hatTricks: 0,
+                    mvps: 0, // Campo separado para MVPs
+                    vallasInvictas: 0,
+                    tiempoJugado: 0, // en segundos
+                    promedioGoles: 0,
+                    promedioAsistencias: 0,
+                    fechaPrimerPartido: new Date().toISOString(),
+                    fechaUltimoPartido: new Date().toISOString(),
+                    xp: 40,  // XP inicial para jugadores nuevos
+                    nivel: 1, // Nivel inicial
+                    codigoRecuperacion: null, // Inicializar como null para evitar generación repetida
+                    fechaCodigoCreado: null, // Fecha de creación del código
+                    codigoGenerado: false // Flag para evitar generación repetida
+                };
+                console.log(`✅ Nuevo jugador ${nombre} (${authID}) creado y añadido a memoria.`);
+            }
+        } else {
+            // Fallback si nodeObtenerJugadorPorAuth no está disponible
+            estadisticasGlobales.jugadores[authID] = {
+                authID: authID,
+                nombre: nombre, // Nombre actual del jugador
+                partidos: 0,
+                victorias: 0,
+                derrotas: 0,
+                goles: 0,
+                asistencias: 0,
+                autogoles: 0,
+                mejorRachaGoles: 0,
+                mejorRachaAsistencias: 0,
+                hatTricks: 0,
+                mvps: 0, // Campo separado para MVPs
+                vallasInvictas: 0,
+                tiempoJugado: 0, // en segundos
+                promedioGoles: 0,
+                promedioAsistencias: 0,
+                fechaPrimerPartido: new Date().toISOString(),
+                fechaUltimoPartido: new Date().toISOString(),
+                xp: 40,  // XP inicial para jugadores nuevos
+                nivel: 1, // Nivel inicial
+                codigoRecuperacion: null, // Inicializar como null para evitar generación repetida
+                fechaCodigoCreado: null, // Fecha de creación del código
+                codigoGenerado: false // Flag para evitar generación repetida
+            };
+            console.log(`✅ Nuevo jugador ${nombre} (${authID}) creado en memoria (sin DB).`);
+        }
     } else {
         // Actualizar nombre si ha cambiado
         if (estadisticasGlobales.jugadores[authID].nombre !== nombre) {
@@ -10872,7 +10936,7 @@ function actualizarEstadisticasGlobales(datosPartido) {
     guardarEstadisticasGlobalesCompletas();
 }
 
-function mostrarEstadisticasJugador(solicitante, nombreJugador) {
+async function mostrarEstadisticasJugador(solicitante, nombreJugador) { // Make it async
     // Obtener auth ID del jugador solicitante para sus propias estadísticas
     const authIDSolicitante = jugadoresUID.get(solicitante.id);
     
@@ -10884,7 +10948,21 @@ function mostrarEstadisticasJugador(solicitante, nombreJugador) {
             return;
         }
         
-        const stats = estadisticasGlobales.jugadores[authIDSolicitante];
+        let stats = estadisticasGlobales.jugadores[authIDSolicitante];
+        
+        // Si no está en memoria, intentar cargar desde la DB
+        if (!stats) {
+            console.log(`🔍 DEBUG: Stats de ${nombreJugador} no encontradas en memoria, intentando cargar desde DB...`);
+            if (typeof nodeObtenerJugadorPorAuth !== 'undefined') {
+                stats = await nodeObtenerJugadorPorAuth(authIDSolicitante);
+                if (stats) {
+                    // Añadir a la caché en memoria
+                    estadisticasGlobales.jugadores[authIDSolicitante] = stats;
+                    console.log(`✅ DEBUG: Stats de ${nombreJugador} cargadas desde DB y añadidas a memoria.`);
+                }
+            }
+        }
+
         if (!stats) {
             anunciarError(`❌ No tienes estadísticas guardadas aún. Juega algunos partidos primero.`, solicitante);
             return;
@@ -10909,7 +10987,21 @@ function mostrarEstadisticasJugador(solicitante, nombreJugador) {
             return;
         }
         
-        const stats = estadisticasGlobales.jugadores[authIDJugador];
+        let stats = estadisticasGlobales.jugadores[authIDJugador];
+
+        // Si no está en memoria, intentar cargar desde la DB
+        if (!stats) {
+            console.log(`🔍 DEBUG: Stats de ${nombreJugador} no encontradas en memoria, intentando cargar desde DB...`);
+            if (typeof nodeObtenerJugadorPorAuth !== 'undefined') {
+                stats = await nodeObtenerJugadorPorAuth(authIDJugador);
+                if (stats) {
+                    // Añadir a la caché en memoria
+                    estadisticasGlobales.jugadores[authIDJugador] = stats;
+                    console.log(`✅ DEBUG: Stats de ${nombreJugador} cargadas desde DB y añadidas a memoria.`);
+                }
+            }
+        }
+
         if (!stats) {
             anunciarError(`❌ ${nombreJugador} no tiene estadísticas guardadas aún`, solicitante);
             return;
@@ -11485,7 +11577,7 @@ function mostrarCodigoRecuperacion(jugador) {
     });
 }
 
-function recuperarEstadisticas(jugador, codigo) {
+async function recuperarEstadisticas(jugador, codigo, confirmarSobreescritura) { // Make it async
     // Obtener auth ID del jugador
     const authID = jugadoresUID.get(jugador.id);
     
@@ -11502,27 +11594,29 @@ function recuperarEstadisticas(jugador, codigo) {
     
     const codigoLimpio = codigo.toUpperCase();
     
-    // Buscar el authID que tiene este código
-    let authIDOriginal = null;
+    // Buscar el jugador que tiene este código directamente en la base de datos
     let statsOriginales = null;
-    
-    for (const [authIDKey, stats] of Object.entries(estadisticasGlobales.jugadores)) {
-        if (stats.codigoRecuperacion === codigoLimpio) {
-            authIDOriginal = authIDKey;
-            statsOriginales = stats;
-            break;
-        }
+    if (typeof window.nodeObtenerJugadorPorCodigoRecuperacion !== 'undefined') {
+        statsOriginales = await window.nodeObtenerJugadorPorCodigoRecuperacion(codigoLimpio);
+    } else {
+        console.error('❌ nodeObtenerJugadorPorCodigoRecuperacion no está disponible.');
+        anunciarError("❌ Error interno al buscar código de recuperación.", jugador);
+        return;
     }
-    
-    if (!authIDOriginal || !statsOriginales) {
+
+    if (!statsOriginales) {
         anunciarError("❌ Código de recuperación no encontrado. Verifica que sea correcto.", jugador);
         return;
     }
     
+    const authIDOriginal = statsOriginales.auth_id; // Get original authID from fetched stats
+
     // Verificar si ya existe estadísticas para este authID
     const statsActuales = estadisticasGlobales.jugadores[authID];
     
-    if (statsActuales && statsActuales.partidos > 0) {
+    // Si el jugador ya tiene estadísticas, se requiere confirmación para sobrescribir
+    // La lógica de confirmación se manejará en el comando principal que llama a esta función
+    if (statsActuales && statsActuales.partidos > 0 && !confirmarSobreescritura) {
         // Mostrar comparación sin fusionar automáticamente
         anunciarAdvertencia("Ya tienes estadísticas existentes:", jugador);
         anunciarInfo(`📊 Actuales: ${statsActuales.partidos} PJ | ${statsActuales.goles} G | ${statsActuales.asistencias} A`, jugador);
@@ -11533,7 +11627,7 @@ function recuperarEstadisticas(jugador, codigo) {
         // No hay estadísticas actuales, recuperar directamente
         estadisticasGlobales.jugadores[authID] = {
             ...statsOriginales,
-            authID: authID,
+            authID: authID, // Asegurar que el authID sea el del jugador actual
             nombre: jugador.name, // Actualizar con el nombre actual
             fechaRecuperacion: new Date().toISOString(),
             dispositivo: "recuperado"
@@ -11546,10 +11640,26 @@ function recuperarEstadisticas(jugador, codigo) {
     
     // Eliminar las estadísticas del authID original si es diferente
     if (authIDOriginal !== authID) {
-        delete estadisticasGlobales.jugadores[authIDOriginal];
+        // Solo eliminar si el authIDOriginal no es null y es diferente al authID actual
+        if (authIDOriginal && estadisticasGlobales.jugadores[authIDOriginal]) {
+            delete estadisticasGlobales.jugadores[authIDOriginal];
+            console.log(`🗑️ DEBUG: Estadísticas del authID original ${authIDOriginal} eliminadas de la memoria.`);
+        }
     }
     
-    guardarEstadisticasGlobalesCompletas();
+    // Guardar las estadísticas actualizadas en la base de datos
+    // Esto también actualizará el jugador con el nuevo authID y eliminará el antiguo si es diferente
+    if (typeof window.nodeGuardarJugadorPorAuth !== 'undefined') {
+        await window.nodeGuardarJugadorPorAuth(authID, jugador.name, estadisticasGlobales.jugadores[authID]);
+        if (authIDOriginal && authIDOriginal !== authID) {
+            // Si el authID original es diferente, también necesitamos eliminarlo de la DB
+            // Esto requeriría una nueva función en dbFunctions para eliminar por authID
+            // Por ahora, solo se elimina de la memoria.
+            console.warn(`⚠️ No se eliminó el registro antiguo de la DB para authID ${authIDOriginal}. Requiere función dbFunctions.eliminarJugadorPorAuth(authID).`);
+        }
+    } else {
+        console.error('❌ nodeGuardarJugadorPorAuth no está disponible. Las estadísticas recuperadas no se guardaron persistentemente.');
+    }
     
     anunciarInfo("🎮 Usá '!me' para ver tus estadísticas completas.", jugador);
     
@@ -13458,12 +13568,13 @@ function configurarEventos() {
     // Chat del jugador
     room.onPlayerChat = function(jugador, mensaje) {
 
-    // Comando para ver partidos en vivo con paginación
-    const envivoMatch = mensaje.trim().match(/^!envivo(\d*)$/);
+    // Comando para ver partidos en vivo con paginación y filtros
+    const envivoMatch = mensaje.trim().match(/^!envivo(?:\s+(\S+))?(?:\s+(\d+))?$/); // Captura filtro y página
     if (envivoMatch) {
         (async () => {
             try {
-                const page = parseInt(envivoMatch[1] || '1', 10);
+                const filtro = envivoMatch[1] ? envivoMatch[1].toLowerCase() : 'default';
+                const page = parseInt(envivoMatch[2] || '1', 10);
                 const pageSize = 5;
 
                 const cachedFixtures = await window.nodeGetCachedFixtures();
@@ -13473,20 +13584,46 @@ function configurarEventos() {
                     return;
                 }
 
-                const totalPages = Math.ceil(cachedFixtures.length / pageSize);
+                let filteredFixtures = [];
+                let filterName = '';
+
+                if (LIGA_FILTROS[filtro]) {
+                    const leagueIdsToFilter = LIGA_FILTROS[filtro];
+                    filteredFixtures = cachedFixtures.filter(fixture => 
+                        leagueIdsToFilter.includes(fixture.league.id)
+                    );
+                    filterName = filtro.charAt(0).toUpperCase() + filtro.slice(1); // Capitalize
+                } else {
+                    // Si el filtro no es válido, usar el filtro por defecto
+                    const leagueIdsToFilter = LIGA_FILTROS['default'];
+                    filteredFixtures = cachedFixtures.filter(fixture => 
+                        leagueIdsToFilter.includes(fixture.league.id)
+                    );
+                    filterName = 'Global';
+                    if (filtro !== 'default') {
+                        room.sendAnnouncement(`❌ Filtro "${filtro}" no reconocido. Mostrando partidos globales.`, jugador.id, 0xFF0000, 'normal', 0);
+                    }
+                }
+
+                if (filteredFixtures.length === 0) {
+                    room.sendAnnouncement(`ℹ️ No hay partidos en vivo para "${filterName}" en este momento.`, jugador.id, 0x87CEEB, 'normal', 0);
+                    return;
+                }
+
+                const totalPages = Math.ceil(filteredFixtures.length / pageSize);
                 if (page > totalPages && totalPages > 0) {
-                    room.sendAnnouncement(`ℹ️ No hay tantos partidos. Página máxima: ${totalPages}.`, jugador.id, 0xFFD700, 'normal', 0);
+                    room.sendAnnouncement(`ℹ️ No hay tantos partidos para "${filterName}". Página máxima: ${totalPages}.`, jugador.id, 0xFFD700, 'normal', 0);
                     return;
                 } else if (totalPages === 0) {
-                     room.sendAnnouncement('ℹ️ No hay partidos en vivo en este momento (datos de caché).', jugador.id, 0x87CEEB, 'normal', 0);
+                     room.sendAnnouncement(`ℹ️ No hay partidos en vivo para "${filterName}" en este momento.`, jugador.id, 0x87CEEB, 'normal', 0);
                     return;
                 }
 
                 const startIndex = (page - 1) * pageSize;
                 const endIndex = startIndex + pageSize;
-                const pageFixtures = cachedFixtures.slice(startIndex, endIndex);
+                const pageFixtures = filteredFixtures.slice(startIndex, endIndex);
 
-                let responseMessage = `⚽ PARTIDOS EN VIVO (Pág. ${page}/${totalPages}) ⚽`;
+                let responseMessage = `⚽ PARTIDOS EN VIVO (${filterName} - Pág. ${page}/${totalPages}) ⚽`;
                 
                 pageFixtures.forEach(fixture => {
                     const league = fixture.league.name;
@@ -13989,15 +14126,15 @@ function configurarEventos() {
                 const nuevaContraseña = Math.floor(1000 + Math.random() * 9000).toString();
                 estadisticasGlobales.contraseñaMensual.pass = nuevaContraseña;
                 estadisticasGlobales.contraseñaMensual.month = currentMonth;
-                if (typeof programarGuardadoThrottled === 'function') {
-                    programarGuardadoThrottled();
-                }
             }
             
             const nuevaContraseña = estadisticasGlobales.contraseñaMensual.pass;
             contraseñaActual = nuevaContraseña;
             room.setPassword(nuevaContraseña);
             ultimoCambioContraseña = Date.now();
+            if (typeof programarGuardadoThrottled === 'function') {
+                programarGuardadoThrottled();
+            }
             
             // Anunciar que la sala es privada
             anunciarGeneral(`🔒 La sala ahora es privada. Contraseña: ${nuevaContraseña}`, null, "bold");
@@ -16661,13 +16798,28 @@ function restaurarBaneos() {
     // Usar la función de DB para obtener todos los baneos activos
     if (typeof nodeObtenerBaneosActivos === 'function') {
         nodeObtenerBaneosActivos()
-            .then(baneosActivos => {
-                if (baneosActivos && baneosActivos.length > 0) {
-                    console.log(`[BAN RESTORE] 🛡️ Se encontraron ${baneosActivos.length} baneos activos para restaurar.`);
-                    anunciarAdvertencia(`🛡️ Restaurando ${baneosActivos.length} baneos persistentes...`);
+            .then(result => {
+                const { activeBans, expiredBansAuthIds } = result;
+
+                // Clear expired bans from HaxBall's internal system during startup
+                if (expiredBansAuthIds && expiredBansAuthIds.length > 0) {
+                    console.log(`🧹 BAN RESTORE: Limpiando ${expiredBansAuthIds.length} baneos expirados de HaxBall durante el inicio...`);
+                    expiredBansAuthIds.forEach(authId => {
+                        try {
+                            room.clearBan(authId);
+                            console.log(`✅ BAN RESTORE: clearBan(${authId}) ejecutado para baneo expirado.`);
+                        } catch (e) {
+                            console.error(`❌ BAN RESTORE: Error al limpiar baneo expirado ${authId} de HaxBall durante el inicio:`, e);
+                        }
+                    });
+                }
+
+                if (activeBans && activeBans.length > 0) {
+                    console.log(`[BAN RESTORE] 🛡️ Se encontraron ${activeBans.length} baneos activos para restaurar.`);
+                    anunciarAdvertencia(`🛡️ Restaurando ${activeBans.length} baneos persistentes...`);
 
                     let restaurados = 0;
-                    baneosActivos.forEach(baneo => {
+                    activeBans.forEach(baneo => {
                         try {
                             // Usamos el authId (UID) para banear, que es el método más fiable
                             if (baneo.auth_id) {
@@ -16682,7 +16834,7 @@ function restaurarBaneos() {
                         }
                     });
 
-                    console.log(`[BAN RESTORE] ✅ Proceso finalizado. ${restaurados} de ${baneosActivos.length} baneos fueron restaurados.`);
+                    console.log(`[BAN RESTORE] ✅ Proceso finalizado. ${restaurados} de ${activeBans.length} baneos fueron restaurados.`);
                     anunciarExito(`✅ ${restaurados} baneos persistentes han sido restaurados.`);
                 } else {
                     console.log('[BAN RESTORE] ✅ No hay baneos activos para restaurar.');

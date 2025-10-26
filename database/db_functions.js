@@ -770,67 +770,43 @@ const dbFunctions = {
         // PARCHE ZONA HORARIA UTC - Obtener baneos activos
     obtenerBaneosActivos: async () => {
         try {
-            // PARCHE: Establecer zona horaria UTC para esta operación
             await executeQuery("SET SESSION time_zone = '+00:00'");
-            
-            const query = `SELECT * FROM baneos WHERE activo = 1 ORDER BY fecha DESC`;
-            const rows = await executeQuery(query);
-            
-            const ahora = new Date(); // UTC
-            const baneosRealmenteActivos = [];
-            const baneosExpiradosALimpiar = [];
-            
-            // Procesar cada baneo para verificar si realmente está activo
-            for (const row of rows) {
-                // Verificar si es baneo temporal
-                if (row.duracion > 0) {
-                    // PARCHE: Usar la fecha directamente de MySQL (ya está en UTC por UTC_TIMESTAMP())
-                    const fechaBan = new Date(row.fecha); // MySQL ya devuelve fecha UTC correcta
-                    const tiempoTranscurrido = ahora.getTime() - fechaBan.getTime();
-                    const tiempoLimite = row.duracion * 60 * 1000; // duracion en minutos a milisegundos
-                    
-                    if (tiempoTranscurrido >= tiempoLimite) {
-                        // Baneo temporal expirado
-                        console.log(`⏰ [DB] Detectado baneo temporal expirado: ${row.nombre} (${Math.floor(tiempoTranscurrido / (60 * 1000))} min transcurridos de ${row.duracion} min límite)`);
-                        baneosExpiradosALimpiar.push(row.id);
-                        continue; // No incluir en la lista de activos
-                    }
-                }
-                
-                // Baneo realmente activo (permanente o temporal no expirado)
-                baneosRealmenteActivos.push({
-                    id: row.id,
-                    authId: row.auth_id,
-                    nombre: row.nombre,
-                    razon: row.razon,
-                    admin: row.admin,
-                    fecha: row.fecha,
-                    duracion: row.duracion,
-                    diasBaneado: Math.floor((ahora - new Date(row.fecha)) / (1000 * 60 * 60 * 24))
-                });
-            }
-            
-            // Limpiar automáticamente baneos temporales expirados
-            if (baneosExpiradosALimpiar.length > 0) {
-                console.log(`🧹 [DB] Limpiando automáticamente ${baneosExpiradosALimpiar.length} baneos temporales expirados...`);
-                
-                for (const baneoId of baneosExpiradosALimpiar) {
-                    try {
-                        await dbFunctions.desactivarBaneo(baneoId);
-                        console.log(`✅ [DB] Baneo temporal expirado limpiado: ID ${baneoId}`);
-                    } catch (cleanupError) {
-                        console.error(`❌ [DB] Error limpiando baneo expirado ID ${baneoId}:`, cleanupError);
-                    }
-                }
-            }
-            
-            console.log(`ℹ️ [DB] Baneos procesados: ${rows.length} total, ${baneosRealmenteActivos.length} realmente activos, ${baneosExpiradosALimpiar.length} expirados limpiados`);
-            return {
-                activeBans: baneosRealmenteActivos,
-                expiredBansAuthIds: expiredBansAuthIds
-            };
+            const query = `SELECT id, auth_id, nombre, razon, admin, fecha, duracion FROM baneos WHERE activo = 1`;
+            const activeBans = await executeQuery(query);
+            return activeBans.map(ban => ({
+                ...ban,
+                authId: ban.auth_id
+            }));
         } catch (error) {
             console.error('❌ [DB] Error obteniendo baneos activos:', error);
+            throw error;
+        }
+    },
+
+    limpiarBaneosExpirados: async () => {
+        try {
+            await executeQuery("SET SESSION time_zone = '+00:00'");
+            const query = `
+                SELECT id, auth_id, nombre, fecha, duracion FROM baneos 
+                WHERE activo = 1 AND duracion > 0 AND TIMESTAMPADD(MINUTE, duracion, fecha) <= UTC_TIMESTAMP()
+            `;
+            const expiredBans = await executeQuery(query);
+
+            if (expiredBans.length === 0) {
+                return { cleanedBans: 0, expiredBans: [] };
+            }
+
+            const expiredIds = expiredBans.map(ban => ban.id);
+            const updateQuery = `UPDATE baneos SET activo = 0 WHERE id IN (?)`;
+            const result = await executeQuery(updateQuery, [expiredIds]);
+
+            console.log(`🧹 [DB] Limpiados ${result.affectedRows} baneos expirados.`);
+            return {
+                cleanedBans: result.affectedRows,
+                expiredBans: expiredBans.map(b => ({ authId: b.auth_id, nombre: b.nombre }))
+            };
+        } catch (error) {
+            console.error('❌ [DB] Error limpiando baneos expirados:', error);
             throw error;
         }
     },
@@ -887,83 +863,6 @@ const dbFunctions = {
         }
     },
     
-    // Eliminar cuentas inactivas
-    eliminarCuentasInactivas: async () => {
-        try {
-            // Primero contar cuántas cuentas serán eliminadas
-            const countQuery = `SELECT COUNT(*) as count FROM jugadores 
-                                WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
-            
-            const countResult = await executeQuery(countQuery);
-            const cuentasAEliminar = countResult[0].count;
-            console.log(`🧹 [DB] Se encontraron ${cuentasAEliminar} cuentas inactivas por más de 90 días`);
-            
-            if (cuentasAEliminar === 0) {
-                return { eliminadas: 0, mensaje: 'No hay cuentas inactivas para eliminar' };
-            }
-            
-            // Obtener nombres de las cuentas que serán eliminadas (para log)
-            const selectQuery = `SELECT nombre, fechaUltimoPartido FROM jugadores 
-                                WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
-            
-            const cuentas = await executeQuery(selectQuery);
-            
-            // Log de las cuentas que serán eliminadas
-            console.log('📋 [DB] Cuentas que serán eliminadas:');
-            cuentas.forEach(jugador => {
-                const diasInactivo = Math.floor((new Date() - new Date(jugador.fechaUltimoPartido)) / (1000 * 60 * 60 * 24));
-                console.log(`  - ${jugador.nombre} (${diasInactivo} días inactivo)`);
-            });
-            
-            // Proceder con la eliminación
-            const deleteQuery = `DELETE FROM jugadores 
-                                WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 90 DAY)`;
-            
-            const result = await executeQuery(deleteQuery);
-            
-            console.log(`✅ [DB] ${result.affectedRows} cuentas inactivas eliminadas exitosamente`);
-            return { 
-                eliminadas: result.affectedRows, 
-                mensaje: `Se eliminaron ${result.affectedRows} cuentas inactivas por más de 90 días`,
-                cuentas: cuentas.map(r => ({ nombre: r.nombre, fechaUltimoPartido: r.fechaUltimoPartido }))
-            };
-        } catch (error) {
-            console.error('❌ [DB] Error eliminando cuentas inactivas:', error);
-            throw error;
-        }
-    },
-    
-    // Obtener estadísticas de inactividad
-    obtenerEstadisticasInactividad: async () => {
-        try {
-            const queries = {
-                total: 'SELECT COUNT(*) as count FROM jugadores',
-                inactivas30: `SELECT COUNT(*) as count FROM jugadores WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 30 DAY)`,
-                inactivas60: `SELECT COUNT(*) as count FROM jugadores WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 60 DAY)`,
-                inactivas90: `SELECT COUNT(*) as count FROM jugadores WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 90 DAY)`,
-            };
-            
-            const resultados = {};
-            
-            for (const [key, query] of Object.entries(queries)) {
-                const result = await executeQuery(query);
-                resultados[key] = result[0].count;
-            }
-            
-            // Obtener próximas a eliminar
-            const proximasQuery = `SELECT nombre, fechaUltimoPartido FROM jugadores 
-                                  WHERE fechaUltimoPartido < DATE_SUB(NOW(), INTERVAL 80 DAY)
-                                  AND fechaUltimoPartido >= DATE_SUB(NOW(), INTERVAL 90 DAY)
-                                  ORDER BY fechaUltimoPartido ASC`;
-            
-            resultados.proximasEliminar = await executeQuery(proximasQuery);
-            
-            return resultados;
-        } catch (error) {
-            console.error('❌ [DB] Error obteniendo estadísticas de inactividad:', error);
-            throw error;
-        }
-    },
     
     // ====================== FUNCIONES PARA AUTH_ID SYSTEM ======================
     
@@ -977,6 +876,9 @@ const dbFunctions = {
             // Siempre registrar el intento de uso de un nombre
             await dbFunctions.registrarNombreJugador(authId, nombreActual);
             
+            console.log(`[DB] guardarJugadorPorAuth: authId=${authId}, nombreActual=${nombreActual}`);
+            console.log(`[DB] stats.fechaUltimoPartido: ${stats?.fechaUltimoPartido}`);
+
             const statsSeguras = {
                 partidos: stats?.partidos ?? 0,
                 victorias: stats?.victorias ?? 0,
@@ -1054,7 +956,13 @@ const dbFunctions = {
                 }
             }
             
-            const jugadorFinal = await dbFunctions.obtenerJugadorPorAuth(authId);
+            let jugadorFinal = null;
+            for (let i = 0; i < 3; i++) {
+                jugadorFinal = await dbFunctions.obtenerJugadorPorAuth(authId);
+                if (jugadorFinal) break;
+                await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms
+            }
+
             if (!jugadorFinal) {
                 throw new Error('Fallo crítico: El jugador no se guardó/encontró después de la operación.');
             }

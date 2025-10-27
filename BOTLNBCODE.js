@@ -826,7 +826,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGj8FSUHMGpjEh7Uaw.MngVPu7KZoo";
+const token = "thr1.AAAAAGj-2OOwHfRj6z_CTA.KwTtGrofkMc";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -835,6 +835,17 @@ let room = null;
 // Variables para sistema AFK
 let advertenciasAFK = new Map();
 let comandoCooldown = new Map();
+
+// ==================== SISTEMA DE COLORES VIP ====================
+let vipMessageColors = new Map(); // {playerId: colorHex}
+const VIP_COLORS = {
+    "naranja": "FF7F00",
+    "violeta": "800080",
+    "rosa": "FFC0CB",
+    "azul": "0000FF",
+    "amarillo": "FFFF00"
+};
+
 
 // SISTEMA DE LOGGING OPTIMIZADO PARA REDUCIR SPAM
 let logSpamControl = new Map();
@@ -1859,15 +1870,16 @@ const AZUL_LNB = COLORES.PRIMARIO;
 const CELESTE_LNB = COLORES.SECUNDARIO;
 
 const LIGA_FILTROS = {
-    "argentina": [23],
-    "inglaterra": [2],
-    "portugal": [8],
-    "mundial": [362],
-    "francia": [301],
-    "copaamerica": [271],
-    "nations": [350],
-    "españa": [3],
-    "default": [39, 140, 135, 78, 94, 253, 128, 13, 11, 1, 129, 4, 9] // Existing LIGAS_PERMITIDAS
+    "inglaterra": [39],
+    "españa": [140],
+    "italia": [135],
+    "alemania": [78],
+    "francia": [61],
+    "champions": [2],
+    "europa": [3],
+    "libertadores": [13],
+    "sudamericana": [11],
+    "default": [39, 140, 135, 78, 61, 2, 3, 13, 11]
 };
 
 // MAPAS DE LNB
@@ -5214,17 +5226,23 @@ function anunciarExito(mensaje) {
 }
 
 function anunciarError(mensaje, jugador) {
-    if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
-        if (jugador && jugador.id !== undefined) {
-            room.sendAnnouncement("[PV] ❌ " + mensaje, jugador.id, parseInt("FF0000", 16), "bold", 0);
-        } else {
-            // Si no hay jugador válido, enviar como mensaje general
-            room.sendAnnouncement("❌ " + mensaje, null, parseInt("FF0000", 16), "bold", 1);
-        }
+    const color = parseInt("FF0000", 16);
+    if (jugador && jugador.id) {
+        room.sendAnnouncement(mensaje, jugador.id, color, "normal", 0);
     } else {
-        // Mensaje de error enviado
+        room.sendAnnouncement(mensaje, null, color, "bold", 2);
     }
 }
+
+function anunciarExito(mensaje, jugador) {
+    const color = parseInt("00FF00", 16);
+    if (jugador && jugador.id) {
+        room.sendAnnouncement(mensaje, jugador.id, color, "normal", 0);
+    } else {
+        room.sendAnnouncement(mensaje, null, color, "bold", 2);
+    }
+}
+
 
 function anunciarAdvertencia(mensaje, jugador = null) {
     if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
@@ -7615,6 +7633,29 @@ async function procesarComando(jugador, mensaje) {
         case "help":
             mostrarAyuda(jugador, args[1]);
             break;
+
+        case "color":
+            if (!esVIP(jugador)) {
+                anunciarError("❌ Este comando es solo para jugadores VIP.", jugador);
+                return;
+            }
+            const colorName = args[1]?.toLowerCase();
+            if (!colorName) {
+                anunciarError("Uso: !color <naranja|violeta|rosa|azul|amarillo|defecto>", jugador);
+                return;
+            }
+
+            if (colorName === 'defecto') {
+                vipMessageColors.delete(jugador.id);
+                anunciarExito("Tu color de mensaje ha sido restaurado al predeterminado.", jugador);
+            } else if (VIP_COLORS[colorName]) {
+                vipMessageColors.set(jugador.id, VIP_COLORS[colorName]);
+                anunciarExito(`Tu color de mensaje ha sido establecido a ${colorName}.`, jugador);
+            } else {
+                anunciarError("Color no válido. Colores disponibles: naranja, violeta, rosa, azul, amarillo.", jugador);
+            }
+            break;
+
         
         case "xp":
             const jugadoresArray = Object.values(estadisticasGlobales.jugadores);
@@ -9087,8 +9128,8 @@ anunciarError("Uso: !pw <contraseña>", jugador);
                 }
             }
 
-            // 3. Prevenir que los admins se baneen entre sí
-            if (jugadorObjetivo && esAdminBasico(jugadorObjetivo)) {
+            // 3. Prevenir que los admins se baneen entre sí (a menos que seas Super Admin)
+            if (jugadorObjetivo && esAdminBasico(jugadorObjetivo) && !esSuperAdmin(jugador)) {
                 anunciarError("❌ No puedes banear a otro administrador.", jugador);
                 return;
             }
@@ -9140,31 +9181,38 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             
             if (!args[1]) {
                 anunciarError("📝 Uso: !unban <auth_id>", jugador);
-                anunciarInfo("💡 Ejemplo: !unban ABC123DEF", jugador);
                 return;
             }
             
             const authIdToUnban = args[1];
-            console.log(`🔧 UNBAN: Admin ${jugador.name} solicita desbanear: "${authIdToUnban}"`);
             
+            if (typeof nodeUnbanMejorado !== 'function') {
+                anunciarError("❌ El sistema de desbaneo no está disponible. Contacta al desarrollador.", jugador);
+                console.error("Error crítico: la función nodeUnbanMejorado no fue expuesta correctamente.");
+                return;
+            }
+
+            console.log(`🔧 UNBAN: Admin ${jugador.name} solicita desbanear: "${authIdToUnban}".`);
+
             try {
-                room.clearBan(authIdToUnban);
-                anunciarExito(`✅ Se intentó un desbaneo para ${authIdToUnban}.`, jugador);
-                console.log(`✅ UNBAN: clearBan for authId ${authIdToUnban} was successful.`);
-                if (typeof nodeDesbanearJugadorNuevo === 'function') {
-                    await nodeDesbanearJugadorNuevo(authIdToUnban);
-                }
+                const result = await nodeUnbanMejorado(authIdToUnban);
 
-                const fakePlayer = { auth: authIdToUnban };
-                const ipJugador = obtenerIdentificadorConexion(fakePlayer);
-                if (ipJugador && ipsBloqueadas.has(ipJugador)) {
-                    ipsBloqueadas.delete(ipJugador);
-                    anunciarExito(`✅ Se eliminó el bloqueo de IP para ${ipJugador}.`, jugador);
+                if (result.success) {
+                    if (result.wasInDb) {
+                        room.sendAnnouncement(`🟢 ${jugador.name} ha desbaneado al jugador con authId: ${authIdToUnban}`, null, 0x00FF00, "bold", 2);
+                        room.sendAnnouncement(`✅ Ban de ${result.playerName} (${authIdToUnban}) eliminado de la base de datos. El jugador ya puede entrar.`, null, 0x00FF00, "bold", 1);
+                        console.log(`[ADMIN ${jugador.name}] Unbanned player ${authIdToUnban}`);
+                        enviarNotificacionBanKick("unban", jugador.name, result.playerName, authIdToUnban, null, "Desbaneo manual");
+                    } else {
+                        room.sendAnnouncement(`⚠️ No existe un ban activo en la base de datos para ese authId.`, null, 0xFFFF00, "bold", 1);
+                    }
+                } else {
+                    room.sendAnnouncement(`❌ Error interno al intentar desbanear.`, null, 0xFF0000, "bold", 2);
+                    console.error(`❌ Error del sistema de desbaneo: ${result.message}`);
                 }
-
             } catch (e) {
-                anunciarError(`❌ Error al intentar desbanear a ${authIdToUnban}.`, jugador);
-                console.log(`❌ UNBAN: clearBan for authId ${authIdToUnban} failed.`);
+                room.sendAnnouncement(`❌ Error interno al intentar desbanear.`, null, 0xFF0000, "bold", 2);
+                console.error(`❌ Error en comando !unban:`, e);
             }
             break;
 
@@ -9517,6 +9565,7 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             if (vipBot) {
                 try {
                     const vipResponse = await vipBot.handlePlayerMessage(jugador.name, mensaje, jugador.auth);
+                    console.log(`[DEBUG] vipResponse for ${jugador.name}: ${vipResponse}`);
                     if (vipResponse) {
                         // Enviar respuesta del sistema VIP al jugador
                         const lineas = vipResponse.split('\n');
@@ -9645,6 +9694,13 @@ function esAdminBasico(jugador) {
     const rolJugador = jugadoresConRoles.get(jugador.id);
     return rolJugador && (ROLES[rolJugador.role]?.level || 0) >= ROLES.ADMIN_BASICO.level;
 }
+
+function esVIP(jugador) {
+    if (!jugador) return false;
+    const rolInfo = jugadoresConRoles.get(jugador.id);
+    return rolInfo && (rolInfo.role === 'VIP' || ROLES[rolInfo.role]?.level >= ROLES.ADMIN_BASICO.level);
+}
+
 
 // FUNCIÓN AUXILIAR PARA VERIFICAR SI UN AUTH ES VÁLIDO
 function tieneAuth(jugador) {
@@ -10640,7 +10696,7 @@ async function registrarJugadorGlobal(authID, nombre) { // Make it async
             } else {
                 // Si no existe en DB, crear nuevo jugador
                 estadisticasGlobales.jugadores[authID] = {
-                    authID: authID,
+                    auth_id: authID,
                     nombre: nombre, // Nombre actual del jugador
                     partidos: 0,
                     victorias: 0,
@@ -10669,7 +10725,7 @@ async function registrarJugadorGlobal(authID, nombre) { // Make it async
         } else {
             // Fallback si nodeObtenerJugadorPorAuth no está disponible
             estadisticasGlobales.jugadores[authID] = {
-                authID: authID,
+                auth_id: authID,
                 nombre: nombre, // Nombre actual del jugador
                 partidos: 0,
                 victorias: 0,
@@ -10817,7 +10873,10 @@ function actualizarEstadisticasGlobales(datosPartido) {
         statsGlobal.asistencias += jugadorPartido.asistencias;
         statsGlobal.autogoles += jugadorPartido.autogoles;
         statsGlobal.tiempoJugado += jugadorPartido.tiempo;
+        console.log(`[STATS] Actualizando para ${jugadorPartido.nombre} (Auth: ${authID})`);
+        console.log(`[STATS] fechaUltimoPartido ANTES: ${statsGlobal.fechaUltimoPartido}`);
         statsGlobal.fechaUltimoPartido = new Date().toISOString();
+        console.log(`[STATS] fechaUltimoPartido DESPUÉS: ${statsGlobal.fechaUltimoPartido}`);
         
         // Victorias/Derrotas
         if (equipoGanador !== 0) {
@@ -11669,7 +11728,21 @@ async function recuperarEstadisticas(jugador, codigo, confirmarSobreescritura) {
 
 // FUNCIÓN PARA DESAFIAR A PPT
 function desafiarPPT(jugador, nombreOponente, jugadaDesafiador) {
-    const oponente = room.getPlayerList().find(j => j.name.toLowerCase().includes(nombreOponente.toLowerCase()));
+    let oponente = null;
+    const busqueda = nombreOponente.trim(); // Limpiar espacios
+
+    if (busqueda.startsWith('#')) {
+        const id = parseInt(busqueda.substring(1));
+        if (!isNaN(id)) {
+            oponente = room.getPlayerList().find(j => j.id === id);
+        }
+    } else {
+        let nombreBuscado = busqueda.toLowerCase();
+        if (nombreBuscado.startsWith('@')) {
+            nombreBuscado = nombreBuscado.substring(1);
+        }
+        oponente = room.getPlayerList().find(j => j.name.toLowerCase().includes(nombreBuscado));
+    }
 
     if (!oponente) {
 anunciarError(`❌ No se encontró a ningún jugador con el nombre "${nombreOponente}"`, jugador);
@@ -13213,6 +13286,9 @@ function enviarNotificacionBanKick(tipo, adminNombre, jugadorNombre, jugadorIDOU
     } else if (tipo === "kick") {
         accionTexto = "expulsó a";
         mensaje = `\`\`\`⛔ [${fecha}, ${hora}] 🦵 ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${idParaMostrar}) | 📄 Motivo: ${razon}\`\`\``;
+    } else if (tipo === "unban") {
+        accionTexto = "desbaneó a";
+        mensaje = `\`\`\`✅ [${fecha}, ${hora}] ✨ ${adminNombre} (ID: ${room.getPlayerList().find(p => p.name === adminNombre)?.id || 'N/A'}) ${accionTexto} ${jugadorNombre} (ID: ${idParaMostrar}) | 📄 Motivo: ${razon}\`\`\``;
     }
     
     const payload = {
@@ -14056,57 +14132,45 @@ function configurarEventos() {
         const nivel = obtenerNivelJugador(nombreOriginal);
         const emojiNivel = obtenerEmojiNivel(nivel);
         
-        // Verificar estado VIP de forma síncrona (para evitar async en onPlayerChat)
-        let esVIP = false;
-        let tipoVIP = null;
-        let colorVIP = "FFFFFF"; // Blanco por defecto
-        
-        // Verificación VIP básica sin await (para evitar problemas con return false)
-        // TODO: Implementar cache VIP síncrono si es necesario
-        // Por ahora, solo usar el sistema de roles existente
-        
-        // Determinar formato según el rol
+        // Verificar estado VIP de forma síncrona
+        const isVIP = esVIP(jugador);
+        const customColor = vipMessageColors.get(jugador.id);
+
         let prefijoRol = '';
         let mensajeCompleto = '';
-        let estiloMensaje = 'normal'; // Por defecto normal
-        
+        let estiloMensaje = 'normal';
+        let colorChat = parseInt("FFFFFF", 16); // Blanco por defecto
+
         if (esSuperAdmin(jugador)) {
             prefijoRol = `〔👑 • ${emojiNivel} Nv. `;
             mensajeCompleto = `${prefijoRol}${nivel}〕 ${nombreOriginal}: ${mensaje}`;
-            colorVIP = "FFFFFF"; // BLANCO para super admins
+            colorChat = customColor ? parseInt(customColor, 16) : parseInt("FFFFFF", 16);
+            estiloMensaje = customColor ? 'bold' : 'normal';
         } else if (esAdminBasico(jugador)) {
             prefijoRol = `〔👮🏻 • ${emojiNivel} Nv. `;
             mensajeCompleto = `${prefijoRol}${nivel}〕 ${nombreOriginal}: ${mensaje}`;
-            colorVIP = "FFFFFF"; // BLANCO para admins
-        } else if (esVIP && (tipoVIP === 'ULTRA_VIP' || tipoVIP === 'VIP')) {
-            // VIP y ULTRA VIP: Color naranja y formato bold
-            if (tipoVIP === 'ULTRA_VIP') {
-                prefijoRol = `〔👑 ULTRA VIP • ${emojiNivel} Nv. `;
-                mensajeCompleto = `${prefijoRol}${nivel}〕 ✨${nombreOriginal}✨: ${mensaje}`;
+            colorChat = customColor ? parseInt(customColor, 16) : parseInt("FFFFFF", 16);
+            estiloMensaje = customColor ? 'bold' : 'normal';
+        } else if (isVIP) {
+            if (customColor) {
+                colorChat = parseInt(customColor, 16);
+                estiloMensaje = 'bold';
             } else {
-                prefijoRol = `〔💎 VIP • ${emojiNivel} Nv. `;
-                mensajeCompleto = `${prefijoRol}${nivel}〕 ⭐${nombreOriginal}: ${mensaje}`;
+                colorChat = parseInt("FF8800", 16); // Naranja por defecto para VIPs
+                estiloMensaje = 'bold';
             }
-            colorVIP = "FF8800"; // NARANJA para VIPs
-            estiloMensaje = 'bold'; // BOLD para VIPs
+            prefijoRol = `〔💎 VIP • ${emojiNivel} Nv. `;
+            mensajeCompleto = `${prefijoRol}${nivel}〕 ⭐${nombreOriginal}: ${mensaje}`;
         } else {
             // Jugador normal
             prefijoRol = '〔Nv. ';
             mensajeCompleto = `${prefijoRol}${nivel} ${emojiNivel}〕 ${nombreOriginal}: ${mensaje}`;
-            colorVIP = "FFFFFF"; // BLANCO para jugadores normales
+            colorChat = parseInt("FFFFFF", 16);
         }
-        
-        // APLICAR FORMATO A TODOS LOS JUGADORES (admins, VIPs y normales)
-        console.log(`🎮 CHAT DEBUG: Enviando mensaje formateado para todos los jugadores`);
-        
-        // Usar el color y estilo determinados arriba
-        const colorChat = parseInt(colorVIP, 16);
         
         // Retransmitir el mensaje con el formato, color y estilo apropiados
         room.sendAnnouncement(mensajeCompleto, null, colorChat, estiloMensaje, 1);
         
-        console.log(`🎮 CHAT DEBUG: Mensaje formateado enviado, ocultando mensaje original`);
-        console.log(">>> onPlayerChat is returning false");
         return false; // No mostrar el mensaje original sin formato
     };
     
@@ -14179,7 +14243,19 @@ function configurarEventos() {
         }
     }
 
+    let lastClearBans = Date.now();
     room.onPlayerJoin = async function(jugador) {
+        // Limpieza periódica de baneos
+        if (Date.now() - lastClearBans > 30 * 1000) { // 30 segundos
+            try {
+                room.clearBans();
+                lastClearBans = Date.now();
+                console.log('🧹 Baneos nativos del motor limpiados automáticamente.');
+                // anunciarInfo('🧹 Mantenimiento periódico: se limpió la lista de baneos internos del motor.');
+            } catch (error) {
+                console.error('❌ Error al limpiar baneos automáticamente:', error);
+            }
+        }
         // ====================== VERIFICACIÓN DE BANEOS (PRIMERO) ======================
         if (jugador.auth) {
             try {
@@ -15641,6 +15717,9 @@ room.onTeamGoal = function(equipo) {
             
             anunciarGeneral("🏁 ⭐ ¡PARTIDO FINALIZADO! ⭐ 🏁", "FFA500", "bold");
 
+            // Actualizar estadísticas globales antes del reset
+            actualizarEstadisticasGlobales(estadisticasPartido);
+
             // Guardar estadísticas en la base de datos
             try {
                 console.log('💾 Guardando estadísticas en la base de datos...');
@@ -15675,9 +15754,6 @@ const mejorJugador = calcularMejorJugador();
                 console.log(`🔓 DEBUG: No hay reporte que enviar, liberando bloqueo inmediatamente`);
                 liberarBloqueoReplay("No hay reporte que enviar");
             }
-            
-            // Actualizar estadísticas globales antes del reset
-            actualizarEstadisticasGlobales(estadisticasPartido);
             
             // Reset estadísticas
             estadisticasPartido.iniciado = false;
@@ -16482,7 +16558,7 @@ async function inicializar() {
     if (BotVIPIntegration && !vipBot) {
         try {
             console.log('🔄 Inicializando sistema VIP...');
-            vipBot = new BotVIPIntegration(room); // Pasar referencia del room para soporte #ID
+            vipBot = new BotVIPIntegration(room, jugadoresConRoles); // Pasar referencia del room y roles para soporte #ID
             console.log('✅ Sistema VIP inicializado correctamente');
             anunciarInfo('👑 Sistema VIP activado - Comandos: !givevip, !giveultravip, !viphelp (soporte #ID)');
         } catch (error) {

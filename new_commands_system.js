@@ -181,11 +181,23 @@ function initializeCommandSystem(room, permissionCtx, permissionsIds) {
 
                 try {
                     const dbFunctions = require('./database/db_functions');
+                    const { offlineBanSystem } = require('./offline_ban_system'); // Import offlineBanSystem
                     const result = await dbFunctions.desbanearJugadorNuevo(authId);
                     
                     if (result && result.cambios > 0) {
-                        room.librariesMap.commands.announceAction(`✅ Jugador con Auth ID "${authId}" fue desbaneado por ${adminName}.`, byId);
-                        console.log(`✅ UNBAN: Jugador con Auth ID "${authId}" fue desbaneado por ${adminName}.`);
+                        try {
+                            if (!authId || typeof authId !== 'string' || authId.trim() === '') {
+                                room.librariesMap.commands.announceAction(`❌ Error: Auth ID inválido o vacío. No se puede desbanear.`, byId);
+                                console.error(`❌ UNBAN: Intento de desbanear con Auth ID inválido o vacío por ${adminName}.`);
+                                return;
+                            }
+                            offlineBanSystem.removeBanFromCache(authId); // Remove from cache first
+                            console.log(`DEBUG: Attempting to clear ban for authId: ${authId}`);
+                            room.clearBan(authId);
+                        } catch (e) {
+                            room.librariesMap.commands.announceAction(`⚠️ El jugador fue desbaneado de la DB, pero ocurrió un error al desbanearlo de la sala.`, byId);
+                            console.error(`❌ UNBAN: Error en room.clearBan para ${authId}:`, e);
+                        }
                     } else {
                         room.librariesMap.commands.announceAction(`❌ No se encontró un baneo activo para el Auth ID: "${authId}".`, byId);
                         console.warn(`⚠️ UNBAN: No se encontró un baneo activo para el Auth ID: "${authId}".`);
@@ -320,6 +332,38 @@ function initializeCommandSystem(room, permissionCtx, permissionsIds) {
         });
 
         console.log("✅ COMMANDS: Comando 'bans' registrado exitosamente");
+
+        // Comando HAXBANS (para debug)
+        room.librariesMap.commands.add({
+            name: "haxbans",
+            parameters: [],
+            minParameterCount: 0,
+            helpText: "Muestra la lista de baneos interna de HaxBall. Uso: !haxbans",
+            callback: (params, byId) => {
+                if (!checkAdminPermission(room, byId)) {
+                    room.librariesMap.commands?.announcePermissionDenied(byId);
+                    return;
+                }
+
+                try {
+                    const banList = room.getBanList();
+                    if (banList && banList.length > 0) {
+                        let response = "🚨 Lista de Baneos de HaxBall: \n";
+                        banList.forEach(ban => {
+                            response += `Auth: ${ban.auth}, Razón: ${ban.reason}, Admin: ${ban.byPlayer ? ban.byPlayer.name : 'Sistema'}\n`;
+                        });
+                        room.sendAnnouncement(response, byId, 0xFF0000, "normal", 0);
+                    } else {
+                        room.sendAnnouncement("✅ No hay baneos en la lista interna de HaxBall.", byId, 0x00FF00, "normal", 0);
+                    }
+                } catch (e) {
+                    room.sendAnnouncement(`❌ Error obteniendo la lista de baneos de HaxBall: ${e.message}`, byId, 0xFF0000, "normal", 0);
+                    console.error("❌ HAXBANS: Error en getBanList:", e);
+                }
+            }
+        });
+
+        console.log("✅ COMMANDS: Comando 'haxbans' registrado exitosamente");
 
         // Agregar más comandos aquí en el futuro si es necesario
         // room.librariesMap.commands.add({ ... });

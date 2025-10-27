@@ -38,6 +38,7 @@ const { executeQuery, executeTransaction, testConnection, closePool } = require(
 
 // Importar funciones de base de datos
 const dbFunctions = require('./database/db_functions');
+const unbanMejorado = require('./unban_mejorado.js');
 
 // Importar API de Football
 const { getLiveFixtures } = require('./api_football.js');
@@ -85,6 +86,22 @@ testConnection().then(isConnected => {
                 console.warn('⚠️ [DB KEEPALIVE] Falló ping SELECT 1:', e.message);
             }
         }, 5 * 60 * 1000); // cada 5 minutos
+
+        // Limpieza periódica de baneos expirados en la base de datos
+        setInterval(async () => {
+            try {
+                console.log('🔄 [CRON] Ejecutando limpieza de baneos expirados...');
+                const result = await dbFunctions.limpiarBaneosExpirados();
+                if (result && result.cleanedBans > 0) {
+                    console.log(`✅ [CRON] Limpieza completada. ${result.cleanedBans} baneos expirados fueron desactivados.`);
+                } else {
+                    console.log('✅ [CRON] No se encontraron baneos expirados para limpiar.');
+                }
+            } catch (error) {
+                console.error('❌ [CRON] Error durante la limpieza de baneos expirados:', error);
+            }
+        }, 30 * 1000); // Ejecutar cada 30 segundos
+
     } catch {}
 });
 
@@ -1759,9 +1776,6 @@ const webhooks = {
         // Exponer función para obtener todos los jugadores (para carga completa de estadísticas)
         await page.exposeFunction('nodeObtenerTodosJugadores', dbFunctions.obtenerTodosJugadores);
         
-        // Exponer funciones de limpieza de cuentas inactivas
-        await page.exposeFunction('nodeEliminarCuentasInactivas', dbFunctions.eliminarCuentasInactivas);
-        await page.exposeFunction('nodeObtenerEstadisticasInactividad', dbFunctions.obtenerEstadisticasInactividad);
         
         // Exponer funciones VIP
         await page.exposeFunction('nodeActivarVIP', dbFunctions.activarVIP);
@@ -1821,6 +1835,7 @@ const webhooks = {
         
         await page.exposeFunction('nodeDesactivarBaneo', dbFunctions.desactivarBaneo);
         await page.exposeFunction('nodeDesbanearJugadorNuevo', dbFunctions.desbanearJugadorNuevo);
+        await page.exposeFunction('nodeUnbanMejorado', authId => unbanMejorado.unbanMejorado(authId));
         await page.exposeFunction('nodeObtenerBaneosActivos', dbFunctions.obtenerBaneosActivos);
         
         // Exponer funciones de tracking de salidas
@@ -2476,79 +2491,6 @@ await page.exposeFunction('guardarEstadisticasGlobales', async (datos) => {
         console.log('ℹ️ WATCHDOG deshabilitado - El bot funcionará sin verificaciones periódicas de contexto');
         console.log('ℹ️ PM2 manejará los reinicios solo si el proceso Node.js falla completamente');
         
-        // ====================== SISTEMA DE LIMPIEZA AUTOMÁTICA ======================
-        // Función para ejecutar la limpieza de cuentas inactivas
-        const ejecutarLimpiezaAutomatica = async () => {
-            try {
-                console.log('🧹 Iniciando limpieza automática de cuentas inactivas...');
-                
-                // Obtener estadísticas antes de la limpieza
-                const estadisticas = await dbFunctions.obtenerEstadisticasInactividad();
-                console.log(`📊 Estadísticas de inactividad:`);
-                console.log(`   - Total de jugadores: ${estadisticas.total}`);
-                console.log(`   - Inactivos +30 días: ${estadisticas.inactivas30}`);
-                console.log(`   - Inactivos +60 días: ${estadisticas.inactivas60}`);
-                console.log(`   - Inactivos +90 días: ${estadisticas.inactivas90}`);
-                console.log(`   - Próximos a eliminar (80-90 días): ${estadisticas.proximasEliminar.length}`);
-                
-                // Ejecutar la limpieza
-                const resultado = await dbFunctions.eliminarCuentasInactivas();
-                
-                // Enviar notificación a Discord si se eliminaron cuentas
-                if (resultado.eliminadas > 0) {
-                    const payload = {
-                        content: `🧹 **Limpieza Automática de Cuentas Inactivas**\n\n` +
-                                `✅ Se eliminaron **${resultado.eliminadas}** cuentas inactivas por más de 90 días.\n\n` +
-                                `📋 **Cuentas eliminadas:**\n` +
-                                resultado.cuentas.map(c => {
-                                    const diasInactivo = Math.floor((new Date() - new Date(c.fechaUltimoPartido)) / (1000 * 60 * 60 * 24));
-                                    return `• ${c.nombre} (${diasInactivo} días inactivo)`;
-                                }).join('\n') +
-                                `\n\n📊 **Estadísticas actuales:**\n` +
-                                `• Total de jugadores restantes: ${estadisticas.total - resultado.eliminadas}\n` +
-                                `• Próximos a eliminar: ${estadisticas.proximasEliminar.length}`,
-                        username: "LNB Bot - Sistema de Limpieza",
-                        avatar_url: "https://cdn.discordapp.com/emojis/🧹.png"
-                    };
-                    
-                    try {
-                        const response = await fetch(webhooks.discord, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                        
-                        if (response.ok) {
-                            console.log('✅ Notificación de limpieza enviada a Discord');
-                        } else {
-                            console.warn('⚠️ Error al enviar notificación a Discord:', response.status);
-                        }
-                    } catch (discordError) {
-                        console.error('❌ Error enviando notificación a Discord:', discordError);
-                    }
-                } else {
-                    console.log('ℹ️ No se encontraron cuentas inactivas para eliminar');
-                }
-                
-            } catch (error) {
-                console.error('❌ Error en limpieza automática:', error);
-            }
-        };
-        
-        // Ejecutar limpieza inicial después de 5 minutos de iniciado el bot
-        setTimeout(() => {
-            console.log('🔄 Ejecutando limpieza inicial...');
-            ejecutarLimpiezaAutomatica();
-        }, 5 * 60 * 1000); // 5 minutos
-        
-        // Programar limpieza automática cada 24 horas
-        setInterval(() => {
-            console.log('🔄 Ejecutando limpieza automática programada...');
-            ejecutarLimpiezaAutomatica();
-        }, 24 * 60 * 60 * 1000); // 24 horas
-        
-        // Exponer función de limpieza manual al contexto del navegador
-        await page.exposeFunction('nodeLimpiezaManual', ejecutarLimpiezaAutomatica);
         
         // ====================== SISTEMA DE LIMPIEZA DE CONEXIONES ======================
         // Función para ejecutar la limpieza de conexiones inactivas

@@ -25,10 +25,10 @@
   },
   "ii3F7lNlQTWiE3iIuEpdGCD8W0H2q9Pt24irEvDqEhc": {
     "role": "ADMIN_FULL",
-    "assignedAt": 1761264862443,
+    "assignedAt": 1761427968067,
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Virginius",
-    "lastSeen": 1761264862443,
+    "lastSeen": 1761427968067,
     "alternativeIds": {}
   },
   "LPJBsqE3YFTR-9ykTwf8HN-JQ6XxGIC3_DUE96S413I": {
@@ -221,6 +221,70 @@
     "assignedBy": "SISTEMA_CLAIM",
     "playerName": "Lakaka",
     "lastSeen": 1761349542658,
+    "alternativeIds": {}
+  },
+  "Ie19TgA7xIkyyqiBEl7LBwmfU1KhvZNp1K7iuXZbmao": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761428014956,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "pi de compu ",
+    "lastSeen": 1761428014956,
+    "alternativeIds": {}
+  },
+  "OowlOBfca_pgIompAoFF39YV3e5Ckj4Pmmja--bslMs": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761437413531,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "soy admin jeje",
+    "lastSeen": 1761437413531,
+    "alternativeIds": {}
+  },
+  "uqKl2flCccDJoox7Furtqw-F-wWJaRoM2YGniN21jCk": {
+    "role": "SUPER_ADMIN",
+    "assignedAt": 1761453187257,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "du",
+    "lastSeen": 1761453187257,
+    "alternativeIds": {}
+  },
+  "j3KbPwl_0mTinVkGt21_eznH3n605bW_WdQsZrtu1nA": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761503028377,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "Pol desde el celu",
+    "lastSeen": 1761503028377,
+    "alternativeIds": {}
+  },
+  "II5SbvwHgRw9ymQ5XT0lw8iSUWh-bhUNhmVh9SeTQw4": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761521292960,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "kazzyn.",
+    "lastSeen": 1761521292960,
+    "alternativeIds": {}
+  },
+  "kVITW9uEgB9spC4pfOBQGJKOOuTTv_RikTUA6_Av1R4": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761521720460,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "Dybala la joya",
+    "lastSeen": 1761521720460,
+    "alternativeIds": {}
+  },
+  "-qEplAkjeylWwYRK4IZth8x6Z4YOST_F3dFE7QEb7Jw": {
+    "role": "ADMIN_FULL",
+    "assignedAt": 1761527706835,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "AirøsZ",
+    "lastSeen": 1761527706835,
+    "alternativeIds": {}
+  },
+  "LoAK0Idc0F3poUPXFNtDoab6Wyqu3TYt4vHxDxWZw5g": {
+    "role": "ADMIN_BASICO",
+    "assignedAt": 1761530103630,
+    "assignedBy": "SISTEMA_CLAIM",
+    "playerName": "kazzyn.",
+    "lastSeen": 1761530103630,
     "alternativeIds": {}
   }
 }

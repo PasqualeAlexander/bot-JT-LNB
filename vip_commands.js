@@ -31,9 +31,10 @@ function obtenerJugadorPorID(room, input) {
 }
 
 class VIPCommands {
-    constructor(room = null) {
+    constructor(room = null, jugadoresConRoles = new Map()) {
         this.vipSystem = new VIPSystem();
         this.room = room; // Referencia al room para usar #ID
+        this.jugadoresConRoles = jugadoresConRoles;
         
         // Lista de administradores autorizados (puedes modificar esto)
         this.adminAuthorities = [
@@ -51,9 +52,12 @@ class VIPCommands {
 
     // Verificar si un jugador es OWNER (solo ellos pueden gestionar VIPs)
     isOwner(playerName, playerAuth = null) {
-        const ownerAuthorities = ['owner', 'tu_nombre_owner'];
-        return ownerAuthorities.includes(playerName.toLowerCase()) || 
-               (playerAuth && ownerAuthorities.includes(playerAuth));
+        if (!this.room || !playerAuth) return false;
+        const player = this.room.getPlayerList().find(p => p.auth === playerAuth);
+        if (!player) return false;
+
+        const rolInfo = this.jugadoresConRoles.get(player.id);
+        return rolInfo && rolInfo.role === 'SUPER_ADMIN';
     }
 
     // Procesar comandos VIP
@@ -140,13 +144,11 @@ class VIPCommands {
         if (!this.isOwner(playerName, playerAuth)) {
             const msg = "❌ Solo los OWNERS pueden usar este comando.";
             console.warn(`[VIP] Permiso denegado para ${playerName} en !givevip`);
-            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "bold", 1);
             return msg;
         }
 
         if (args.length < 2) {
             const msg = "❌ Uso: !givevip #ID [días] [razón]\n💡 Ejemplo: !givevip #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
-            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "normal", 1);
             return msg;
         }
 
@@ -155,7 +157,6 @@ class VIPCommands {
         // SOLO permitir IDs - rechazar nombres
         if (!targetInput.startsWith('#')) {
             const msg = "❌ Solo se permiten IDs de jugadores. Usa: !givevip #ID\n💡 Ejemplo: !givevip #5 para dar VIP al jugador con ID 5";
-            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "normal", 1);
             return msg;
         }
         
@@ -168,7 +169,6 @@ class VIPCommands {
         const jugador = obtenerJugadorPorID(this.room, targetInput);
         if (!jugador) {
             const msg = `❌ No se encontró jugador con ID ${targetInput}\n💡 Usa el comando !list para ver los IDs de jugadores disponibles`;
-            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "normal", 1);
             return msg;
         }
         
@@ -188,12 +188,10 @@ class VIPCommands {
                 response += ` permanentemente`;
             }
             
-            if (this.room) this.room.sendAnnouncement(response, null, 0x00FF00, "normal", 1);
             return response;
         } catch (error) {
             const errMsg = `❌ Error: ${error.message}`;
             console.error(`[VIP] Error en !givevip:`, error);
-            if (this.room) this.room.sendAnnouncement(errMsg, null, 0xFF6347, "bold", 1);
             return errMsg;
         }
     }
@@ -202,13 +200,11 @@ class VIPCommands {
         console.log(`🔧 [VIP] handleGiveUltraVIP invocado por ${playerName}${playerAuth ? ' (' + playerAuth + ')' : ''} con args:`, args);
         if (!this.isOwner(playerName, playerAuth)) {
             const msg = "❌ Solo los OWNERS pueden usar este comando.";
-            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "bold", 1);
             return msg;
         }
 
         if (args.length < 2) {
             const msg = "❌ Uso: !giveultravip #ID [días] [razón]\n💡 Ejemplo: !giveultravip #5\n⚠️ Solo se permiten IDs de jugadores (#1, #2, #3, etc.)";
-            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "normal", 1);
             return msg;
         }
 
@@ -244,12 +240,10 @@ class VIPCommands {
                 response += ` permanentemente`;
             }
             
-            if (this.room) this.room.sendAnnouncement(response, null, 0x00FF00, "normal", 1);
             return response;
         } catch (error) {
             const errMsg = `❌ Error: ${error.message}`;
             console.error(`[VIP] Error en !giveultravip:`, error);
-            if (this.room) this.room.sendAnnouncement(errMsg, null, 0xFF6347, "bold", 1);
             return errMsg;
         }
     }
@@ -258,7 +252,6 @@ class VIPCommands {
         console.log(`🔧 [VIP] handleRemoveVIP invocado por ${playerName}${playerAuth ? ' (' + playerAuth + ')' : ''} con args:`, args);
         if (!this.isOwner(playerName, playerAuth)) {
             const msg = "❌ Solo los OWNERS pueden usar este comando.";
-            if (this.room) this.room.sendAnnouncement(msg, null, 0xFF6347, "bold", 1);
             return msg;
         }
 
@@ -290,12 +283,10 @@ class VIPCommands {
             console.log(`🔧 [VIP] Removiendo VIP a ${targetPlayerName} (auth: ${jugador.auth || 'N/A'}) Razón: ${reason}`);
             const result = await this.vipSystem.removeVIP(targetPlayerName, playerName, reason, jugador.auth);
             const msg = `✅ ${result.message}`;
-            if (this.room) this.room.sendAnnouncement(msg, null, 0xFFA500, "normal", 1);
             return msg;
         } catch (error) {
             const errMsg = `❌ Error: ${error.message}`;
             console.error(`[VIP] Error en !removevip:`, error);
-            if (this.room) this.room.sendAnnouncement(errMsg, null, 0xFF6347, "bold", 1);
             return errMsg;
         }
     }

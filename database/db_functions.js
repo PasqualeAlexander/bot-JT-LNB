@@ -631,6 +631,7 @@ const dbFunctions = {
     // PARCHE ZONA HORARIA UTC - Verificar si un jugador está baneado (nueva tabla) - versión que devuelve promesa
     estaBaneadoPromise: async (authId) => {
         try {
+            await executeQuery("SET SESSION time_zone = '+00:00'");
             // La lógica de expiración ahora se maneja directamente en la consulta SQL
             // para evitar problemas de zona horaria entre Node.js y la base de datos.
             const query = `
@@ -643,13 +644,12 @@ const dbFunctions = {
             const results = await executeQuery(query, [authId]);
             const row = results[0];
             
-            // Si la consulta devuelve una fila, el baneo está activo.
-            if (row) {
-                return row;
+            if (!row) {
+                return false; // No hay baneo activo.
             }
             
-            // Si no hay resultados, no hay un baneo activo.
-            return false;
+            // Si la consulta devuelve una fila y no ha expirado, el baneo está activo.
+            return row;
 
         } catch (error) {
             console.error('❌ [DB] Error verificando baneo:', error);
@@ -771,7 +771,12 @@ const dbFunctions = {
     obtenerBaneosActivos: async () => {
         try {
             await executeQuery("SET SESSION time_zone = '+00:00'");
-            const query = `SELECT id, auth_id, nombre, razon, admin, fecha, duracion FROM baneos WHERE activo = 1`;
+            const query = `
+                SELECT id, auth_id, nombre, razon, admin, fecha, duracion 
+                FROM baneos 
+                WHERE activo = 1 
+                  AND (duracion = 0 OR TIMESTAMPADD(MINUTE, duracion, fecha) > UTC_TIMESTAMP())
+            `;
             const activeBans = await executeQuery(query);
             return activeBans.map(ban => ({
                 ...ban,

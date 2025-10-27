@@ -7,15 +7,15 @@ const apiHost = 'v3.football.api-sports.io';
 
 // IDs de las ligas permitidas
 const ALL_LIGAS_TO_FETCH = [
-    39, 140, 135, 78, 94, 253, 128, 13, 11, 1, 129, 4, 9, // Existing LIGAS_PERMITIDAS
-    23, // Argentina Primera División
-    2,  // England Premier League
-    8,  // Portugal Primeira Liga
-    362, // World Cup
-    301, // France Ligue 1
-    271, // Copa America
-    350, // UEFA Nations League
-    3   // Spain La Liga
+    39, // Premier League
+    140, // La Liga
+    135, // Serie A
+    78, // Bundesliga
+    61, // Ligue 1
+    2, // Champions League
+    3, // Europa League
+    13, // Copa Libertadores
+    11, // Copa Sudamericana
 ];
 
 async function getLiveFixtures() {

@@ -26,7 +26,49 @@ class OfflineBanSystem {
         // Cargar baneos pendientes desde la base de datos
         await this.loadPendingBans();
         
+        // Iniciar el chequeo automático de baneos expirados
+        this.startAutoCheck();
+        
         console.log('✅ Sistema de Baneo Offline inicializado correctamente');
+    }
+
+    /**
+     * Iniciar el chequeo automático de baneos expirados
+     */
+    startAutoCheck() {
+        if (this.autoCheckInterval) {
+            clearInterval(this.autoCheckInterval);
+        }
+
+        this.autoCheckInterval = setInterval(async () => {
+            console.log('🔄 Ejecutando limpieza automática de baneos expirados...');
+            try {
+                const { cleanedBans, expiredBans } = await dbFunctions.limpiarBaneosExpirados();
+                if (cleanedBans > 0) {
+                    console.log(`🧹 ${cleanedBans} baneos expirados han sido limpiados de la base de datos.`);
+                    
+                    // Ahora, limpiar los baneos de la sala de HaxBall
+                    expiredBans.forEach(ban => {
+                        try {
+                            if (this.room && typeof this.room.clearBan === 'function') {
+                                this.room.clearBan(ban.authId);
+                                console.log(`✅ Baneo de HaxBall eliminado para ${ban.nombre} (${ban.authId})`);
+                            }
+                        } catch (e) {
+                            console.error(`❌ Error eliminando baneo de HaxBall para ${ban.authId}:`, e);
+                        }
+
+                        // Y también del cache de baneos pendientes
+                        if (this.pendingBans.has(ban.authId)) {
+                            this.pendingBans.delete(ban.authId);
+                            console.log(`🗑️ Baneo de ${ban.nombre} (${ban.authId}) removido del cache.`);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Error durante la limpieza automática de baneos:', error);
+            }
+        }, 5 * 60 * 1000); // Cada 5 minutos
     }
 
     /**

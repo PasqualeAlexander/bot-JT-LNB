@@ -7,9 +7,9 @@ const VIPSystem = require('./vip_system');
 const VIPCommands = require('./vip_commands');
 
 class BotVIPIntegration {
-    constructor(room = null) {
+    constructor(room = null, jugadoresConRoles = new Map()) {
         this.vipSystem = new VIPSystem();
-        this.vipCommands = new VIPCommands(room); // Pasar room para soporte #ID
+        this.vipCommands = new VIPCommands(room, jugadoresConRoles); // Pasar room y roles para soporte #ID
         this.room = room;
         
         // Configurar limpieza automática de VIPs expirados cada hora

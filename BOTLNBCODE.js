@@ -7623,55 +7623,78 @@ async function procesarComando(jugador, mensaje) {
             break;
 
         case "color":
-            if (!esVIP(jugador)) {
-                anunciarError("❌ Este comando es solo para jugadores VIP.", jugador);
-                return;
-            }
-            const colorName = args[1]?.toLowerCase();
-            if (!colorName) {
-                anunciarError("Uso: !color <naranja|violeta|rosa|azul|amarillo|defecto>", jugador);
+            const isUltra = await esUltraVIP(jugador);
+            const isVIP = esVIP(jugador);
+
+            if (!isVIP && !isUltra) {
+                anunciarError("❌ Este comando es solo para jugadores VIP o Ultra VIP.", jugador);
                 return;
             }
 
-            if (colorName === "defecto") {
+            const colorArg = args[1]?.toLowerCase();
+
+            if (!colorArg) {
+                if (isUltra) {
+                    anunciarError("Uso: !color <nombre_color|#hex|defecto>", jugador);
+                } else {
+                    anunciarError("Uso: !color <naranja|violeta|rosa|azul|amarillo|defecto>", jugador);
+                }
+                return;
+            }
+
+            if (colorArg === "defecto") {
                 const authIdCmd = jugadoresUID.get(jugador.id);
                 if (authIdCmd) vipMessageColors.delete(authIdCmd);
                 try {
                     anunciarInfo("Tu color de chat ha sido restaurado al color por defecto.", jugador);
                 } catch (chatColorError) {
                     console.error(`❌ Error al restaurar color de chat para ${jugador.name}:`, chatColorError.message || chatColorError);
-                    console.error(`   Stack trace del error de color:`, chatColorError.stack);
-                    anunciarError("❌ Error interno al restaurar el color de chat. (El color podría haberse restaurado correctamente)", jugador);
+                    anunciarError("❌ Error interno al restaurar el color de chat.", jugador);
                 }
                 
-                // Also save to DB
                 const authId = jugadoresUID.get(jugador.id);
                 if (authId && dbFunctions && dbFunctions.guardarColorVIP) {
                     await dbFunctions.guardarColorVIP(authId, null);
                 }
-
                 return;
             }
 
-            const colorHex = VIP_COLORS[colorName];
+            let colorHex = null;
+
+            if (isUltra) {
+                let colorValue = args[1];
+                if (colorValue.startsWith("#")) {
+                    colorValue = colorValue.substring(1);
+                }
+                if (/^[0-9A-F]{6}$/i.test(colorValue)) {
+                    colorHex = colorValue.toUpperCase();
+                }
+            }
+            
+            if (!colorHex) {
+                colorHex = VIP_COLORS[colorArg.toLowerCase()];
+            }
+
             if (colorHex) {
                 const authIdCmd = jugadoresUID.get(jugador.id);
                 if (authIdCmd) vipMessageColors.set(authIdCmd, colorHex);
                 try {
-                    anunciarInfo(`Tu color de chat ha sido cambiado a ${colorName}.`, jugador);
+                    anunciarInfo(`Tu color de chat ha sido cambiado.`, jugador);
                 } catch (chatColorError) {
                     console.error(`❌ Error al aplicar color de chat para ${jugador.name}:`, chatColorError.message || chatColorError);
-                    console.error(`   Stack trace del error de color:`, chatColorError.stack);
-                    anunciarError("❌ Error interno al aplicar el color de chat. (El color podría haberse aplicado correctamente)", jugador);
+                    anunciarError("❌ Error interno al aplicar el color de chat.", jugador);
                 }
 
-                // Save color to database
                 const authId = jugadoresUID.get(jugador.id);
                 if (authId && dbFunctions && dbFunctions.guardarColorVIP) {
                     await dbFunctions.guardarColorVIP(authId, colorHex);
                 }
             } else {
-                anunciarError("Color no válido. Colores disponibles: naranja, violeta, rosa, azul, amarillo, defecto.", jugador);
+                if (isUltra) {
+                    anunciarError("Color no válido. Colores disponibles: naranja, violeta, rosa, azul, amarillo, o un color hexadecimal como #FF0000.", jugador);
+                } else {
+                    anunciarError("Color no válido. Colores disponibles: naranja, violeta, rosa, azul, amarillo, defecto.", jugador);
+                }
             }
             break;
 
@@ -9727,6 +9750,34 @@ function esVIP(jugador) {
     if (!jugador) return false;
     const rolInfo = jugadoresConRoles.get(jugador.id);
     return rolInfo && (rolInfo.role === 'VIP' || ROLES[rolInfo.role]?.level >= ROLES.ADMIN_BASICO.level);
+}
+
+async function esUltraVIP(jugador) {
+    const authId = jugadoresUID.get(jugador.id);
+    if (!jugador || !authId) {
+        console.log('[DEBUG esUltraVIP] No player or auth');
+        return false;
+    }
+    if (typeof window.nodeCheckVIPStatus !== 'function') {
+        console.log('[DEBUG esUltraVIP] nodeCheckVIPStatus is not a function');
+        return false;
+    }
+
+    try {
+        console.log(`[DEBUG esUltraVIP] Checking for ${jugador.name}`);
+        const vipStatus = await window.nodeCheckVIPStatus(jugador.name, authId);
+        console.log(`[DEBUG esUltraVIP] vipStatus:`, vipStatus);
+        if (vipStatus && vipStatus.vip_type === 'ULTRA_VIP') {
+            console.log('[DEBUG esUltraVIP] Is Ultra VIP');
+            return true;
+        } else {
+            console.log('[DEBUG esUltraVIP] Is NOT Ultra VIP');
+            return false;
+        }
+    } catch (error) {
+        console.error('Error checking ULTRA_VIP status:', error);
+        return false;
+    }
 }
 
 

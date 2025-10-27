@@ -131,6 +131,18 @@ class BotVIPIntegration {
         }
     }
 
+    async checkVIPStatus(playerName, playerAuth = null) {
+        try {
+            console.log(`[BotVIPIntegration.checkVIPStatus] Checking for ${playerName}`);
+            const result = await this.vipSystem.checkVIPStatus(playerName, playerAuth);
+            console.log(`[BotVIPIntegration.checkVIPStatus] Result for ${playerName}:`, result);
+            return result;
+        } catch (error) {
+            console.error('Error en BotVIPIntegration.checkVIPStatus:', error);
+            return null;
+        }
+    }
+
 
     // === UTILIDADES AUXILIARES ===
 

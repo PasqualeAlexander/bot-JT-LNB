@@ -1784,6 +1784,18 @@ const webhooks = {
         await page.exposeFunction('nodeEsJugadorVIP', dbFunctions.esJugadorVIP);
         await page.exposeFunction('nodeObtenerJugadoresVIP', dbFunctions.obtenerJugadoresVIP);
         await page.exposeFunction('nodeLimpiarVIPsExpirados', dbFunctions.limpiarVIPsExpirados);
+        const vipBot = new BotVIPIntegration();
+        await page.exposeFunction('nodeCheckVIPStatus', async (playerName, playerAuth) => {
+            try {
+                console.log(`[nodeCheckVIPStatus] Checking for ${playerName}`);
+                const result = await vipBot.checkVIPStatus(playerName, playerAuth);
+                console.log(`[nodeCheckVIPStatus] Result for ${playerName}:`, result);
+                return result;
+            } catch (error) {
+                console.error(`[nodeCheckVIPStatus] Error for ${playerName}:`, error);
+                return null;
+            }
+        });
 
         // Exponer API de Football (desde caché)
         await page.exposeFunction('nodeGetCachedFixtures', () => cachedFixtures);
@@ -2046,7 +2058,6 @@ await page.exposeFunction('guardarEstadisticasGlobales', async (datos) => {
         });
 
         // === INICIALIZAR Y EXPONER SISTEMA VIP ===
-        const vipBot = new BotVIPIntegration();
         await page.exposeFunction('nodeHandleVipCommand', async (playerInfo, message, playerList, rolesArray, playerAuthValue) => {
             try {
                 console.log('--- DEBUG VIP PERMISSION ---');

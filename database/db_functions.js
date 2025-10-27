@@ -62,6 +62,7 @@ const dbFunctions = {
         const schema = process.env.DB_NAME || 'lnb_estadisticas';
         await ensureColumnExists(schema, 'jugadores', 'nombre_display', 'VARCHAR(255) NULL AFTER nombre');
         await ensureColumnExists(schema, 'jugadores', 'updated_at', 'TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+        await ensureColumnExists(schema, 'jugadores', 'vip_color', 'VARCHAR(6) NULL DEFAULT NULL');
         const query = 'SELECT * FROM jugadores ORDER BY partidos DESC';
         try {
             const rows = await executeQuery(query);
@@ -117,6 +118,7 @@ const dbFunctions = {
                         codigoRecuperacion: row.codigoRecuperacion || null,
                         fechaCodigoCreado: row.fechaCodigoCreado || null,
                         mvps: row.mvps || 0,
+                        vip_color: row.vip_color || null,
                         
                         // Metadata de identificación
                         tipo_identificacion: row.auth_id ? 'auth' : 'nombre'
@@ -324,6 +326,21 @@ const dbFunctions = {
     },
     
     // ====================== FUNCIONES VIP ======================
+    
+    // Guardar color VIP
+    guardarColorVIP: async (authId, color) => {
+        const query = `UPDATE jugadores SET vip_color = ? WHERE auth_id = ?`;
+        try {
+            const result = await executeQuery(query, [color, authId]);
+            if (result.affectedRows > 0) {
+                console.log(`✅ [DB] Color VIP guardado para ${authId}: ${color}`);
+            }
+            return { success: result.affectedRows > 0 };
+        } catch (error) {
+            console.error('❌ [DB] Error guardando color VIP:', error);
+            throw error;
+        }
+    },
     
     // Activar VIP por auth_id (nuevo flujo recomendado)
     activarVIPPorAuth: async (authId) => {
@@ -909,7 +926,8 @@ const dbFunctions = {
                 nivel: stats?.nivel ?? 1,
                 codigoRecuperacion: stats?.codigoRecuperacion ?? null,
                 fechaCodigoCreado: stats?.fechaCodigoCreado ?? null,
-                mvps: stats?.mvps ?? 0
+                mvps: stats?.mvps ?? 0,
+                vip_color: stats?.vip_color ?? null
             };
 
             const upsertQuery = `
@@ -917,8 +935,8 @@ const dbFunctions = {
                     auth_id, nombre, nombre_display, partidos, victorias, derrotas, goles, asistencias, autogoles,
                     mejorRachaGoles, mejorRachaAsistencias, hatTricks, vallasInvictas, tiempoJugado,
                     promedioGoles, promedioAsistencias, fechaPrimerPartido, fechaUltimoPartido,
-                    xp, nivel, codigoRecuperacion, fechaCodigoCreado, mvps, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    xp, nivel, codigoRecuperacion, fechaCodigoCreado, mvps, vip_color, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON DUPLICATE KEY UPDATE
                     nombre = VALUES(nombre),
                     nombre_display = VALUES(nombre_display),
@@ -941,6 +959,7 @@ const dbFunctions = {
                     codigoRecuperacion = VALUES(codigoRecuperacion),
                     fechaCodigoCreado = VALUES(fechaCodigoCreado),
                     mvps = VALUES(mvps),
+                    vip_color = VALUES(vip_color),
                     updated_at = CURRENT_TIMESTAMP;
             `;
 
@@ -951,7 +970,7 @@ const dbFunctions = {
                 statsSeguras.hatTricks, statsSeguras.vallasInvictas, statsSeguras.tiempoJugado, statsSeguras.promedioGoles, 
                 statsSeguras.promedioAsistencias, statsSeguras.fechaPrimerPartido, statsSeguras.fechaUltimoPartido, 
                 statsSeguras.xp, statsSeguras.nivel, statsSeguras.codigoRecuperacion, statsSeguras.fechaCodigoCreado,
-                statsSeguras.mvps
+                statsSeguras.mvps, statsSeguras.vip_color
             ];
 
             try {

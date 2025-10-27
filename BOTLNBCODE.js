@@ -814,7 +814,7 @@ const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
 const roomPublic = false;
 const roomPassword = null;
-const token = "thr1.AAAAAGj-2OOwHfRj6z_CTA.KwTtGrofkMc";
+const token = "thr1.AAAAAGj_o50uoWO0hxKJQQ.uzW-Uy9p4aY";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -825,7 +825,7 @@ let advertenciasAFK = new Map();
 let comandoCooldown = new Map();
 
 // ==================== SISTEMA DE COLORES VIP ====================
-let vipMessageColors = new Map(); // {playerId: colorHex}
+let vipMessageColors = new Map(); // {authId: colorHex}
 const VIP_COLORS = {
     "naranja": "FF7F00",
     "violeta": "800080",
@@ -7633,14 +7633,45 @@ async function procesarComando(jugador, mensaje) {
                 return;
             }
 
-            if (colorName === 'defecto') {
-                vipMessageColors.delete(jugador.id);
-                anunciarExito("Tu color de mensaje ha sido restaurado al predeterminado.", jugador);
-            } else if (VIP_COLORS[colorName]) {
-                vipMessageColors.set(jugador.id, VIP_COLORS[colorName]);
-                anunciarExito(`Tu color de mensaje ha sido establecido a ${colorName}.`, jugador);
+            if (colorName === "defecto") {
+                const authIdCmd = jugadoresUID.get(jugador.id);
+                if (authIdCmd) vipMessageColors.delete(authIdCmd);
+                try {
+                    anunciarInfo("Tu color de chat ha sido restaurado al color por defecto.", jugador);
+                } catch (chatColorError) {
+                    console.error(`❌ Error al restaurar color de chat para ${jugador.name}:`, chatColorError.message || chatColorError);
+                    console.error(`   Stack trace del error de color:`, chatColorError.stack);
+                    anunciarError("❌ Error interno al restaurar el color de chat. (El color podría haberse restaurado correctamente)", jugador);
+                }
+                
+                // Also save to DB
+                const authId = jugadoresUID.get(jugador.id);
+                if (authId && dbFunctions && dbFunctions.guardarColorVIP) {
+                    await dbFunctions.guardarColorVIP(authId, null);
+                }
+
+                return;
+            }
+
+            const colorHex = VIP_COLORS[colorName];
+            if (colorHex) {
+                const authIdCmd = jugadoresUID.get(jugador.id);
+                if (authIdCmd) vipMessageColors.set(authIdCmd, colorHex);
+                try {
+                    anunciarInfo(`Tu color de chat ha sido cambiado a ${colorName}.`, jugador);
+                } catch (chatColorError) {
+                    console.error(`❌ Error al aplicar color de chat para ${jugador.name}:`, chatColorError.message || chatColorError);
+                    console.error(`   Stack trace del error de color:`, chatColorError.stack);
+                    anunciarError("❌ Error interno al aplicar el color de chat. (El color podría haberse aplicado correctamente)", jugador);
+                }
+
+                // Save color to database
+                const authId = jugadoresUID.get(jugador.id);
+                if (authId && dbFunctions && dbFunctions.guardarColorVIP) {
+                    await dbFunctions.guardarColorVIP(authId, colorHex);
+                }
             } else {
-                anunciarError("Color no válido. Colores disponibles: naranja, violeta, rosa, azul, amarillo.", jugador);
+                anunciarError("Color no válido. Colores disponibles: naranja, violeta, rosa, azul, amarillo, defecto.", jugador);
             }
             break;
 
@@ -14131,7 +14162,8 @@ function configurarEventos() {
         
         // Verificar estado VIP de forma síncrona
         const isVIP = esVIP(jugador);
-        const customColor = vipMessageColors.get(jugador.id);
+        const authIdChat = jugadoresUID.get(jugador.id);
+        const customColor = authIdChat ? vipMessageColors.get(authIdChat) : null;
 
         let prefijoRol = '';
         let mensajeCompleto = '';
@@ -14293,6 +14325,21 @@ function configurarEventos() {
             console.log(`⚠️ [AUTH JOIN DEBUG] JUGADOR SIN AUTH DETECTADO: ${jugador.name} (ID: ${jugador.id})`);
         }
         
+        // ====================== CARGAR COLOR VIP PERSISTENTE ======================
+        try {
+            const authIDJoin = jugadoresUID.get(jugador.id) || jugador.auth;
+            if (authIDJoin && dbFunctions && dbFunctions.obtenerJugadorPorAuth) {
+                const jugadorDB = await dbFunctions.obtenerJugadorPorAuth(authIDJoin);
+                if (jugadorDB && jugadorDB.vip_color) {
+                    vipMessageColors.set(jugador.id, jugadorDB.vip_color);
+                    console.log(`🎨 [VIP COLOR] Color VIP ${jugadorDB.vip_color} restaurado para ${jugador.name}`);
+                }
+            }
+        } catch (error) {
+            console.error(`❌ Error restaurando color VIP para ${jugador.name}:`, error);
+        }
+        // ====================== FIN CARGA COLOR VIP ======================
+
         // Verificar que room esté disponible antes de proceder
         if (!room || !room.sendAnnouncement) {
             console.error('❌ Room no disponible en onPlayerJoin');

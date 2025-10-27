@@ -11,11 +11,19 @@ class BotVIPIntegration {
         this.vipSystem = new VIPSystem();
         this.vipCommands = new VIPCommands(room, jugadoresConRoles); // Pasar room y roles para soporte #ID
         this.room = room;
-        
-        // Configurar limpieza automática de VIPs expirados cada hora
-        setInterval(() => {
-            this.vipSystem.cleanupExpiredVIPs().catch(console.error);
-        }, 60 * 60 * 1000); // 1 hora
+    }
+
+    setRoom(room) {
+        this.room = room;
+        if (this.vipCommands) {
+            this.vipCommands.room = room;
+        }
+    }
+
+    setRoles(rolesMap) {
+        if (this.vipCommands) {
+            this.vipCommands.jugadoresConRoles = rolesMap;
+        }
     }
 
     // === INTEGRACIÓN EN EL CHAT DEL JUEGO ===

@@ -39,6 +39,7 @@ const { executeQuery, executeTransaction, testConnection, closePool } = require(
 // Importar funciones de base de datos
 const dbFunctions = require('./database/db_functions');
 const unbanMejorado = require('./unban_mejorado.js');
+const BotVIPIntegration = require('./bot_vip_integration.js');
 
 // Importar API de Football
 const { getLiveFixtures } = require('./api_football.js');
@@ -1838,6 +1839,9 @@ const webhooks = {
         await page.exposeFunction('nodeUnbanMejorado', authId => unbanMejorado.unbanMejorado(authId));
         await page.exposeFunction('nodeObtenerBaneosActivos', dbFunctions.obtenerBaneosActivos);
         
+        // Exponer la nueva función basada en promesas para verificar baneo
+
+        
         // Exponer funciones de tracking de salidas
         await page.exposeFunction('nodeRegistrarSalidaJugador', dbFunctions.registrarSalidaJugador);
         await page.exposeFunction('nodeObtenerUltimasSalidas', dbFunctions.obtenerUltimasSalidas);
@@ -2040,6 +2044,37 @@ await page.exposeFunction('guardarEstadisticasGlobales', async (datos) => {
                 return { totalRoles: 0, superAdmins: 0, adminsFull: 0, adminsBasico: 0 };
             }
         });
+
+        // === INICIALIZAR Y EXPONER SISTEMA VIP ===
+        const vipBot = new BotVIPIntegration();
+        await page.exposeFunction('nodeHandleVipCommand', async (playerInfo, message, playerList, rolesArray, playerAuthValue) => {
+            try {
+                console.log('--- DEBUG VIP PERMISSION ---');
+                console.log('Received playerInfo.name:', playerInfo.name);
+                console.log('Received playerAuthValue:', playerAuthValue);
+                console.log('Received rolesArray:', JSON.stringify(rolesArray, null, 2));
+                console.log('Received playerList:', JSON.stringify(playerList, null, 2));
+
+                const mockRoom = { getPlayerList: () => playerList };
+                const rolesMap = new Map(rolesArray);
+                vipBot.setRoom(mockRoom);
+                vipBot.setRoles(rolesMap);
+                return await vipBot.handlePlayerMessage(playerInfo.name, message, playerAuthValue);
+            } catch (error) {
+                console.error('❌ Error en nodeHandleVipCommand:', error);
+                return `❌ Error interno en el sistema VIP: ${error.message}`;
+            }
+        });
+
+        await page.exposeFunction('nodeVipBotOnPlayerJoin', async (playerName, playerAuth) => {
+            try {
+                return await vipBot.onPlayerJoin(playerName, playerAuth);
+            } catch (error) {
+                console.error('❌ Error en nodeVipBotOnPlayerJoin:', error);
+                return { isVIP: false, welcomeMessage: null };
+            }
+        });
+
 
         await page.exposeFunction('nodeEnviarWebhook', async (webhookUrl, payload) => {
             try {

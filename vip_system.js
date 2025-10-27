@@ -77,6 +77,7 @@ class VIPSystem {
             await executeQuery(`CREATE TABLE IF NOT EXISTS vip_memberships (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 player_name VARCHAR(100) NOT NULL,
+                auth_id VARCHAR(255) NOT NULL,
                 vip_type VARCHAR(50) NOT NULL,
                 granted_by VARCHAR(100) NOT NULL,
                 granted_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -84,8 +85,20 @@ class VIPSystem {
                 is_active BOOLEAN DEFAULT TRUE,
                 reason TEXT,
                 INDEX idx_player_active (player_name, is_active),
+                INDEX idx_auth_id (auth_id),
                 INDEX idx_expiry (expiry_date)
             )`);
+
+            // Verificar y añadir columna auth_id si no existe
+            const checkAuthIdColumnQuery = `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                                            WHERE TABLE_SCHEMA = 'lnb_estadisticas' AND TABLE_NAME = 'vip_memberships'
+                                            AND COLUMN_NAME = 'auth_id'`;
+            const authIdColumnExists = await executeQuery(checkAuthIdColumnQuery);
+
+            if (authIdColumnExists.length === 0) {
+                await executeQuery(`ALTER TABLE vip_memberships ADD COLUMN auth_id VARCHAR(255) NOT NULL DEFAULT 'UNKNOWN'`);
+                console.log(`✅ Columna auth_id agregada a vip_memberships`);
+            }
 
             // Crear tabla de beneficios utilizados
             await executeQuery(`CREATE TABLE IF NOT EXISTS vip_benefits_used (

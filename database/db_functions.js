@@ -802,8 +802,13 @@ const dbFunctions = {
             }
 
             const expiredIds = expiredBans.map(ban => ban.id);
-            const updateQuery = `UPDATE baneos SET activo = 0 WHERE id IN (?)`;
-            const result = await executeQuery(updateQuery, [expiredIds]);
+
+            // Dynamically create placeholders for the IN clause
+            const placeholders = expiredIds.map(() => '?').join(', ');
+            const updateQuery = `UPDATE baneos SET activo = 0 WHERE id IN (${placeholders})`;
+            
+            // Pass the array of IDs directly as parameters
+            const result = await executeQuery(updateQuery, expiredIds);
 
             console.log(`🧹 [DB] Limpiados ${result.affectedRows} baneos expirados.`);
             return {

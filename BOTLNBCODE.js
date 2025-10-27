@@ -153,19 +153,7 @@ if (isNode) {
     }
 }
 
-// ==================== SISTEMA VIP ====================
-// Importar sistema VIP completo con comandos y beneficios diferenciados
-let BotVIPIntegration = null;
-let vipBot = null;
-if (isNode) {
-    try {
-        const VIPIntegrationModule = require('./bot_vip_integration.js');
-        BotVIPIntegration = VIPIntegrationModule;
-        console.log('✅ Sistema VIP importado correctamente');
-    } catch (error) {
-        console.warn('⚠️ No se pudo importar el sistema VIP:', error.message);
-    }
-}
+// SISTEMA VIP (CARGADO DESDE NODE.JS)
 
 // ==================== SISTEMA DE BANEOS OFFLINE ====================
 // Importar sistema de baneos offline para banear jugadores desconectados
@@ -824,7 +812,7 @@ async function registrarJugador(jugadorHB) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
-const roomPublic = true;
+const roomPublic = false;
 const roomPassword = null;
 const token = "thr1.AAAAAGj-2OOwHfRj6z_CTA.KwTtGrofkMc";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
@@ -9561,29 +9549,38 @@ anunciarError("Uso: !pw <contraseña>", jugador);
         case "effect":
         case "premium":
         case "exclusive":
-            // Usar el sistema VIP completo si está disponible
-            if (vipBot) {
-                try {
-                    const vipResponse = await vipBot.handlePlayerMessage(jugador.name, mensaje, jugador.auth);
-                    console.log(`[DEBUG] vipResponse for ${jugador.name}: ${vipResponse}`);
+            // Llamar al sistema VIP a través del puente de Node.js usando .then()
+            const playerInfo = {
+                id: jugador.id,
+                name: jugador.name
+            };
+            // Retrieve auth from jugadoresUID
+            const playerAuthValue = jugadoresUID.get(jugador.id);
+            console.log(`[DEBUG onPlayerChat] Retrieved auth from jugadoresUID: ${playerAuthValue}`);
+            const playerList = room.getPlayerList().map(p => ({
+                id: p.id,
+                name: p.name,
+                team: p.team,
+                admin: p.admin,
+                position: p.position,
+                auth: jugadoresUID.get(p.id) // Add auth from jugadoresUID
+            }));
+            const rolesArray = Array.from(jugadoresConRoles.entries());
+            window.nodeHandleVipCommand(playerInfo, mensaje, playerList, rolesArray, playerAuthValue)
+                .then(vipResponse => {
                     if (vipResponse) {
-                        // Enviar respuesta del sistema VIP al jugador
                         const lineas = vipResponse.split('\n');
                         for (const linea of lineas) {
                             if (linea.trim()) {
                                 room.sendAnnouncement(linea.trim(), jugador.id, parseInt("FFD700", 16), "normal", 0);
                             }
                         }
-                        return;
                     }
-                } catch (error) {
-                    console.error('❌ Error en comando VIP:', error);
+                })
+                .catch(error => {
+                    console.error('❌ Error en comando VIP via Node:', error);
                     anunciarError("⚠️ Error procesando comando VIP. Contacta un administrador.", jugador);
-                    return;
-                }
-            }
-            
-            
+                });
             break;
             
         case "activarvip":
@@ -12142,7 +12139,7 @@ async function registrarGol(goleador, equipo, asistente) {
                             anunciarInfo(`🏆 ${goalResult.xpMessage}`);
                         }
                     } catch (error) {
-                        console.error('❌ Error aplicando XP VIP por gol:', error);
+                        console.error('❌ Error en verificación VIP en onPlayerJoin:', error);
                         // Fallback a XP normal si hay error
                         otorgarXP(nombreGoleador, 'gol');
                     }
@@ -14257,20 +14254,19 @@ function configurarEventos() {
             }
         }
         // ====================== VERIFICACIÓN DE BANEOS (PRIMERO) ======================
-        if (jugador.auth) {
-            try {
-                const baneo = await dbFunctions.estaBaneadoPromise(jugador.auth);
-                if (baneo) {
-                    const razon = baneo.razon || 'Sin razón especificada';
-                    const admin = baneo.admin || 'Sistema';
-                    room.kickPlayer(jugador.id, `🚫 BANEADO: ${razon}. Admin: ${admin}.`, true);
-                    return; // Detener el proceso de unión
-                }
-            } catch (error) {
-                console.error('❌ Error verificando baneo en onPlayerJoin:', error);
-            }
-        }
-
+                    if (jugador.auth) {
+                        try {
+                            const baneo = await window.nodeEstaBaneadoPromise(jugador.auth);
+                            if (baneo) {
+                                const razon = baneo.razon || 'Sin razón especificada';
+                                const admin = baneo.admin || 'Sistema';
+                                room.kickPlayer(jugador.id, `🚫 BANEADO: ${razon}. Admin: ${admin}.`, true);
+                                return; // Detener el proceso de unión
+                            }
+                        } catch (error) {
+                            console.error('❌ Error verificando baneo en onPlayerJoin:', error);
+                        }
+                    }
         gestionarContraseñaSala();
         console.log(`🎮 DEBUG: Jugador se unió: ${jugador.name} (ID: ${jugador.id})`);
         
@@ -15029,10 +15025,10 @@ setTimeout(() => {
         
         // ====================== SISTEMA VIP - BIENVENIDA ======================
         // Verificar si el jugador tiene VIP y mostrar mensaje de bienvenida
-        if (vipBot) {
+        // if (vipBot) { // This check is no longer needed if we always call the bridge
             try {
                 console.log(`👑 [VIP DEBUG] Verificando estado VIP para ${jugador.name}`);
-                const joinResult = await vipBot.onPlayerJoin(jugador.name, jugador.auth);
+                const joinResult = await window.nodeVipBotOnPlayerJoin(jugador.name, jugador.auth);
                 
                 if (joinResult && joinResult.isVIP && joinResult.welcomeMessage) {
                     console.log(`👑 [VIP DEBUG] Jugador VIP detectado: ${jugador.name} (Tipo: ${joinResult.vipType})`);
@@ -15047,24 +15043,14 @@ setTimeout(() => {
                             1
                         );
                         
-                        // Mensaje adicional con comandos VIP disponibles
-                        setTimeout(() => {
-                            room.sendAnnouncement(
-                                "💬 Usa !viphelp para ver tus comandos especiales",
-                                jugador.id,
-                                parseInt("00FF00", 16),
-                                "normal",
-                                0
-                            );
-                        }, 1500);
-                    }, 2000); // Delay para no saturar mensajes al conectarse
+                                            }, 2000); // Delay para no saturar mensajes al conectarse
                 } else {
                     console.log(`👑 [VIP DEBUG] Jugador no VIP: ${jugador.name}`);
                 }
             } catch (error) {
                 console.error(`❌ [VIP DEBUG] Error verificando estado VIP para ${jugador.name}:`, error);
             }
-        }
+        // }
         // ====================== FIN SISTEMA VIP ======================
         
         // ====================== ENVIAR REPORTE DE CONEXIÓN AL WEBHOOK ======================
@@ -16553,25 +16539,10 @@ async function inicializar() {
         console.log('✅ Sistema de tracking persistente ya estaba inicializado');
     }
     
-    // ==================== INICIALIZAR SISTEMA VIP ====================
-    // Inicializar el sistema VIP completo después de crear la sala
-    if (BotVIPIntegration && !vipBot) {
-        try {
-            console.log('🔄 Inicializando sistema VIP...');
-            vipBot = new BotVIPIntegration(room, jugadoresConRoles); // Pasar referencia del room y roles para soporte #ID
-            console.log('✅ Sistema VIP inicializado correctamente');
-            anunciarInfo('👑 Sistema VIP activado - Comandos: !givevip, !giveultravip, !viphelp (soporte #ID)');
-        } catch (error) {
-            console.error('❌ Error al inicializar sistema VIP:', error);
-            anunciarError('⚠️ Error al activar el sistema VIP - comandos básicos disponibles');
-            // El sistema continúa con los comandos básicos de VIP
-        }
-    } else if (!BotVIPIntegration) {
-        console.warn('⚠️ Sistema VIP no está disponible - usando comandos básicos');
-        anunciarAdvertencia('⚠️ Sistema VIP básico activo (sin base de datos)');
-    } else {
-        console.log('✅ Sistema VIP ya estaba inicializado');
-    }
+
+    
+    
+
     
     
     // Cargar estadísticas globales desde localStorage

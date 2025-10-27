@@ -52,12 +52,28 @@ class VIPCommands {
 
     // Verificar si un jugador es OWNER (solo ellos pueden gestionar VIPs)
     isOwner(playerName, playerAuth = null) {
-        if (!this.room || !playerAuth) return false;
+        console.log('--- DEBUG isOwner ---');
+        console.log('Checking owner for:', playerName, playerAuth);
+        if (!this.room || !playerAuth) {
+            console.log('isOwner returning false (no room or no auth)');
+            return false;
+        }
         const player = this.room.getPlayerList().find(p => p.auth === playerAuth);
-        if (!player) return false;
+        if (!player) {
+            console.log('isOwner returning false (player not found in playerList)');
+            return false;
+        }
+        console.log('Found player in list:', player.id, player.name);
 
+        console.log('jugadoresConRoles size:', this.jugadoresConRoles.size);
+        
         const rolInfo = this.jugadoresConRoles.get(player.id);
-        return rolInfo && rolInfo.role === 'SUPER_ADMIN';
+        console.log('rolInfo for player.id', player.id, 'is:', rolInfo);
+
+        const isOwner = rolInfo && rolInfo.role === 'SUPER_ADMIN';
+        console.log('isOwner result:', isOwner);
+        console.log('----------------------');
+        return isOwner;
     }
 
     // Procesar comandos VIP

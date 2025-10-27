@@ -179,8 +179,8 @@ const dbFunctions = {
             for (const [identificador, stats] of Object.entries(datos.jugadores)) {
                 try {
                     // Determinar si el identificador es un auth_id o nombre
-                    const esAuthId = stats.auth_id || stats.tipo_identificacion === 'auth';
-                    const authId = esAuthId ? stats.auth_id || identificador : null;
+                    const esAuthId = stats.auth_id || stats.authID || stats.tipo_identificacion === 'auth';
+                    const authId = esAuthId ? stats.auth_id || stats.authID || identificador : null;
                     const nombreJugador = stats.nombre_display || stats.nombre || identificador;
                     
                     if (authId) {

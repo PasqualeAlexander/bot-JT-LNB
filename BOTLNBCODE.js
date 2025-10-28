@@ -812,9 +812,9 @@ async function registrarJugador(jugadorHB) {
 // Variables de configuración (estas deben coincidir con bot.js)
 const roomName = "⚡🔥🟣 ❰LNB❱ JUEGAN TODOS X7 🟣🔥⚡";
 const maxPlayers = 18;
-const roomPublic = false;
+const roomPublic = true;
 const roomPassword = null;
-const token = "thr1.AAAAAGj_o50uoWO0hxKJQQ.uzW-Uy9p4aY";
+const token = "thr1.AAAAAGkA1q_wH3TEo8u9fg.jNx8-7WMEHs";
 const geo = { code: 'AR', lat: -34.7000, lon: -58.2800 };  // Ajustado para Quilmes, Buenos Aires
 
 // Variable para almacenar el objeto room
@@ -13129,11 +13129,7 @@ anunciarError("❌ Ya has votado en la votación actual", jugador);
         // Agregar voto
         votacionLlamarAdmin.votos.add(jugador.id);
         
-        // Mostrar el motivo nuevamente cuando alguien vota (en color amarillo como el de gol)
-        anunciarGeneral(`🚨 MOTIVO: "${votacionLlamarAdmin.mensaje.toUpperCase()}"`, COLORES.DORADO, "bold");
-        
-        // Mostrar votos actuales en color amarillo como el de gol
-        anunciarGeneral(`🗳️ ${jugador.name.toUpperCase()} VOTÓ PARA LLAMAR ADMIN. VOTOS: ${votacionLlamarAdmin.votos.size}/${votantesMinimos}`, COLORES.DORADO, "bold");
+        anunciarGeneral(`${jugador.name} votó para llamar un admin, votos actuales ${votacionLlamarAdmin.votos.size}/${votantesMinimos}`, COLORES.ADVERTENCIA, "bold");
         
         // Verificar si se alcanzó el mínimo
         if (votacionLlamarAdmin.votos.size >= votantesMinimos) {
@@ -13161,11 +13157,10 @@ anunciarAdvertencia(`⏰ TIEMPO AGOTADO PARA LA VOTACIÓN DE LLAMAR ADMIN. SE OB
         }
     }, 60000);
     
-    // Anunciar votación
-anunciarAdvertencia(`🚨 ${jugador.name.toUpperCase()} QUIERE LLAMAR A UN ADMIN: "${mensaje.toUpperCase()}"`, jugador);
-    anunciarInfo(`🗳️ ESCRIBAN !LLAMARADMIN PARA VOTAR. SE NECESITAN ${votantesMinimos} VOTOS. TIEMPO: 60 SEGUNDOS`);
-    anunciarInfo(`📊 VOTOS ACTUALES: 1/${votantesMinimos}`);
-}
+        // Anunciar votación
+        anunciarAdvertencia(`🚨 ${jugador.name.toLowerCase()} quiere llamar a un admin: "${mensaje.toLowerCase()}"`, jugador);
+        anunciarGeneral(`ℹ️ 🗳️ Escriban !llamaradmin para votar el llamado. Se necesitan ${votantesMinimos} votos. Tiempo: 60 Segundos.`, COLORES.ADVERTENCIA, "bold");
+        anunciarGeneral(`ℹ️ 📊 VOTOS ACTUALES: 1/${votantesMinimos}`, COLORES.ADVERTENCIA, "bold");}
 
 // FUNCIÓN PARA ENVIAR SOLICITUD DE ADMIN
 function enviarSolicitudAdmin(iniciador, mensaje, totalVotos) {
@@ -16995,6 +16990,22 @@ function restaurarBaneos() {
     }
 }
 
+// Función para enviar anuncio de !llamaradmin cada 12 minutos
+function iniciarAnuncioLlamarAdmin() {
+    setInterval(() => {
+        try {
+            if (typeof room !== 'undefined' && room && room.sendAnnouncement) {
+                const players = room.getPlayerList ? room.getPlayerList() : [];
+                if (!players || players.length === 0) return;
+
+                room.sendAnnouncement("📣 ¿ᴠᴇs ᴀ ᴜɴ ᴛʀᴏʟʟ, ᴀʟɢᴜɪᴇɴ ɪɴᴛᴇʀʀᴜᴍᴘɪᴇɴᴅᴏ ᴇʟ ᴊᴜᴇɢᴏ ʟɪᴍᴘɪᴏ ᴏ ʜᴀᴄɪᴇɴᴅᴏ ᴛʀᴀᴍᴘᴀs? ᴜsᴀ !ʟʟᴀᴍᴀʀᴀᴅᴍɪɴ <ᴍᴏᴛɪᴠᴏ> ᴘᴀʀᴀ ᴀʟᴇʀᴛᴀʀ ᴀ ᴜɴ ᴀᴅᴍɪɴɪsᴛʀᴀᴅᴏʀ ᴇɴ ᴅɪsᴄᴏʀᴅ. ¡ᴅᴇsᴄʀɪʙᴇ ʟᴀ sɪᴛᴜᴀᴄɪóɴ ᴇɴ ᴜɴ ᴍᴇɴsᴀᴊᴇ ᴄᴏʀᴛᴏ!", null, 0xFFD700, "normal", 0);
+            }
+        } catch (error) {
+            console.error('Error en anuncio de !llamaradmin:', error);
+        }
+    }, 720000); // 12 minutos
+}
+
 // FUNCIÓN AUXILIAR PARA INICIALIZAR SISTEMAS
 async function inicializarSistemas() {
     // Cargar estadísticas globales
@@ -17021,7 +17032,8 @@ async function inicializarSistemas() {
     // Iniciar sistema de guardado automático optimizado
     iniciarGuardadoAutomatico();
     
-
+    // Iniciar anuncio para llamar a admin
+    iniciarAnuncioLlamarAdmin();
     
     // SISTEMA OPTIMIZADO DE LIMPIEZA - Menos frecuente para ahorrar CPU
     setInterval(limpiarDatosExpirados, 180000); // OPTIMIZADO: Cada 3 minutos (era 1 minuto)

@@ -44,3 +44,8 @@ coverage/
 temp_*
 debug_*
 .aider*
+
+# Untracked files added by Gemini
+backup_mysql_/lnb_estadisticas_backup_20251029_100226.sql
+backup_mysql_/lnb_estadisticas_backup_20251029_100955.sql
+database/create_mutes_table.sql

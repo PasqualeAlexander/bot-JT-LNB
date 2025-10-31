@@ -1127,6 +1127,103 @@ let spamControl = new Map(); // {playerID: {count, lastMessage, timestamp, warni
 let cooldownGlobal = new Map(); // {playerID: timestamp}
 let jugadoresSilenciadosPorSpam = new Map(); // {playerID: {finSilencio: timestamp, razon: string}}
 
+// ==================== SISTEMA DE MUTES PERSISTENTES ====================
+async function cargarMutesPersistentes() {
+    if (!dbFunctions) {
+        console.warn('⚠️ dbFunctions no está disponible, no se cargarán mutes persistentes.');
+        return;
+    }
+    try {
+        const activeMutes = await dbFunctions.executeQuery(
+            `SELECT auth_id, nombre_jugador, admin_auth_id, admin_nombre, razon, start_time, end_time, duracion_minutos
+             FROM mutes
+             WHERE activo = 1 AND (end_time IS NULL OR end_time > NOW())`
+        );
+
+        jugadoresMuteados.clear();
+        jugadoresMuteadosTemporales.clear();
+
+        for (const mute of activeMutes) {
+            if (mute.end_time === null) {
+                // Mute permanente
+                jugadoresMuteados.add(mute.auth_id);
+                console.log(`🔇 Cargado mute permanente para ${mute.nombre_jugador} (${mute.auth_id})`);
+            } else {
+                // Mute temporal
+                const finMute = new Date(mute.end_time).getTime();
+                const tiempoRestante = finMute - Date.now();
+
+                if (tiempoRestante > 0) {
+                    const timeoutId = setTimeout(() => {
+                        // Desmutear automáticamente
+                        jugadoresMuteadosTemporales.delete(mute.auth_id);
+                        dbFunctions.executeQuery('UPDATE mutes SET activo = 0 WHERE auth_id = ? AND activo = 1', [mute.auth_id]);
+                        console.log(`🔊 Mute temporal expirado y removido para ${mute.nombre_jugador} (${mute.auth_id})`);
+                        // Opcional: enviar anuncio en sala si el jugador está conectado
+                    }, tiempoRestante);
+
+                    jugadoresMuteadosTemporales.set(mute.auth_id, {
+                        finMute: finMute,
+                        razon: mute.razon,
+                        timeoutId: timeoutId,
+                        nombre_jugador: mute.nombre_jugador // Guardar nombre para referencia
+                    });
+                    console.log(`🔇 Cargado mute temporal para ${mute.nombre_jugador} (${mute.auth_id}). Expira en ${Math.ceil(tiempoRestante / 60000)} minutos.`);
+                } else {
+                    // Mute ya expirado, marcar como inactivo en DB
+                    dbFunctions.executeQuery('UPDATE mutes SET activo = 0 WHERE auth_id = ? AND activo = 1', [mute.auth_id]);
+                    console.log(`🧹 Limpiado mute expirado de ${mute.nombre_jugador} (${mute.auth_id}) al inicio.`);
+                }
+            }
+        }
+        console.log(`✅ Mutes persistentes cargados: ${jugadoresMuteados.size} permanentes, ${jugadoresMuteadosTemporales.size} temporales.`);
+    } catch (error) {
+        console.error('❌ Error cargando mutes persistentes:', error);
+    }
+}
+
+// Helper para guardar/actualizar mute en la base de datos
+async function guardarMutePersistente(muteData) {
+    if (!dbFunctions) {
+        console.warn('⚠️ dbFunctions no está disponible, no se guardará el mute persistente.');
+        return { success: false, error: 'DB_NOT_AVAILABLE' };
+    }
+    try {
+        const { auth_id, nombre_jugador, admin_auth_id, admin_nombre, razon, duracion_minutos, end_time, activo } = muteData;
+
+        // Verificar si ya existe un mute activo para este auth_id
+        const existingMute = await dbFunctions.executeQuery(
+            'SELECT id FROM mutes WHERE auth_id = ? AND activo = 1',
+            [auth_id]
+        );
+
+        if (existingMute.length > 0) {
+            // Actualizar mute existente
+            await dbFunctions.executeQuery(
+                `UPDATE mutes SET
+                 nombre_jugador = ?, admin_auth_id = ?, admin_nombre = ?, razon = ?,
+                 start_time = CURRENT_TIMESTAMP, end_time = ?, duracion_minutos = ?, activo = ?
+                 WHERE id = ?`,
+                [nombre_jugador, admin_auth_id, admin_nombre, razon, end_time, duracion_minutos, activo, existingMute[0].id]
+            );
+            console.log(`💾 Mute actualizado en DB para ${nombre_jugador} (${auth_id})`);
+        } else {
+            // Insertar nuevo mute
+            await dbFunctions.executeQuery(
+                `INSERT INTO mutes
+                 (auth_id, nombre_jugador, admin_auth_id, admin_nombre, razon, end_time, duracion_minutos, activo)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [auth_id, nombre_jugador, admin_auth_id, admin_nombre, razon, end_time, duracion_minutos, activo]
+            );
+            console.log(`💾 Nuevo mute guardado en DB para ${nombre_jugador} (${auth_id})`);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error guardando mute persistente en DB:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 function verificarSpam(jugador, mensaje) {
     // EXCEPCIÓN PARA ADMINISTRADORES - Los admins no pueden ser silenciados por spam
     if (esAdminBasico(jugador)) {
@@ -9076,48 +9173,59 @@ anunciarError("Uso: !pw <contraseña>", jugador);
             }
             break;
             
-        case "unmute":
-            if (!esAdminBasico(jugador)) {
-                anunciarError("❌ No tienes permisos para desmutear jugadores.", jugador);
-                return;
-            }
-            if (args[1]) {
-                const nombreJugador = args[1];
-                const jugadorObjetivo = obtenerJugadorPorNombreOID(nombreJugador);
-                
-                if (jugadorObjetivo) {
+                case "unmute":
+                    if (!esAdmin(jugador)) {
+                        anunciarError("❌ No tienes permisos para desmutear jugadores.", jugador);
+                        return;
+                    }
+        
+                    const targetInputUnmute = args[1];
+                    if (!targetInputUnmute) {
+                        anunciarError("📝 Uso: !unmute <jugador>", jugador);
+                        return;
+                    }
+        
+                    const jugadorObjetivoUnmute = obtenerJugadorPorID(room, targetInputUnmute) || obtenerJugadorPorNombre(room, targetInputUnmute);
+                    if (!jugadorObjetivoUnmute) {
+                        anunciarError(`❌ Jugador "${targetInputUnmute}" no encontrado en la sala.`, jugador);
+                        return;
+                    }
+        
+                    const jugadorObjetivoUnmuteAuthId = jugadorObjetivoUnmute.auth || jugadoresUID.get(jugadorObjetivoUnmute.id);
+                    if (!jugadorObjetivoUnmuteAuthId) {
+                        anunciarError("❌ No se pudo obtener el AuthID del jugador objetivo.", jugador);
+                        return;
+                    }
+        
                     let jugadorDesmmuteado = false;
-                    
+        
                     // Verificar y remover mute permanente
-                    if (jugadoresMuteados.has(jugadorObjetivo.id)) {
-                        jugadoresMuteados.delete(jugadorObjetivo.id);
+                    if (jugadoresMuteados.has(jugadorObjetivoUnmute.id)) {
+                        jugadoresMuteados.delete(jugadorObjetivoUnmute.id);
                         jugadorDesmmuteado = true;
                     }
-                    
+        
                     // Verificar y remover mute temporal
-                    const muteTemp = jugadoresMuteadosTemporales.get(jugadorObjetivo.id);
-                    if (muteTemp) {
-                        clearTimeout(muteTemp.timeoutId);
-                        jugadoresMuteadosTemporales.delete(jugadorObjetivo.id);
+                    const muteTempUnmute = jugadoresMuteadosTemporales.get(jugadorObjetivoUnmute.id);
+                    if (muteTempUnmute) {
+                        clearTimeout(muteTempUnmute.timeoutId);
+                        jugadoresMuteadosTemporales.delete(jugadorObjetivoUnmute.id);
                         jugadorDesmmuteado = true;
                     }
-                    
+        
                     if (jugadorDesmmuteado) {
-                        anunciarExito(`🔊 ${jugadorObjetivo.name} ha sido desmuteado por ${jugador.name}`);
-                        
-                        // Enviar notificación al webhook
-                        enviarNotificacionMute("unmute", jugador.name, jugadorObjetivo.name, jugadorObjetivo.id);
+                        anunciarExito(`🔊 ${jugadorObjetivoUnmute.name} ha sido desmuteado por ${jugador.name}`);
+                        room.sendAnnouncement("ℹ️ ✅ Finalizó tu muteo", jugadorObjetivoUnmute.id, parseInt(CELESTE_LNB, 16), "normal", 0);
+                        enviarNotificacionMute("unmute", jugador.name, jugadorObjetivoUnmute.name, jugadorObjetivoUnmute.id);
+        
+                        // Actualizar DB: marcar mute como inactivo
+                        if (dbFunctions) {
+                            await dbFunctions.executeQuery('UPDATE mutes SET activo = 0, end_time = NOW() WHERE auth_id = ? AND activo = 1', [jugadorObjetivoUnmuteAuthId]);
+                        }
                     } else {
-                        anunciarError(`❌ ${jugadorObjetivo.name} no está muteado`, jugador);
+                        anunciarError(`❌ ${jugadorObjetivoUnmute.name} no está muteado`, jugador);
                     }
-                } else {
-                    anunciarError("❌ Jugador no encontrado", jugador);
-                }
-            } else {
-                anunciarError("📝 Uso: !unmute <jugador>", jugador);
-            }
-            break;
-            
+                    break;            
         case "ban":
             // 1. Verificar si el usuario es al menos admin básico
             if (!esAdminBasico(jugador)) {
@@ -16480,6 +16588,11 @@ async function inicializar() {
         
         // Crear sala
         room = HBInit(configSala);
+
+        // Cargar mutes persistentes al iniciar el bot
+        if (dbFunctions) {
+            await cargarMutesPersistentes();
+        }
 
         // Activar sistemas que dependen del objeto room
         if (OfflineBanSystem) {

@@ -441,16 +441,13 @@ ${vipStatus.color} Tipo: ${vipStatus.vip_type}
         const benefits = this.vipSystem.getVIPBenefits(vipStatus.vip_type);
         const commands = this.vipSystem.vipCommands[vipStatus.vip_type] || [];
 
-        let response = `${benefits.color} Ayuda ${benefits.name}:
+        let commandsList = commands.map(cmd => `${cmd}`).join(', ');
+        let benefitsList = benefits.benefits.slice(0, 5).map(benefit => `${benefit}`).join(', ');
 
-🎯 Comandos disponibles:
-${commands.map(cmd => `• ${cmd}`).join('\n')}
-
-✨ Beneficios:
-${benefits.benefits.slice(0, 5).map(benefit => `• ${benefit}`).join('\n')}`;
+        let response = `${benefits.color} Ayuda ${benefits.name}: Comandos disponibles: ${commandsList}. Beneficios: ${benefitsList}.`;
 
         if (benefits.benefits.length > 5) {
-            response += `\n... y ${benefits.benefits.length - 5} más`;
+            response += ` ... y ${benefits.benefits.length - 5} más.`;
         }
 
         return response;

@@ -365,7 +365,13 @@ class VIPSystem {
             const vipStatus = await this.checkVIPStatus(playerName);
             
             if (!vipStatus) {
-                return false;
+                return false; // No tiene VIP activo o ha expirado (ya filtrado por checkVIPStatus)
+            }
+
+            // Verificación explícita de la fecha de expiración (redundante pero para mayor claridad)
+            if (vipStatus.expiry_date && new Date(vipStatus.expiry_date) <= new Date()) {
+                console.log(`⚠️ [VIP SYSTEM] Jugador ${playerName} con VIP expirado intentó usar comando ${command}`);
+                return false; // VIP expirado
             }
 
             const availableCommands = this.vipCommands[vipStatus.vip_type] || [];
